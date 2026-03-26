@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Akaani Admin — Customers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/shared.css">
+<style>
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --sidebar-bg:#003232; --sidebar-active:#004d4d; --sidebar-text:rgba(255,255,255,0.55);
+  --sidebar-text-active:#fff; --sidebar-accent:#5DCAA5; --sidebar-border:rgba(255,255,255,0.07);
+  --bg:#F5F6FA; --surface:#ffffff; --surface-2:#F9FAFB;
+  --text-primary:#111827; --text-secondary:#6B7280; --text-tertiary:#9CA3AF;
+  --border:#E5E7EB; --border-light:#F3F4F6;
+  --green:#003232; --green-mid:#1D9E75; --green-light:#E1F5EE;
+  --amber:#C8A97E; --amber-light:#FDF6EE;
+  --chili:#E24B4A; --chili-light:#FEECEC;
+  --blue-light:#E6F1FB; --blue:#185FA5;
+  --purple-light:#EEEDFE; --purple:#534AB7;
+  --radius-sm:8px; --radius-md:12px; --radius-lg:16px; --radius-xl:20px;
+  --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:0 4px 16px rgba(0,0,0,0.07),0 2px 6px rgba(0,0,0,0.04);
+  --shadow-lg:0 12px 40px rgba(0,0,0,0.13),0 4px 12px rgba(0,0,0,0.07);
+}
+html,body{height:100%;font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text-primary);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+
+/* Layout */
+.layout{display:flex;height:100vh;overflow:hidden;}
+
+/* Sidebar */
+.sidebar{width:220px;min-width:220px;background:var(--sidebar-bg);display:flex;flex-direction:column;position:relative;overflow:hidden;}
+.sidebar::before{content:'';position:absolute;bottom:-60px;right:-60px;width:200px;height:200px;background:radial-gradient(circle,rgba(93,202,165,0.12) 0%,transparent 70%);pointer-events:none;}
+.sidebar-logo{padding:24px 20px 20px;border-bottom:1px solid var(--sidebar-border);display:flex;align-items:center;gap:10px;}
+.logo-icon{width:32px;height:32px;background:var(--sidebar-accent);border-radius:8px;display:flex;align-items:center;justify-content:center;}
+.logo-icon svg{width:18px;height:18px;}
+.logo-text{font-size:19px;font-weight:700;color:#fff;letter-spacing:-0.02em;}
+.sidebar-section{padding:20px 12px 8px;}
+.sidebar-section-label{font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.25);padding:0 8px;margin-bottom:6px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--radius-sm);color:var(--sidebar-text);cursor:pointer;transition:all 0.18s ease;font-size:13.5px;font-weight:400;margin-bottom:1px;position:relative;text-decoration:none;}
+.nav-item:hover{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.85);}
+.nav-item.active{background:var(--sidebar-active);color:var(--sidebar-text-active);font-weight:500;}
+.nav-item.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:18px;background:var(--sidebar-accent);border-radius:0 2px 2px 0;}
+.nav-icon{width:18px;height:18px;flex-shrink:0;opacity:0.7;display:flex;align-items:center;justify-content:center;}
+.nav-item.active .nav-icon{opacity:1;}
+.nav-badge{margin-left:auto;background:rgba(93,202,165,0.15);color:var(--sidebar-accent);font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;}
+.sidebar-bottom{margin-top:auto;border-top:1px solid var(--sidebar-border);padding:14px 12px;}
+.user-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-sm);cursor:pointer;transition:background 0.18s;}
+.user-row:hover{background:rgba(255,255,255,0.06);}
+.user-avatar{width:30px;height:30px;border-radius:50%;background:var(--sidebar-accent);color:var(--green);font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.user-info{flex:1;min-width:0;}
+.user-name{font-size:12.5px;font-weight:500;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.user-role{font-size:11px;color:rgba(255,255,255,0.35);}
+.logout-btn{width:26px;height:26px;border-radius:6px;background:rgba(255,255,255,0.06);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.35);transition:all 0.18s;flex-shrink:0;}
+.logout-btn:hover{background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.7);}
+
+/* Main */
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-width:0;}
+.main::-webkit-scrollbar{width:6px;}
+.main::-webkit-scrollbar-track{background:transparent;}
+.main::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+
+/* Topbar */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;height:60px;display:flex;align-items:center;gap:16px;flex-shrink:0;position:sticky;top:0;z-index:20;}
+.page-title{font-size:20px;font-weight:600;color:var(--text-primary);letter-spacing:-0.02em;margin-right:auto;}
+.search-bar{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:7px 14px;width:280px;transition:border-color 0.18s;}
+.search-bar:focus-within{border-color:var(--green-mid);background:#fff;}
+.search-bar input{border:none;background:none;outline:none;font-family:'Outfit',sans-serif;font-size:13px;color:var(--text-primary);width:100%;}
+.search-bar input::placeholder{color:var(--text-tertiary);}
+.icon-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-secondary);transition:all 0.18s;position:relative;}
+.icon-btn:hover{background:var(--bg);}
+.notif-dot{position:absolute;top:6px;right:6px;width:7px;height:7px;background:var(--chili);border-radius:50%;border:1.5px solid #fff;}
+
+/* Content */
+.content{padding:24px 28px;flex:1;}
+
+/* Stats */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden;transition:box-shadow 0.2s,transform 0.2s;}
+.stat-card:hover{box-shadow:var(--shadow-md);transform:translateY(-1px);}
+.stat-card.primary{background:var(--green);border-color:transparent;}
+.stat-card.primary .stat-label{color:rgba(255,255,255,0.5);}
+.stat-card.primary .stat-value{color:#fff;}
+.stat-card.primary .stat-delta{color:var(--sidebar-accent);}
+.stat-card.primary .stat-icon-bg{background:rgba(255,255,255,0.1);}
+.stat-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;}
+.stat-icon-bg{width:38px;height:38px;border-radius:10px;background:var(--border-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.stat-label{font-size:11px;font-weight:500;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px;}
+.stat-value{font-size:28px;font-weight:700;color:var(--text-primary);letter-spacing:-0.02em;line-height:1;margin-bottom:6px;}
+.stat-delta{font-size:12px;font-weight:500;color:var(--green-mid);display:flex;align-items:center;gap:3px;}
+.stat-delta.neg{color:var(--chili);}
+.stat-sparkline{position:absolute;bottom:14px;right:16px;opacity:0.22;}
+
+/* Split card */
+.split-card{display:flex;}
+.split-half{flex:1;padding:16px 18px;}
+.split-half:first-child{border-right:1px solid var(--border-light);}
+.split-label{font-size:10px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px;}
+.split-value{font-size:26px;font-weight:700;letter-spacing:-0.02em;line-height:1;margin-bottom:3px;}
+.split-value.av{color:var(--green-mid);}
+.split-value.iv{color:var(--chili);}
+.split-sub{font-size:11px;color:var(--text-tertiary);}
+.split-progress{height:5px;background:var(--border-light);border-radius:3px;overflow:hidden;margin:0 18px 14px;}
+.split-fill{height:100%;background:linear-gradient(90deg,var(--green-mid),var(--sidebar-accent));border-radius:3px;}
+
+/* Country mini */
+.country-mini{display:flex;flex-direction:column;gap:7px;margin-top:4px;}
+.cmini-row{display:flex;align-items:center;gap:8px;}
+.cmini-lbl{font-size:11px;color:var(--text-secondary);width:70px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cmini-track{flex:1;height:5px;background:var(--border-light);border-radius:3px;overflow:hidden;}
+.cmini-bar{height:100%;border-radius:3px;}
+.cmini-count{font-size:11px;font-weight:600;color:var(--text-tertiary);width:32px;text-align:right;flex-shrink:0;}
+
+/* Toolbar */
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.toolbar-left{display:flex;align-items:center;gap:8px;flex:1;flex-wrap:wrap;}
+.toolbar-right{display:flex;align-items:center;gap:8px;}
+.filter-select{height:34px;padding:0 28px 0 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);font-family:'Outfit',sans-serif;font-size:12.5px;color:var(--text-primary);cursor:pointer;outline:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%239CA3AF' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;transition:border-color 0.15s;}
+.filter-select:focus{border-color:var(--green-mid);}
+.count-badge{font-size:11px;font-weight:600;color:var(--text-tertiary);background:var(--border-light);padding:3px 10px;border-radius:20px;white-space:nowrap;}
+.btn-ghost{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radius-sm);background:none;color:var(--text-secondary);font-family:'Outfit',sans-serif;font-size:12px;font-weight:500;border:1px solid var(--border);cursor:pointer;transition:all 0.18s;white-space:nowrap;}
+.btn-ghost:hover{background:var(--bg);border-color:var(--green);color:var(--green);}
+.btn-primary{display:flex;align-items:center;gap:6px;padding:7px 16px;border-radius:var(--radius-sm);background:var(--green);color:#fff;font-family:'Outfit',sans-serif;font-size:12px;font-weight:500;border:none;cursor:pointer;transition:opacity 0.18s;white-space:nowrap;}
+.btn-primary:hover{opacity:0.85;}
+
+/* Table card */
+.table-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden;}
+.table-wrap{overflow-x:auto;}
+.cust-table{width:100%;border-collapse:collapse;}
+.cust-table th{text-align:left;font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.07em;padding:11px 16px;border-bottom:1px solid var(--border-light);background:var(--surface-2);white-space:nowrap;user-select:none;}
+.cust-table th.sortable{cursor:pointer;}
+.cust-table th.sortable:hover{color:var(--text-secondary);}
+.sort-indicator{margin-left:4px;opacity:0.5;}
+.cust-table td{padding:12px 16px;border-bottom:1px solid var(--border-light);font-size:13px;color:var(--text-primary);vertical-align:middle;}
+.cust-table tr:last-child td{border-bottom:none;}
+.cust-table tbody tr{transition:background 0.12s;}
+.cust-table tbody tr:hover td{background:#FAFBFD;}
+.cust-table tbody tr.sel td{background:#EFF8F4 !important;}
+.cust-table tbody tr.row-dim td{opacity:0.55;}
+
+/* Checkbox col */
+.cb-col{width:44px;}
+.cust-cb{width:15px;height:15px;accent-color:var(--green);cursor:pointer;}
+
+/* Customer cell */
+.cust-cell{display:flex;align-items:center;gap:11px;min-width:200px;}
+.cust-av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0;letter-spacing:0;}
+.cust-name{font-size:13px;font-weight:600;color:var(--text-primary);}
+.cust-email{font-size:11.5px;color:var(--text-tertiary);margin-top:1px;}
+.phone-text{font-size:12.5px;color:var(--text-secondary);white-space:nowrap;}
+.country-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;font-size:11px;background:var(--border-light);color:var(--text-secondary);white-space:nowrap;}
+
+/* Status pill */
+.status-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;}
+.s-active{background:var(--green-light);color:#0F6E56;}
+.s-inactive{background:var(--chili-light);color:#A32D2D;}
+.s-pending{background:var(--amber-light);color:#854F0B;}
+.status-dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+
+.date-text{font-size:12px;color:var(--text-secondary);white-space:nowrap;}
+
+/* Row actions */
+.row-actions{display:flex;align-items:center;gap:2px;opacity:0;transition:opacity 0.15s;}
+.cust-table tbody tr:hover .row-actions{opacity:1;}
+.act-btn{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:var(--text-tertiary);cursor:pointer;transition:all 0.15s;}
+.act-btn:hover{background:var(--bg);color:var(--text-primary);}
+.act-btn.danger:hover{background:var(--chili-light);color:var(--chili);}
+.act-btn.success:hover{background:var(--green-light);color:var(--green-mid);}
+
+/* Context menu */
+.ctx-menu{position:fixed;z-index:500;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);box-shadow:var(--shadow-lg);padding:6px;min-width:188px;display:none;}
+.ctx-menu.open{display:block;}
+.ctx-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:var(--radius-sm);font-size:13px;color:var(--text-primary);cursor:pointer;transition:background 0.12s;}
+.ctx-item:hover{background:var(--bg);}
+.ctx-item.danger{color:var(--chili);}
+.ctx-item.danger:hover{background:var(--chili-light);}
+.ctx-divider{height:1px;background:var(--border-light);margin:4px 0;}
+
+/* Pagination */
+.pagination{display:flex;align-items:center;gap:4px;padding:14px 16px;border-top:1px solid var(--border-light);flex-wrap:wrap;}
+.page-btn{min-width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'Outfit',sans-serif;font-size:12.5px;font-weight:500;cursor:pointer;border:none;background:none;color:var(--text-tertiary);transition:all 0.15s;padding:0 4px;}
+.page-btn:hover:not(:disabled){background:var(--bg);color:var(--text-primary);}
+.page-btn.active{background:var(--green);color:#fff;}
+.page-btn:disabled{opacity:0.3;cursor:not-allowed;}
+.page-ellipsis{font-size:12px;color:var(--text-tertiary);padding:0 2px;}
+.page-info{font-size:12px;color:var(--text-tertiary);margin-left:auto;}
+
+/* Bulk bar */
+.bulk-bar{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(120px);background:var(--green);border-radius:14px;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:0;overflow:hidden;z-index:100;transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1),opacity 0.25s ease;opacity:0;min-width:500px;}
+.bulk-bar.visible{transform:translateX(-50%) translateY(0);opacity:1;}
+.bulk-left{padding:14px 20px;display:flex;align-items:center;gap:10px;border-right:1px solid rgba(255,255,255,0.12);}
+.bulk-num{font-size:22px;font-weight:700;color:#fff;line-height:1;}
+.bulk-lbl{font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px;}
+.bulk-actions{display:flex;align-items:center;gap:8px;padding:12px 16px;}
+.bbtn{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-family:'Outfit',sans-serif;font-size:12.5px;font-weight:500;border:none;cursor:pointer;transition:all 0.18s;white-space:nowrap;}
+.bbtn-on{background:var(--sidebar-accent);color:var(--green);}
+.bbtn-on:hover{opacity:0.9;}
+.bbtn-off{background:rgba(226,75,74,0.18);color:#FFADAC;border:1px solid rgba(226,75,74,0.28);}
+.bbtn-off:hover{background:rgba(226,75,74,0.3);}
+.bbtn-del{background:rgba(226,75,74,0.13);color:#FFADAC;border:1px solid rgba(226,75,74,0.22);}
+.bbtn-del:hover{background:rgba(226,75,74,0.25);}
+.bbtn-clr{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.65);border:1px solid rgba(255,255,255,0.14);}
+.bbtn-clr:hover{background:rgba(255,255,255,0.18);}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.42);z-index:600;display:none;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal-box{background:var(--surface);border-radius:var(--radius-xl);padding:28px;width:380px;box-shadow:var(--shadow-lg);}
+.modal-icon{width:48px;height:48px;border-radius:50%;background:var(--chili-light);display:flex;align-items:center;justify-content:center;margin-bottom:16px;}
+.modal-title{font-size:16px;font-weight:700;color:var(--text-primary);margin-bottom:8px;}
+.modal-body{font-size:13.5px;color:var(--text-secondary);line-height:1.6;margin-bottom:24px;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;}
+.modal-cancel{padding:9px 18px;border-radius:var(--radius-sm);border:1px solid var(--border);background:none;font-family:'Outfit',sans-serif;font-size:13px;font-weight:500;color:var(--text-secondary);cursor:pointer;}
+.modal-cancel:hover{background:var(--bg);}
+.modal-delete{padding:9px 18px;border-radius:var(--radius-sm);border:none;background:var(--chili);font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:#fff;cursor:pointer;transition:opacity 0.15s;}
+.modal-delete:hover{opacity:0.88;}
+
+/* Toast */
+.toast{position:fixed;bottom:110px;left:50%;transform:translateX(-50%) translateY(20px);background:#111827;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:var(--shadow-lg);opacity:0;transition:all 0.3s ease;z-index:700;white-space:nowrap;display:flex;align-items:center;gap:8px;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* Animations */
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.stats-row{animation:fadeUp 0.35s ease both;}
+.toolbar{animation:fadeUp 0.4s 0.05s ease both;}
+.table-card{animation:fadeUp 0.45s 0.1s ease both;}
+
+/* Empty state */
+.empty-row td{padding:60px 20px;text-align:center;color:var(--text-tertiary);font-size:13px;}
+
+
+@media (max-width: 900px) { .main-grid { grid-template-columns: 1fr !important; } }
+@media (max-width: 768px) { .stats-row { grid-template-columns: 1fr 1fr !important; } .content { padding: 14px !important; } }
+@media (max-width: 480px) { .stats-row { grid-template-columns: 1fr !important; } .tbl-toolbar { flex-direction: column; align-items: flex-start; } }
+
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#003232" stroke-width="2.5" stroke-linecap="round"><path d="M12 2C8 2 5 6 5 10c0 5 7 12 7 12s7-7 7-12c0-4-3-8-7-8z"/><circle cx="12" cy="10" r="2.5" fill="#003232" stroke="none"/></svg></div>
+    <span class="logo-text">akaani</span>
+  </div>
+  <div class="sb-section">
+    <div class="sb-section-label">Overview</div>
+    <a class="nav-item" data-page="dashboard" href="dashboard.html"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>Dashboard</a>
+    <a class="nav-item" data-page="customers" href="customers.html"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></span>Customers<span class="nav-badge">2,062</span></a>
+  </div>
+  <div class="sb-section">
+    <div class="sb-section-label">Content</div>
+    <a class="nav-item" data-page="meals" href="meals.html"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></span>Meals</a>
+    <a class="nav-item" href="#"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/></svg></span>Recipes</a>
+    <a class="nav-item" href="#"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 10h16M4 14h10"/></svg></span>Recipe Groups</a>
+    <a class="nav-item" href="#"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></span>Ingredients</a>
+  </div>
+  <div class="sb-section">
+    <div class="sb-section-label">Management</div>
+    <a class="nav-item" href="#"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg></span>Meals Tags</a>
+    <a class="nav-item" href="#"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>LU Facts</a>
+    <a class="nav-item" data-page="settings" href="settings.html"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 1 0 21 12"/></svg></span>Settings</a>
+  </div>
+  <div class="sb-bottom">
+    <div class="user-row">
+      <div class="user-avatar">PO</div>
+      <div class="user-info"><div class="user-name">Peter Omidiji</div><div class="user-role">Admin</div></div>
+      <button class="logout-btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg></button>
+    </div>
+  </div>
+</nav>
+<div class="sidebar-overlay"></div>
+<div class="main">
+
+<div class="layout">
+
+<!-- SIDEBAR -->
+<!-- MAIN -->
+<div class="main">
+  <!-- Topbar -->
+  <div class="topbar">
+    <button class="hamburger-btn" onclick="toggleSidebar()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+    <span class="page-title">Customers</span>
+    <div class="search-bar">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="searchInput" placeholder="Search name, email, phone…" oninput="handleSearch(this.value)">
+    </div>
+    <button class="icon-btn" id="notifBtn" onclick="toggleNotifDrawer()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+      <span class="notif-dot" id="notifDot"></span>
+    </button>
+  </div>
+
+  <div class="content">
+    <!-- Stats -->
+    <div class="stats-row" id="statsRow"></div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <select class="filter-select" id="fStatus" onchange="applyFilters()">
+          <option value="">All statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="pending">Pending</option>
+        </select>
+        <select class="filter-select" id="fCountry" onchange="applyFilters()">
+          <option value="">All countries</option>
+          <option value="Nigeria">Nigeria</option>
+          <option value="Ghana">Ghana</option>
+          <option value="Kenya">Kenya</option>
+          <option value="South Africa">South Africa</option>
+        </select>
+        <select class="filter-select" id="fSort" onchange="applyFilters()">
+          <option value="name-asc">Name A–Z</option>
+          <option value="name-desc">Name Z–A</option>
+          <option value="joined-desc">Newest first</option>
+          <option value="joined-asc">Oldest first</option>
+        </select>
+        <span class="count-badge" id="countBadge">— customers</span>
+      </div>
+      <div class="toolbar-right">
+        <button class="btn-ghost" onclick="doExport()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Export
+        </button>
+        <button class="btn-primary" onclick="toast('Add customer — coming soon', true)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Customer
+        </button>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-card">
+      <div class="table-wrap">
+        <table class="cust-table">
+          <thead>
+            <tr>
+              <th class="cb-col"><input type="checkbox" class="cust-cb" id="selAll" onchange="toggleAll(this.checked)"></th>
+              <th class="sortable" onclick="setSortCol('name')">Customer <span class="sort-indicator" id="si-name"></span></th>
+              <th>Phone</th>
+              <th>Country</th>
+              <th class="sortable" onclick="setSortCol('status')">Status <span class="sort-indicator" id="si-status"></span></th>
+              <th class="sortable" onclick="setSortCol('joined')">Joined <span class="sort-indicator" id="si-joined"></span></th>
+              <th style="width:170px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="custBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="pagBar"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- Context menu -->
+<div class="ctx-menu" id="ctxMenu">
+  <div class="ctx-item" onclick="ctxDo('view')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/></svg>View profile</div>
+  <div class="ctx-item" onclick="ctxDo('edit')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg>Edit details</div>
+  <div class="ctx-item" onclick="ctxDo('message')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>Send message</div>
+  <div class="ctx-item" id="ctxToggle" onclick="ctxDo('toggle')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18.36 6.64A9 9 0 1 1 5.64 5.64"/><line x1="12" y1="2" x2="12" y2="12"/></svg><span id="ctxToggleLabel">Toggle status</span></div>
+  <div class="ctx-divider"></div>
+  <div class="ctx-item danger" onclick="ctxDo('delete')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>Delete customer</div>
+</div>
+
+<!-- Delete modal -->
+<div class="modal-overlay" id="delModal">
+  <div class="modal-box">
+    <div class="modal-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E24B4A" stroke-width="2.5" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg></div>
+    <div class="modal-title" id="delTitle">Delete customer?</div>
+    <div class="modal-body" id="delBody">This will permanently remove this customer. This cannot be undone.</div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-delete" onclick="confirmDel()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk bar -->
+<div class="bulk-bar" id="bulkBar">
+  <div class="bulk-left">
+    <div><div class="bulk-num" id="bulkNum">0</div><div class="bulk-lbl">selected</div></div>
+  </div>
+  <div class="bulk-actions">
+    <button class="bbtn bbtn-on" onclick="bulkDo('activate')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Activate</button>
+    <button class="bbtn bbtn-off" onclick="bulkDo('deactivate')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Deactivate</button>
+    <button class="bbtn bbtn-del" onclick="bulkDo('delete')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>Delete</button>
+    <button class="bbtn bbtn-clr" onclick="clearSel()">Clear</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toastEl">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5DCAA5" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+  <span id="toastMsg"></span>
+</div>
+
+
+
+</div>
+</div>
+<div class="notif-backdrop" id="notifBackdrop" onclick="closeNotifDrawer()"></div>
+<div class="notif-drawer" id="notifDrawer">
+  <div class="notif-drawer-header">
+    <div class="notif-drawer-title">Notifications<span class="notif-unread-badge" id="unreadBadge">7</span></div>
+    <div class="notif-header-actions">
+      <button class="notif-hdr-btn" onclick="markAllRead()">Mark all read</button>
+      <button class="notif-close-btn" onclick="closeNotifDrawer()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+  </div>
+  <div class="notif-filter-bar">
+    <button class="notif-filter-tab active" onclick="filterNotifs('all',this)">All</button>
+    <button class="notif-filter-tab" onclick="filterNotifs('unread',this)">Unread</button>
+    <button class="notif-filter-tab" onclick="filterNotifs('customers',this)">Customers</button>
+    <button class="notif-filter-tab" onclick="filterNotifs('platform',this)">Platform</button>
+    <button class="notif-filter-tab" onclick="filterNotifs('lu',this)">Lu AI</button>
+  </div>
+  <div class="notif-list" id="notifList"></div>
+  <div class="notif-footer"><button class="notif-footer-btn">View notification history</button></div>
+</div>
+<script>
+
+// ── DATA ──────────────────────────────────────────
+const AVC = [
+  {bg:'#E1F5EE',fg:'#0F6E56'},{bg:'#FDF6EE',fg:'#7A4F2A'},
+  {bg:'#FEECEC',fg:'#A32D2D'},{bg:'#E6F1FB',fg:'#185FA5'},
+  {bg:'#EEEDFE',fg:'#534AB7'},{bg:'#EAF3DE',fg:'#3B6D11'},
+  {bg:'#FFF0F6',fg:'#9C1C5E'},{bg:'#F0F4FF',fg:'#1E3A8A'},
+];
+const CTRY = ['Nigeria','Nigeria','Nigeria','Ghana','Ghana','Kenya','South Africa','Nigeria','Ghana','Kenya'];
+const STAT = ['active','active','active','active','active','active','pending','inactive','active','active'];
+const FN = ['Oyedele','Faith','Eli','Lizzie','Mary','David','Boluwatife','Stella','Tamlo','Ade','Chidi','Ngozi','Emeka','Amaka','Seun','Bayo','Tobi','Kemi','Wale','Fola','Yemi','Remi','Tunde','Nkechi','Obinna','Chiamaka','Ifeanyi','Chinwe','Uche','Adaeze','Rasheed','Fatima','Ibrahim','Musa','Aisha','Hauwa'];
+const LN = ['Kehinde','Special','Onas','Beth','Mallam','Abimbola','Hassan','Amadimati','Tammy','Babs','Okafor','Eze','Nwosu','Adeyemi','Afolabi','Ogundele','Bakare','Salami','Lawal','Bello','Aliyu','Dankwa','Mensah','Asante','Boateng','Owusu','Darko','Asamoah','Frimpong','Opoku'];
+
+function rI(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
+function rDate(s,e){return new Date(s.getTime()+Math.random()*(e.getTime()-s.getTime())).toISOString().split('T')[0];}
+
+let customers = Array.from({length:207},(_,i)=>{
+  const fn=FN[i%FN.length], ln=LN[i%LN.length];
+  const status = i<10 ? STAT[i] : (i%10<7?'active':i%10<9?'pending':'inactive');
+  return {
+    id:i+1, name:`${fn} ${ln}`,
+    email:`${fn.toLowerCase()}.${ln.toLowerCase()}${i>0?i:''}@gmail.com`,
+    phone:`0${rI(700,909)}${String(rI(1000000,9999999))}`,
+    country:CTRY[i%CTRY.length], status,
+    joined:rDate(new Date(2023,0,1),new Date(2026,2,20)),
+    initials:`${fn[0]}${ln[0]}`,
+    ...AVC[i%AVC.length]
+  };
+});
+
+// ── STATE ─────────────────────────────────────────
+let sel = new Set();
+let page = 1;
+const PER = 12;
+let ctxId = null;
+let delIds = [];
+let filters = {status:'',country:'',sort:'name-asc',search:''};
+
+// ── STATS ─────────────────────────────────────────
+function renderStats(){
+  const total=customers.length;
+  const active=customers.filter(c=>c.status==='active').length;
+  const inactive=customers.filter(c=>c.status==='inactive').length;
+  const pending=customers.filter(c=>c.status==='pending').length;
+  const newM=customers.filter(c=>c.joined>='2026-03-01').length;
+  const ap=Math.round(active/total*100);
+
+  const byC={};
+  customers.forEach(c=>{byC[c.country]=(byC[c.country]||0)+1;});
+  const cArr=Object.entries(byC).sort((a,b)=>b[1]-a[1]).slice(0,4);
+  const maxC=cArr[0]?.[1]||1;
+  const fmap={Nigeria:'🇳🇬',Ghana:'🇬🇭',Kenya:'🇰🇪','South Africa':'🇿🇦'};
+  const cbars=['#003232','#5DCAA5','#C8A97E','#534AB7'];
+  const cHtml=cArr.map(([n,v],i)=>`
+    <div class="cmini-row">
+      <span class="cmini-lbl">${fmap[n]||'🌍'} ${n}</span>
+      <div class="cmini-track"><div class="cmini-bar" style="width:${Math.round(v/maxC*100)}%;background:${cbars[i]}"></div></div>
+      <span class="cmini-count">${v}</span>
+    </div>`).join('');
+
+  document.getElementById('statsRow').innerHTML=`
+    <div class="stat-card primary">
+      <div class="stat-top"><div></div><div class="stat-icon-bg"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></div></div>
+      <div class="stat-label">Total Customers</div>
+      <div class="stat-value">${total.toLocaleString()}</div>
+      <div class="stat-delta">↑ +${newM} this month</div>
+      <svg class="stat-sparkline" width="64" height="28" viewBox="0 0 64 28"><polyline fill="none" stroke="rgba(93,202,165,0.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="0,24 10,20 20,22 32,14 42,16 52,9 64,5"/></svg>
+    </div>
+    <div class="stat-card" style="padding:0;">
+      <div class="split-card">
+        <div class="split-half"><div class="split-label">Active</div><div class="split-value av">${active.toLocaleString()}</div><div class="split-sub">${ap}% of total</div></div>
+        <div class="split-half"><div class="split-label">Inactive</div><div class="split-value iv">${inactive.toLocaleString()}</div><div class="split-sub">${pending} pending</div></div>
+      </div>
+      <div class="split-progress"><div class="split-fill" style="width:${ap}%"></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-top"><div></div><div class="stat-icon-bg" style="background:#E1F5EE;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1D9E75" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><line x1="19" y1="11" x2="19" y2="17"/><line x1="16" y1="14" x2="22" y2="14"/></svg></div></div>
+      <div class="stat-label">New This Month</div>
+      <div class="stat-value">${newM}</div>
+      <div class="stat-delta">↑ March 2026</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label" style="margin-bottom:10px;">Users by Country</div>
+      <div class="country-mini">${cHtml}</div>
+    </div>`;
+}
+
+// ── TABLE ─────────────────────────────────────────
+function getFiltered(){
+  let list=[...customers];
+  if(filters.status) list=list.filter(c=>c.status===filters.status);
+  if(filters.country) list=list.filter(c=>c.country===filters.country);
+  if(filters.search){const q=filters.search.toLowerCase();list=list.filter(c=>c.name.toLowerCase().includes(q)||c.email.toLowerCase().includes(q)||c.phone.includes(q));}
+  const [sc,sd]=filters.sort.split('-');
+  list.sort((a,b)=>{
+    const va=sc==='joined'?a.joined:sc==='name'?a.name:a.status;
+    const vb=sc==='joined'?b.joined:sc==='name'?b.name:b.status;
+    return va<vb?(sd==='asc'?-1:1):va>vb?(sd==='asc'?1:-1):0;
+  });
+  return list;
+}
+
+function fmtDate(d){return new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
+function pill(s){const m={active:['s-active','Active'],inactive:['s-inactive','Inactive'],pending:['s-pending','Pending']};const[c,l]=m[s]||['s-pending',s];return`<span class="status-pill ${c}"><span class="status-dot"></span>${l}</span>`;}
+function flag(c){return{Nigeria:'🇳🇬',Ghana:'🇬🇭',Kenya:'🇰🇪','South Africa':'🇿🇦'}[c]||'🌍';}
+
+function renderTable(){
+  const list=getFiltered();
+  const tot=list.length;
+  const totP=Math.ceil(tot/PER)||1;
+  if(page>totP) page=totP;
+  const s=(page-1)*PER, pg=list.slice(s,s+PER);
+  document.getElementById('countBadge').textContent=`${tot.toLocaleString()} customer${tot!==1?'s':''}`;
+
+  if(!pg.length){
+    document.getElementById('custBody').innerHTML='<tr class="empty-row"><td colspan="7"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="display:block;margin:0 auto 10px;opacity:0.25;"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>No customers match your filters.</td></tr>';
+  } else {
+    document.getElementById('custBody').innerHTML=pg.map(c=>{
+      const isSel=sel.has(c.id);
+      return`<tr class="${isSel?'sel':''} ${c.status==='inactive'?'row-dim':''}" id="tr-${c.id}">
+        <td class="cb-col"><input type="checkbox" class="cust-cb" ${isSel?'checked':''} onchange="toggleSel(${c.id},this.checked)"></td>
+        <td><div class="cust-cell">
+          <div class="cust-av" style="background:${c.bg};color:${c.fg}">${c.initials}</div>
+          <div><div class="cust-name">${c.name}</div><div class="cust-email">${c.email}</div></div>
+        </div></td>
+        <td><span class="phone-text">${c.phone}</span></td>
+        <td><span class="country-chip">${flag(c.country)} ${c.country}</span></td>
+        <td>${pill(c.status)}</td>
+        <td><span class="date-text">${fmtDate(c.joined)}</span></td>
+        <td><div class="row-actions">
+          <button class="act-btn" title="View profile" onclick="rowDo('view',${c.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/></svg></button>
+          <button class="act-btn" title="Edit" onclick="rowDo('edit',${c.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg></button>
+          <button class="act-btn" title="Message" onclick="rowDo('message',${c.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></button>
+          <button class="act-btn ${c.status==='inactive'?'success':''}" title="Toggle status" onclick="rowDo('toggle',${c.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18.36 6.64A9 9 0 1 1 5.64 5.64"/><line x1="12" y1="2" x2="12" y2="12"/></svg></button>
+          <button class="act-btn danger" title="Delete" onclick="rowDo('delete',${c.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg></button>
+          <button class="act-btn" title="More" onclick="openCtx(event,${c.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button>
+        </div></td>
+      </tr>`;
+    }).join('');
+  }
+  renderPag(totP,tot,s);
+  syncSelAll(list,s,pg);
+}
+
+// ── PAGINATION ────────────────────────────────────
+function renderPag(totP,tot,start){
+  const bar=document.getElementById('pagBar');
+  if(totP<=1){bar.innerHTML='';return;}
+  const end=Math.min(page*PER,tot);
+  let pgs=[];
+  if(totP<=7){pgs=Array.from({length:totP},(_,i)=>i+1);}
+  else{pgs=[1];if(page>3)pgs.push('…');for(let i=Math.max(2,page-1);i<=Math.min(totP-1,page+1);i++)pgs.push(i);if(page<totP-2)pgs.push('…');pgs.push(totP);}
+  bar.innerHTML=`
+    <button class="page-btn" onclick="goP(${page-1})" ${page===1?'disabled':''}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+    ${pgs.map(p=>p==='…'?`<span class="page-ellipsis">…</span>`:`<button class="page-btn ${p===page?'active':''}" onclick="goP(${p})">${p}</button>`).join('')}
+    <button class="page-btn" onclick="goP(${page+1})" ${page===totP?'disabled':''}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <span class="page-info">Showing ${start+1}–${end} of ${tot.toLocaleString()}</span>`;
+}
+
+function goP(p){
+  const totP=Math.ceil(getFiltered().length/PER)||1;
+  if(p<1||p>totP)return;
+  page=p; renderTable();
+  document.querySelector('.main').scrollTo({top:0,behavior:'smooth'});
+}
+
+// ── SELECTION ─────────────────────────────────────
+function toggleSel(id,checked){
+  if(checked) sel.add(id); else sel.delete(id);
+  const tr=document.getElementById('tr-'+id);
+  if(tr) tr.classList.toggle('sel',checked);
+  updBulk(); syncSelAll(getFiltered(),(page-1)*PER);
+}
+
+function toggleAll(checked){
+  const list=getFiltered(),s=(page-1)*PER,pg=list.slice(s,s+PER);
+  pg.forEach(c=>{
+    if(checked) sel.add(c.id); else sel.delete(c.id);
+    const tr=document.getElementById('tr-'+c.id);
+    if(tr){tr.classList.toggle('sel',checked);const cb=tr.querySelector('.cust-cb');if(cb)cb.checked=checked;}
+  });
+  updBulk();
+}
+
+function syncSelAll(list,s,pg){
+  pg=pg||list.slice(s,s+PER);
+  const all=pg.length>0&&pg.every(c=>sel.has(c.id));
+  const some=pg.some(c=>sel.has(c.id));
+  const cb=document.getElementById('selAll');
+  if(cb){cb.checked=all;cb.indeterminate=!all&&some;}
+}
+
+function clearSel(){
+  sel.forEach(id=>{const tr=document.getElementById('tr-'+id);if(tr){tr.classList.remove('sel');const cb=tr.querySelector('.cust-cb');if(cb)cb.checked=false;}});
+  sel.clear(); updBulk();
+  const cb=document.getElementById('selAll');if(cb){cb.checked=false;cb.indeterminate=false;}
+}
+
+function updBulk(){
+  const n=sel.size;
+  document.getElementById('bulkNum').textContent=n;
+  document.getElementById('bulkBar').classList.toggle('visible',n>0);
+}
+
+// ── ROW ACTIONS ───────────────────────────────────
+function rowDo(action,id){
+  const c=customers.find(x=>x.id===id);
+  if(!c) return;
+  if(action==='view') toast(`Viewing ${c.name}'s profile`,true);
+  else if(action==='edit') toast(`Edit panel for ${c.name} — coming soon`,true);
+  else if(action==='message') toast(`Message sent to ${c.name}`,true);
+  else if(action==='toggle'){
+    c.status=c.status==='active'?'inactive':'active';
+    renderStats(); renderTable();
+    toast(`${c.name} marked as ${c.status}`,true);
+  }
+  else if(action==='delete'){
+    delIds=[id];
+    document.getElementById('delTitle').textContent='Delete customer?';
+    document.getElementById('delBody').textContent=`This will permanently remove ${c.name} and all their data. This cannot be undone.`;
+    document.getElementById('delModal').classList.add('open');
+  }
+}
+
+function confirmDel(){
+  delIds.forEach(id=>{const i=customers.findIndex(c=>c.id===id);if(i!==-1)customers.splice(i,1);sel.delete(id);});
+  closeModal(); renderStats(); renderTable(); updBulk();
+  toast(`${delIds.length} customer${delIds.length>1?'s':''} deleted`,true);
+  delIds=[];
+}
+
+function closeModal(){document.getElementById('delModal').classList.remove('open');}
+
+// ── BULK ──────────────────────────────────────────
+function bulkDo(action){
+  const ids=[...sel];
+  if(action==='activate'){ids.forEach(id=>{const c=customers.find(x=>x.id===id);if(c)c.status='active';});clearSel();renderStats();renderTable();toast(`${ids.length} customers activated`,true);}
+  else if(action==='deactivate'){ids.forEach(id=>{const c=customers.find(x=>x.id===id);if(c)c.status='inactive';});clearSel();renderStats();renderTable();toast(`${ids.length} customers deactivated`,true);}
+  else if(action==='delete'){
+    delIds=ids;
+    document.getElementById('delTitle').textContent=`Delete ${ids.length} customers?`;
+    document.getElementById('delBody').textContent=`This will permanently remove ${ids.length} customers and all their data. This cannot be undone.`;
+    document.getElementById('delModal').classList.add('open');
+  }
+}
+
+// ── CONTEXT MENU ──────────────────────────────────
+function openCtx(e,id){
+  e.stopPropagation();
+  ctxId=id;
+  const m=document.getElementById('ctxMenu');
+  m.classList.add('open');
+  m.style.left=Math.min(e.clientX,window.innerWidth-200)+'px';
+  m.style.top=Math.min(e.clientY,window.innerHeight-200)+'px';
+  const c=customers.find(x=>x.id===id);
+  if(c) document.getElementById('ctxToggleLabel').textContent=c.status==='active'?'Deactivate':'Activate';
+}
+
+function ctxDo(action){document.getElementById('ctxMenu').classList.remove('open');if(ctxId) rowDo(action,ctxId);}
+
+document.addEventListener('click',()=>document.getElementById('ctxMenu').classList.remove('open'));
+
+// ── FILTERS & SORT ────────────────────────────────
+function applyFilters(){
+  filters.status=document.getElementById('fStatus').value;
+  filters.country=document.getElementById('fCountry').value;
+  filters.sort=document.getElementById('fSort').value;
+  page=1; renderTable();
+}
+
+function handleSearch(v){filters.search=v;page=1;renderTable();}
+
+function setSortCol(col){
+  const cur=filters.sort.split('-');
+  const dir=(cur[0]===col&&cur[1]==='asc')?'desc':'asc';
+  filters.sort=`${col}-${dir}`;
+  document.getElementById('fSort').value=filters.sort.includes('name')?`name-${dir}`:filters.sort.includes('joined')?`joined-${dir}`:`name-asc`;
+  ['name','status','joined'].forEach(c=>{
+    const el=document.getElementById('si-'+c);
+    if(el) el.textContent=c===col?(dir==='asc'?'↑':'↓'):'';
+  });
+  page=1; renderTable();
+}
+
+// ── EXPORT ────────────────────────────────────────
+function doExport(){
+  const data=getFiltered();
+  const hdr=['Name','Email','Phone','Country','Status','Joined'];
+  const rows=data.map(c=>[`"${c.name}"`,c.email,c.phone,c.country,c.status,c.joined]);
+  const csv=[hdr,...rows].map(r=>r.join(',')).join('\n');
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  const a=document.createElement('a');a.href=url;a.download='akaani-customers.csv';a.click();URL.revokeObjectURL(url);
+  toast(`Exported ${data.length} customers`,true);
+}
+
+// ── TOAST ─────────────────────────────────────────
+let tTimer;
+function toast(msg,ok=true){
+  clearTimeout(tTimer);
+  document.getElementById('toastMsg').textContent=msg;
+  document.getElementById('toastEl').querySelector('svg').style.display=ok?'block':'none';
+  document.getElementById('toastEl').classList.add('show');
+  tTimer=setTimeout(()=>document.getElementById('toastEl').classList.remove('show'),3000);
+}
+
+// ── NAV ───────────────────────────────────────────
+document.querySelectorAll('.nav-item').forEach(el=>el.addEventListener('click',e=>{e.preventDefault();document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));el.classList.add('active');}));
+
+// ── INIT ──────────────────────────────────────────
+renderStats();
+renderTable();
+
+</script>
+<script src="../js/shared.js"></script>
+</body>
+</html>

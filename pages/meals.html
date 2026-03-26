@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Akaani Admin — Meals</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/shared.css">
+<style>
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --sidebar-bg: #003232;
+  --sidebar-active: #004d4d;
+  --sidebar-text: rgba(255,255,255,0.55);
+  --sidebar-text-active: #fff;
+  --sidebar-accent: #5DCAA5;
+  --sidebar-border: rgba(255,255,255,0.07);
+
+  --bg: #F5F6FA;
+  --surface: #ffffff;
+  --surface-2: #F9FAFB;
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --text-tertiary: #9CA3AF;
+  --border: #E5E7EB;
+  --border-light: #F3F4F6;
+
+  --green: #003232;
+  --green-mid: #1D9E75;
+  --green-light: #E1F5EE;
+  --amber: #C8A97E;
+  --amber-light: #FDF6EE;
+  --chili: #E24B4A;
+  --chili-light: #FEECEC;
+  --purple-light: #EEEDFE;
+  --purple: #534AB7;
+  --blue-light: #E6F1FB;
+  --blue: #185FA5;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.07), 0 2px 6px rgba(0,0,0,0.04);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.06);
+
+  --bulk-bar-h: 68px;
+}
+
+html, body { height: 100%; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text-primary); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+
+/* ── Layout ── */
+.layout { display: flex; height: 100vh; overflow: hidden; }
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 220px; min-width: 220px;
+  background: var(--sidebar-bg);
+  display: flex; flex-direction: column;
+  position: relative; overflow: hidden;
+}
+.sidebar::before {
+  content: ''; position: absolute;
+  bottom: -60px; right: -60px;
+  width: 200px; height: 200px;
+  background: radial-gradient(circle, rgba(93,202,165,0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+.sidebar-logo {
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid var(--sidebar-border);
+  display: flex; align-items: center; gap: 10px;
+}
+.logo-icon {
+  width: 32px; height: 32px;
+  background: var(--sidebar-accent);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+}
+.logo-icon svg { width: 18px; height: 18px; }
+.logo-text { font-size: 19px; font-weight: 700; color: #fff; letter-spacing: -0.02em; }
+.sidebar-section { padding: 20px 12px 8px; }
+.sidebar-section-label {
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: rgba(255,255,255,0.25);
+  padding: 0 8px; margin-bottom: 6px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px; border-radius: var(--radius-sm);
+  color: var(--sidebar-text);
+  cursor: pointer; transition: all 0.18s ease;
+  font-size: 13.5px; font-weight: 400;
+  margin-bottom: 1px; position: relative;
+  text-decoration: none;
+}
+.nav-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.85); }
+.nav-item.active { background: var(--sidebar-active); color: var(--sidebar-text-active); font-weight: 500; }
+.nav-item.active::before {
+  content: ''; position: absolute; left: 0; top: 50%;
+  transform: translateY(-50%);
+  width: 3px; height: 18px;
+  background: var(--sidebar-accent);
+  border-radius: 0 2px 2px 0;
+}
+.nav-icon { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.7; display: flex; align-items: center; justify-content: center; }
+.nav-item.active .nav-icon { opacity: 1; }
+.nav-badge {
+  margin-left: auto;
+  background: rgba(93,202,165,0.15); color: var(--sidebar-accent);
+  font-size: 10px; font-weight: 600;
+  padding: 1px 6px; border-radius: 10px;
+}
+.sidebar-bottom { margin-top: auto; border-top: 1px solid var(--sidebar-border); padding: 14px 12px; }
+.user-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; transition: background 0.18s; }
+.user-row:hover { background: rgba(255,255,255,0.06); }
+.user-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--sidebar-accent); color: var(--green); font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.user-info { flex: 1; min-width: 0; }
+.user-name { font-size: 12.5px; font-weight: 500; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-role { font-size: 11px; color: rgba(255,255,255,0.35); }
+.logout-btn { width: 26px; height: 26px; border-radius: 6px; background: rgba(255,255,255,0.06); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.35); transition: all 0.18s; flex-shrink: 0; }
+.logout-btn:hover { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.7); }
+
+/* ── Main ── */
+.main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; min-width: 0; }
+
+/* ── Topbar ── */
+.topbar {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 0 28px; height: 60px;
+  display: flex; align-items: center; gap: 16px;
+  flex-shrink: 0; position: sticky; top: 0; z-index: 20;
+}
+.page-title { font-size: 20px; font-weight: 600; color: var(--text-primary); letter-spacing: -0.02em; margin-right: auto; }
+.search-bar {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: 7px 14px; width: 260px;
+  transition: border-color 0.18s;
+}
+.search-bar:focus-within { border-color: var(--green-mid); background: #fff; }
+.search-bar input { border: none; background: none; outline: none; font-family: 'Outfit', sans-serif; font-size: 13px; color: var(--text-primary); width: 100%; }
+.search-bar input::placeholder { color: var(--text-tertiary); }
+.topbar-actions { display: flex; align-items: center; gap: 8px; }
+.icon-btn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-secondary); transition: all 0.18s; position: relative; }
+.icon-btn:hover { background: var(--bg); border-color: #d1d5db; }
+.notif-dot { position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; background: var(--chili); border-radius: 50%; border: 1.5px solid #fff; }
+
+/* ── Page toolbar ── */
+.page-toolbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 28px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  position: sticky; top: 60px; z-index: 15;
+}
+.toolbar-left { display: flex; align-items: center; gap: 10px; flex: 1; }
+.toolbar-right { display: flex; align-items: center; gap: 8px; }
+
+.filter-select {
+  height: 34px; padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  font-family: 'Outfit', sans-serif;
+  font-size: 12.5px; color: var(--text-primary);
+  cursor: pointer; outline: none;
+  transition: border-color 0.15s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%239CA3AF' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+.filter-select:focus { border-color: var(--green-mid); }
+
+.meals-count-badge {
+  font-size: 11px; font-weight: 600;
+  color: var(--text-tertiary);
+  background: var(--border-light);
+  padding: 3px 10px; border-radius: 20px;
+}
+
+/* Bulk Edit Toggle Button */
+.bulk-toggle-btn {
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 16px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px; font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer; transition: all 0.2s;
+}
+.bulk-toggle-btn:hover { border-color: var(--green); color: var(--green); }
+.bulk-toggle-btn.active {
+  background: var(--green); color: #fff; border-color: var(--green);
+}
+
+.action-btn-primary {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 8px;
+  background: var(--green); color: #fff;
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px; font-weight: 500;
+  border: none; cursor: pointer; transition: opacity 0.18s;
+}
+.action-btn-primary:hover { opacity: 0.85; }
+
+.action-btn-ghost {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 8px;
+  background: none; color: var(--text-secondary);
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px; font-weight: 500;
+  border: 1px solid var(--border); cursor: pointer; transition: all 0.18s;
+}
+.action-btn-ghost:hover { background: var(--bg); border-color: #d1d5db; }
+
+/* ── Content ── */
+.content {
+  padding: 20px 28px;
+  padding-bottom: calc(20px + var(--bulk-bar-h) + 20px);
+  flex: 1;
+}
+
+/* ── Tag group ── */
+.tag-group { margin-bottom: 16px; }
+
+.tag-group-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+.tag-group-header:hover { border-color: rgba(0,50,50,0.2); box-shadow: var(--shadow-sm); }
+.tag-group-header.open { border-radius: var(--radius-md) var(--radius-md) 0 0; border-bottom: 1px solid var(--border-light); }
+
+.tag-group-color {
+  width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0;
+}
+
+.tag-group-name {
+  font-size: 14px; font-weight: 600; color: var(--text-primary);
+  flex: 1;
+}
+
+.tag-group-meta {
+  font-size: 12px; color: var(--text-tertiary); font-weight: 400;
+}
+
+.tag-group-pill {
+  padding: 3px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 600;
+}
+
+.tag-group-select-all {
+  display: none;
+  align-items: center; gap: 6px;
+  font-size: 12px; color: var(--text-secondary);
+  padding: 4px 10px; border-radius: 6px;
+  border: 1px solid var(--border);
+  background: none;
+  font-family: 'Outfit', sans-serif;
+  cursor: pointer; transition: all 0.15s;
+  white-space: nowrap;
+}
+.tag-group-select-all:hover { background: var(--bg); }
+.bulk-mode .tag-group-select-all { display: flex; }
+
+.chevron {
+  transition: transform 0.2s;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+.chevron.open { transform: rotate(180deg); }
+
+/* ── Meals table inside group ── */
+.meals-table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  overflow: hidden;
+  display: none;
+}
+.meals-table-wrap.open { display: block; }
+
+.meals-table { width: 100%; border-collapse: collapse; }
+
+.meals-table th {
+  text-align: left;
+  font-size: 11px; font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase; letter-spacing: 0.07em;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+
+.meals-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 13px; color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.meals-table tr:last-child td { border-bottom: none; }
+.meals-table tbody tr { transition: background 0.12s; }
+.meals-table tbody tr:hover td { background: #FAFBFD; }
+.meals-table tbody tr.selected td { background: #EFF8F4; }
+.meals-table tbody tr.selected:hover td { background: #E3F4ED; }
+
+/* Checkbox col */
+.cb-col { width: 40px; }
+.meal-checkbox {
+  width: 16px; height: 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  accent-color: var(--green);
+  display: none;
+}
+.bulk-mode .meal-checkbox { display: block; }
+
+/* Meal name cell */
+.meal-name-cell { display: flex; align-items: center; gap: 10px; min-width: 180px; }
+.meal-thumb {
+  width: 36px; height: 36px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.meal-name { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+
+/* Type pill */
+.type-pill {
+  display: inline-flex; align-items: center;
+  padding: 3px 9px; border-radius: 20px;
+  font-size: 11px; font-weight: 500;
+  white-space: nowrap;
+}
+.type-breakfast { background: var(--amber-light); color: #854F0B; }
+.type-lunch { background: var(--green-light); color: #0F6E56; }
+.type-dinner { background: var(--purple-light); color: var(--purple); }
+.type-snack { background: var(--blue-light); color: var(--blue); }
+
+/* Country chips */
+.country-chips { display: flex; gap: 4px; flex-wrap: wrap; }
+.country-chip {
+  padding: 2px 7px; border-radius: 4px;
+  font-size: 11px; font-weight: 400;
+  background: var(--border-light); color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* Macro cells */
+.macro-cell {
+  text-align: center;
+  min-width: 64px;
+}
+.macro-val { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.macro-unit { font-size: 10px; color: var(--text-tertiary); font-weight: 400; }
+.macro-bar {
+  height: 3px; border-radius: 2px; margin-top: 3px;
+  background: var(--border-light); overflow: hidden;
+}
+.macro-bar-fill { height: 100%; border-radius: 2px; }
+.cal-bar { background: #E24B4A; }
+.prot-bar { background: #1D9E75; }
+.carb-bar { background: #C8A97E; }
+.fat-bar { background: #534AB7; }
+
+/* Prep time */
+.prep-time { font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+
+/* Row action buttons */
+.row-actions { display: flex; align-items: center; gap: 4px; opacity: 0; transition: opacity 0.15s; }
+.meals-table tbody tr:hover .row-actions { opacity: 1; }
+.row-btn {
+  width: 26px; height: 26px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: none;
+  color: var(--text-tertiary); cursor: pointer; transition: all 0.15s;
+}
+.row-btn:hover { background: var(--bg); color: var(--text-primary); }
+.row-btn.danger:hover { background: var(--chili-light); color: var(--chili); }
+
+/* ── Bulk Action Bar ── */
+.bulk-bar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(120px);
+  z-index: 100;
+  background: var(--green);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lg);
+  display: flex; align-items: center; gap: 0;
+  overflow: hidden;
+  transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1), opacity 0.25s ease;
+  opacity: 0;
+  min-width: 680px;
+}
+.bulk-bar.visible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+.bulk-bar-left {
+  padding: 14px 20px;
+  display: flex; align-items: center; gap: 12px;
+  border-right: 1px solid rgba(255,255,255,0.12);
+}
+.bulk-selected-count {
+  font-size: 24px; font-weight: 700; color: #fff; letter-spacing: -0.02em; line-height: 1;
+}
+.bulk-selected-label { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+
+.bulk-bar-center {
+  flex: 1;
+  padding: 12px 20px;
+  display: flex; align-items: center; gap: 16px;
+}
+
+.bulk-action-group { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.bulk-action-label {
+  font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.4);
+}
+.bulk-tag-select {
+  height: 32px; padding: 0 28px 0 10px;
+  border-radius: 7px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  font-family: 'Outfit', sans-serif;
+  font-size: 12.5px; font-weight: 500;
+  cursor: pointer; outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='rgba(255,255,255,0.6)' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  min-width: 160px;
+  transition: border-color 0.15s;
+}
+.bulk-tag-select:focus { border-color: var(--sidebar-accent); }
+.bulk-tag-select option { background: #003232; color: #fff; }
+
+.bulk-divider { width: 1px; height: 44px; background: rgba(255,255,255,0.12); flex-shrink: 0; }
+
+.bulk-bar-right {
+  padding: 12px 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+
+.bulk-apply-btn {
+  padding: 9px 20px; border-radius: 9px;
+  background: var(--sidebar-accent); color: var(--green);
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px; font-weight: 700;
+  border: none; cursor: pointer; transition: opacity 0.18s;
+  white-space: nowrap;
+}
+.bulk-apply-btn:hover { opacity: 0.9; }
+.bulk-apply-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.bulk-cancel-btn {
+  padding: 9px 14px; border-radius: 9px;
+  background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7);
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px; font-weight: 500;
+  border: 1px solid rgba(255,255,255,0.15); cursor: pointer; transition: all 0.18s;
+  white-space: nowrap;
+}
+.bulk-cancel-btn:hover { background: rgba(255,255,255,0.18); }
+
+/* ── Success toast ── */
+.toast {
+  position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: #111827; color: #fff;
+  padding: 10px 18px; border-radius: 10px;
+  font-size: 13px; font-weight: 500;
+  box-shadow: var(--shadow-lg);
+  opacity: 0; transition: all 0.3s ease;
+  z-index: 200; white-space: nowrap;
+  display: flex; align-items: center; gap: 8px;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── Scrollbar ── */
+.main::-webkit-scrollbar { width: 6px; }
+.main::-webkit-scrollbar-track { background: transparent; }
+.main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── Animations ── */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.tag-group { animation: fadeUp 0.3s ease both; }
+.tag-group:nth-child(1) { animation-delay: 0.02s; }
+.tag-group:nth-child(2) { animation-delay: 0.06s; }
+.tag-group:nth-child(3) { animation-delay: 0.10s; }
+.tag-group:nth-child(4) { animation-delay: 0.14s; }
+.tag-group:nth-child(5) { animation-delay: 0.18s; }
+.tag-group:nth-child(6) { animation-delay: 0.22s; }
+
+/* Empty state */
+.empty-state {
+  text-align: center; padding: 40px 20px;
+  color: var(--text-tertiary); font-size: 13px;
+}
+
+/* Bulk mode visual cue on body */
+body.bulk-mode-on .tag-group-header { border-left: 3px solid var(--sidebar-accent); }
+
+/* ── View toggle ── */
+.view-toggle {
+  display: flex; align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.view-btn {
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: none; cursor: pointer;
+  color: var(--text-tertiary);
+  transition: all 0.15s;
+}
+.view-btn:first-child { border-right: 1px solid var(--border); }
+.view-btn:hover { background: var(--bg); color: var(--text-primary); }
+.view-btn.active { background: var(--green); color: #fff; }
+
+/* ── Export button ── */
+.export-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 8px;
+  background: none; color: var(--text-secondary);
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px; font-weight: 500;
+  border: 1px solid var(--border); cursor: pointer;
+  transition: all 0.18s;
+}
+.export-btn:hover { background: var(--bg); border-color: var(--green); color: var(--green); }
+
+/* ── Grid view ── */
+.tag-group-grid-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  padding: 16px;
+  display: none;
+}
+.tag-group-grid-wrap.open { display: block; }
+
+.meals-grid-inner {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
+  gap: 12px;
+}
+
+.meal-grid-card {
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border-light);
+  background: var(--surface-2);
+  overflow: hidden;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+}
+.meal-grid-card:hover {
+  border-color: rgba(0,50,50,0.2);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+.meal-grid-card.selected {
+  border-color: var(--green-mid);
+  background: #EFF8F4;
+}
+.meal-grid-card-checkbox {
+  position: absolute; top: 8px; left: 8px;
+  width: 18px; height: 18px;
+  border-radius: 5px;
+  cursor: pointer;
+  accent-color: var(--green);
+  display: none;
+  z-index: 2;
+}
+.bulk-mode .meal-grid-card-checkbox { display: block; }
+.meal-grid-thumb {
+  width: 100%; height: 96px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 34px; position: relative;
+}
+.meal-grid-type-badge { position: absolute; bottom: 6px; right: 6px; }
+.meal-grid-body { padding: 10px 12px 12px; }
+.meal-grid-name {
+  font-size: 12.5px; font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px; line-height: 1.35;
+}
+.meal-grid-macros {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 5px; margin-bottom: 8px;
+}
+.meal-grid-macro { display: flex; flex-direction: column; }
+.meal-grid-macro-val { font-size: 12px; font-weight: 600; color: var(--text-primary); line-height: 1; }
+.meal-grid-macro-label { font-size: 9px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 1px; }
+.meal-grid-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-top: 8px; border-top: 1px solid var(--border-light);
+}
+.meal-grid-countries { font-size: 10px; color: var(--text-tertiary); }
+.meal-grid-prep { font-size: 10px; color: var(--text-tertiary); }
+
+
+@media (max-width: 768px) { .page-toolbar { flex-direction: column; align-items: flex-start; gap: 10px; } .toolbar-left { flex-wrap: wrap; } .toolbar-right { flex-wrap: wrap; } .meals-grid-inner { grid-template-columns: repeat(2,1fr) !important; } .meals-table { min-width: 700px; } }
+@media (max-width: 480px) { .meals-grid-inner { grid-template-columns: 1fr !important; } .bulk-bar { min-width: calc(100vw - 32px); left: 16px; transform: none; } .bulk-bar.visible { transform: none; } }
+
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#003232" stroke-width="2.5" stroke-linecap="round"><path d="M12 2C8 2 5 6 5 10c0 5 7 12 7 12s7-7 7-12c0-4-3-8-7-8z"/><circle cx="12" cy="10" r="2.5" fill="#003232" stroke="none"/></svg></div>
+    <span class="logo-text">akaani</span>
+  </div>
+  <div class="sb-section">
+    <div class="sb-section-label">Overview</div>
+    <a class="nav-item" data-page="dashboard" href="dashboard.html"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>Dashboard</a>
+    <a class="nav-item" data-page="customers" href="customers.html"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></span>Customers<span class="nav-badge">2,062</span></a>
+  </div>
+  <div class="sb-section">
+    <div class="sb-section-label">Content</div>
+    <a class="nav-item" data-page="meals" href="meals.html"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></span>Meals</a>
+    <a class="nav-item" href="#"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/></svg></span>Recipes</a>
+    <a class="nav-item" href="#"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 10h16M4 14h10"/></svg></span>Recipe Groups</a>
+    <a class="nav-item" href="#"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></span>Ingredients</a>
+  </div>
+  <div class="sb-section">
+    <div class="sb-section-label">Management</div>
+    <a class="nav-item" href="#"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg></span>Meals Tags</a>
+    <a class="nav-item" href="#"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>LU Facts</a>
+    <a class="nav-item" data-page="settings" href="settings.html"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 1 0 21 12"/></svg></span>Settings</a>
+  </div>
+  <div class="sb-bottom">
+    <div class="user-row">
+      <div class="user-avatar">PO</div>
+      <div class="user-info"><div class="user-name">Peter Omidiji</div><div class="user-role">Admin</div></div>
+      <button class="logout-btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg></button>
+    </div>
+  </div>
+</nav>
+<div class="sidebar-overlay"></div>
+<div class="main">
+
+
+<div class="layout">
+
+<!-- ═══ SIDEBAR ═══ -->
+<!-- ═══ MAIN ═══ -->
+<div class="main" id="mainScroll">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <button class="hamburger-btn" onclick="toggleSidebar()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+    <span class="page-title">Meals</span>
+    <div class="search-bar">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input placeholder="Search meals…" id="searchInput" oninput="filterMeals(this.value)">
+    </div>
+    <div class="topbar-actions">
+      <button class="icon-btn" id="notifBtn" onclick="toggleNotifDrawer()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <span class="notif-dot" id="notifDot"></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Page toolbar -->
+  <div class="page-toolbar">
+    <div class="toolbar-left">
+      <select class="filter-select" id="filterType" onchange="applyFilters()">
+        <option value="">All meal types</option>
+        <option value="breakfast">Breakfast</option>
+        <option value="lunch">Lunch</option>
+        <option value="dinner">Dinner</option>
+        <option value="snack">Snack</option>
+      </select>
+      <select class="filter-select" id="filterCountry" onchange="applyFilters()">
+        <option value="">All countries</option>
+        <option value="Nigeria">Nigeria</option>
+        <option value="Ghana">Ghana</option>
+        <option value="Kenya">Kenya</option>
+      </select>
+      <select class="filter-select" id="filterTag" onchange="applyFilters()">
+        <option value="">All tags</option>
+        <option value="High Protein">High Protein</option>
+        <option value="Low Carb">Low Carb</option>
+        <option value="Weight Loss">Weight Loss</option>
+        <option value="Gluten Free">Gluten Free</option>
+        <option value="Vegan">Vegan</option>
+        <option value="Family Meals">Family Meals</option>
+      </select>
+      <span class="meals-count-badge" id="mealsCount">220 meals</span>
+    </div>
+    <div class="toolbar-right">
+      <!-- View toggle -->
+      <div class="view-toggle">
+        <button class="view-btn active" id="listViewBtn" title="List view" onclick="setView('list')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <button class="view-btn" id="gridViewBtn" title="Grid view" onclick="setView('grid')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        </button>
+      </div>
+      <!-- Export -->
+      <button class="export-btn" onclick="exportCSV()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        Export
+      </button>
+      <!-- Bulk Edit -->
+      <button class="bulk-toggle-btn" id="bulkToggleBtn" onclick="toggleBulkMode()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg>
+        <span id="bulkBtnLabel">Bulk Edit</span>
+      </button>
+      <!-- Add Meal -->
+      <button class="action-btn-primary" id="addMealBtn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Meal
+      </button>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content" id="contentArea">
+    <!-- Tag groups rendered by JS -->
+  </div>
+
+</div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- ═══ BULK ACTION BAR ═══ -->
+<div class="bulk-bar" id="bulkBar">
+  <div class="bulk-bar-left">
+    <div>
+      <div class="bulk-selected-count" id="bulkCount">0</div>
+      <div class="bulk-selected-label">meals selected</div>
+    </div>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+  </div>
+
+  <div class="bulk-bar-center">
+    <!-- Add to tag -->
+    <div class="bulk-action-group">
+      <div class="bulk-action-label">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="display:inline;vertical-align:middle;margin-right:3px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add to tag
+      </div>
+      <select class="bulk-tag-select" id="addTagSelect">
+        <option value="">Select a tag…</option>
+        <option value="High Protein">High Protein</option>
+        <option value="Low Carb">Low Carb</option>
+        <option value="Weight Loss">Weight Loss</option>
+        <option value="Gluten Free">Gluten Free</option>
+        <option value="Vegan">Vegan</option>
+        <option value="Family Meals">Family Meals</option>
+        <option value="Quick Meals">Quick Meals</option>
+        <option value="Budget Friendly">Budget Friendly</option>
+      </select>
+    </div>
+
+    <div class="bulk-divider"></div>
+
+    <!-- Remove from tag -->
+    <div class="bulk-action-group">
+      <div class="bulk-action-label">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="display:inline;vertical-align:middle;margin-right:3px;"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Remove from tag
+      </div>
+      <select class="bulk-tag-select" id="removeTagSelect">
+        <option value="">Select a tag…</option>
+        <option value="High Protein">High Protein</option>
+        <option value="Low Carb">Low Carb</option>
+        <option value="Weight Loss">Weight Loss</option>
+        <option value="Gluten Free">Gluten Free</option>
+        <option value="Vegan">Vegan</option>
+        <option value="Family Meals">Family Meals</option>
+        <option value="Quick Meals">Quick Meals</option>
+        <option value="Budget Friendly">Budget Friendly</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="bulk-bar-right">
+    <button class="bulk-apply-btn" id="applyBulkBtn" onclick="applyBulkEdit()">Apply Changes</button>
+    <button class="bulk-cancel-btn" onclick="clearSelection()">Clear</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5DCAA5" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+  <span id="toastMsg"></span>
+</div>
+
+
+
+</div>
+</div>
+<div class="notif-backdrop" id="notifBackdrop" onclick="closeNotifDrawer()"></div>
+<div class="notif-drawer" id="notifDrawer">
+  <div class="notif-drawer-header">
+    <div class="notif-drawer-title">Notifications<span class="notif-unread-badge" id="unreadBadge">7</span></div>
+    <div class="notif-header-actions">
+      <button class="notif-hdr-btn" onclick="markAllRead()">Mark all read</button>
+      <button class="notif-close-btn" onclick="closeNotifDrawer()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+  </div>
+  <div class="notif-filter-bar">
+    <button class="notif-filter-tab active" onclick="filterNotifs('all',this)">All</button>
+    <button class="notif-filter-tab" onclick="filterNotifs('unread',this)">Unread</button>
+    <button class="notif-filter-tab" onclick="filterNotifs('customers',this)">Customers</button>
+    <button class="notif-filter-tab" onclick="filterNotifs('platform',this)">Platform</button>
+    <button class="notif-filter-tab" onclick="filterNotifs('lu',this)">Lu AI</button>
+  </div>
+  <div class="notif-list" id="notifList"></div>
+  <div class="notif-footer"><button class="notif-footer-btn">View notification history</button></div>
+</div>
+<script>
+
+// ═══════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════
+const ALL_TAGS = [
+  { id: 'high-protein', name: 'High Protein', color: '#1D9E75', pillBg: '#E1F5EE', pillColor: '#0F6E56' },
+  { id: 'low-carb',     name: 'Low Carb',     color: '#534AB7', pillBg: '#EEEDFE', pillColor: '#534AB7' },
+  { id: 'weight-loss',  name: 'Weight Loss',  color: '#E24B4A', pillBg: '#FEECEC', pillColor: '#A32D2D' },
+  { id: 'gluten-free',  name: 'Gluten Free',  color: '#C8A97E', pillBg: '#FDF6EE', pillColor: '#854F0B' },
+  { id: 'vegan',        name: 'Vegan',        color: '#3A6B4A', pillBg: '#EAF3DE', pillColor: '#3B6D11' },
+  { id: 'family-meals', name: 'Family Meals', color: '#185FA5', pillBg: '#E6F1FB', pillColor: '#185FA5' },
+];
+
+const MEALS = [
+  // HIGH PROTEIN
+  { id:1, name:'Jollof Rice & Grilled Chicken', emoji:'🍗', type:'lunch', countries:['Nigeria','Ghana'], cal:520, prot:38, carb:55, fat:12, prep:35, tags:['High Protein','Family Meals'] },
+  { id:2, name:'Boiled Egg & Yam', emoji:'🥚', type:'breakfast', countries:['Nigeria'], cal:340, prot:22, carb:42, fat:9, prep:20, tags:['High Protein','Low Carb'] },
+  { id:3, name:'Grilled Tilapia & Plantain', emoji:'🐟', type:'dinner', countries:['Ghana','Nigeria'], cal:410, prot:34, carb:38, fat:10, prep:30, tags:['High Protein','Gluten Free'] },
+  { id:4, name:'Oat Porridge with Groundnuts', emoji:'🥣', type:'breakfast', countries:['Ghana'], cal:380, prot:18, carb:50, fat:11, prep:15, tags:['High Protein','Weight Loss'] },
+  { id:5, name:'Egusi Soup & Fufu', emoji:'🍲', type:'dinner', countries:['Nigeria'], cal:590, prot:28, carb:62, fat:22, prep:45, tags:['High Protein','Family Meals'] },
+
+  // LOW CARB
+  { id:6, name:'Garden Egg Stew', emoji:'🍆', type:'lunch', countries:['Nigeria','Ghana'], cal:220, prot:8, carb:18, fat:14, prep:25, tags:['Low Carb','Vegan','Gluten Free'] },
+  { id:7, name:'Afang Soup', emoji:'🥬', type:'dinner', countries:['Nigeria'], cal:310, prot:24, carb:12, fat:18, prep:50, tags:['Low Carb','Gluten Free'] },
+  { id:8, name:'Cucumber & Avocado Salad', emoji:'🥑', type:'snack', countries:['Kenya','Nigeria'], cal:180, prot:4, carb:10, fat:16, prep:10, tags:['Low Carb','Vegan','Weight Loss'] },
+  { id:9, name:'Suya Skewers', emoji:'🍢', type:'snack', countries:['Nigeria'], cal:290, prot:30, carb:8, fat:14, prep:20, tags:['Low Carb','High Protein'] },
+
+  // WEIGHT LOSS
+  { id:10, name:'Moi Moi Steamed', emoji:'🫙', type:'lunch', countries:['Nigeria'], cal:240, prot:14, carb:30, fat:6, prep:40, tags:['Weight Loss','Gluten Free','Vegan'] },
+  { id:11, name:'Vegetable Stir Fry & Semo', emoji:'🥦', type:'dinner', countries:['Nigeria','Ghana'], cal:310, prot:12, carb:44, fat:8, prep:20, tags:['Weight Loss','Vegan'] },
+  { id:12, name:'Zobo Drink & Oats', emoji:'🧃', type:'breakfast', countries:['Nigeria'], cal:210, prot:8, carb:36, fat:4, prep:15, tags:['Weight Loss'] },
+
+  // GLUTEN FREE
+  { id:13, name:'Pounded Yam & Oha Soup', emoji:'🫚', type:'dinner', countries:['Nigeria'], cal:540, prot:22, carb:68, fat:16, prep:55, tags:['Gluten Free','Family Meals'] },
+  { id:14, name:'Coconut Rice & Fried Plantain', emoji:'🥥', type:'lunch', countries:['Nigeria','Ghana'], cal:480, prot:10, carb:72, fat:14, prep:30, tags:['Gluten Free','Vegan'] },
+  { id:15, name:'Banga Soup', emoji:'🫕', type:'dinner', countries:['Nigeria'], cal:360, prot:20, carb:14, fat:24, prep:60, tags:['Gluten Free'] },
+
+  // VEGAN
+  { id:16, name:'Groundnut Soup (Vegan)', emoji:'🥜', type:'dinner', countries:['Ghana','Nigeria'], cal:390, prot:14, carb:34, fat:22, prep:40, tags:['Vegan','Family Meals'] },
+  { id:17, name:'Jollof Quinoa', emoji:'🌾', type:'lunch', countries:['Ghana'], cal:340, prot:12, carb:54, fat:8, prep:25, tags:['Vegan','Weight Loss'] },
+  { id:18, name:'Akara (Bean Fritters)', emoji:'🟤', type:'breakfast', countries:['Nigeria','Ghana'], cal:260, prot:10, carb:30, fat:12, prep:20, tags:['Vegan'] },
+
+  // FAMILY MEALS
+  { id:19, name:'Pepper Soup', emoji:'🫗', type:'dinner', countries:['Nigeria'], cal:280, prot:26, carb:8, fat:14, prep:35, tags:['Family Meals'] },
+  { id:20, name:'Eba & Okra Soup', emoji:'🍜', type:'lunch', countries:['Nigeria','Ghana'], cal:510, prot:18, carb:76, fat:12, prep:30, tags:['Family Meals'] },
+  { id:21, name:'Indomie Stir Fry (Loaded)', emoji:'🍝', type:'dinner', countries:['Nigeria','Ghana','Kenya'], cal:430, prot:16, carb:60, fat:14, prep:15, tags:['Family Meals','Quick Meals'] },
+];
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let bulkMode = false;
+let selectedIds = new Set();
+let openGroups = new Set(['high-protein','low-carb','weight-loss']);
+let currentFilter = { type: '', country: '', tag: '', search: '' };
+let currentView = 'list'; // 'list' | 'grid'
+
+// ═══════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════
+function getMealsForTag(tagName, filter) {
+  return MEALS.filter(m => {
+    if (!m.tags.includes(tagName)) return false;
+    if (filter.type && m.type !== filter.type) return false;
+    if (filter.country && !m.countries.includes(filter.country)) return false;
+    if (filter.tag && !m.tags.includes(filter.tag)) return false;
+    if (filter.search) {
+      const q = filter.search.toLowerCase();
+      if (!m.name.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function macroBarWidth(val, max) {
+  return Math.min(100, Math.round((val / max) * 100));
+}
+
+function renderMealRow(meal) {
+  const isSelected = selectedIds.has(meal.id);
+  return `
+    <tr class="${isSelected ? 'selected' : ''}" id="row-${meal.id}" onclick="handleRowClick(event, ${meal.id})">
+      <td class="cb-col">
+        <input type="checkbox" class="meal-checkbox" ${isSelected ? 'checked' : ''}
+          onchange="toggleSelect(${meal.id}, this.checked)" onclick="event.stopPropagation()">
+      </td>
+      <td>
+        <div class="meal-name-cell">
+          <div class="meal-thumb" style="background:${thumbBg(meal.type)}">${meal.emoji}</div>
+          <span class="meal-name">${meal.name}</span>
+        </div>
+      </td>
+      <td>
+        <span class="type-pill type-${meal.type}">${cap(meal.type)}</span>
+      </td>
+      <td>
+        <div class="country-chips">
+          ${meal.countries.map(c => `<span class="country-chip">${countryFlag(c)} ${c}</span>`).join('')}
+        </div>
+      </td>
+      <td class="macro-cell">
+        <div class="macro-val">${meal.cal}<span class="macro-unit"> kcal</span></div>
+        <div class="macro-bar"><div class="macro-bar-fill cal-bar" style="width:${macroBarWidth(meal.cal,650)}%"></div></div>
+      </td>
+      <td class="macro-cell">
+        <div class="macro-val">${meal.prot}<span class="macro-unit">g</span></div>
+        <div class="macro-bar"><div class="macro-bar-fill prot-bar" style="width:${macroBarWidth(meal.prot,45)}%"></div></div>
+      </td>
+      <td class="macro-cell">
+        <div class="macro-val">${meal.carb}<span class="macro-unit">g</span></div>
+        <div class="macro-bar"><div class="macro-bar-fill carb-bar" style="width:${macroBarWidth(meal.carb,80)}%"></div></div>
+      </td>
+      <td class="macro-cell">
+        <div class="macro-val">${meal.fat}<span class="macro-unit">g</span></div>
+        <div class="macro-bar"><div class="macro-bar-fill fat-bar" style="width:${macroBarWidth(meal.fat,30)}%"></div></div>
+      </td>
+      <td>
+        <span class="prep-time">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:middle;margin-right:3px;opacity:0.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          ${meal.prep} min
+        </span>
+      </td>
+      <td>
+        <div class="row-actions">
+          <button class="row-btn" title="Edit meal" onclick="event.stopPropagation()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg>
+          </button>
+          <button class="row-btn danger" title="Remove from tag" onclick="event.stopPropagation()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+          </button>
+        </div>
+      </td>
+    </tr>`;
+}
+
+function renderMealGridCard(meal) {
+  const isSelected = selectedIds.has(meal.id);
+  return `
+    <div class="meal-grid-card ${isSelected ? 'selected' : ''}" id="gcard-${meal.id}" onclick="handleGridCardClick(event,${meal.id})">
+      <input type="checkbox" class="meal-grid-card-checkbox" ${isSelected ? 'checked' : ''}
+        onchange="toggleSelect(${meal.id}, this.checked)" onclick="event.stopPropagation()">
+      <div class="meal-grid-thumb" style="background:${thumbBg(meal.type)}">
+        ${meal.emoji}
+        <span class="meal-grid-type-badge">
+          <span class="type-pill type-${meal.type}" style="font-size:9px;padding:2px 6px;">${cap(meal.type)}</span>
+        </span>
+      </div>
+      <div class="meal-grid-body">
+        <div class="meal-grid-name">${meal.name}</div>
+        <div class="meal-grid-macros">
+          <div class="meal-grid-macro">
+            <span class="meal-grid-macro-val" style="color:#E24B4A;">${meal.cal}</span>
+            <span class="meal-grid-macro-label">kcal</span>
+          </div>
+          <div class="meal-grid-macro">
+            <span class="meal-grid-macro-val" style="color:#1D9E75;">${meal.prot}g</span>
+            <span class="meal-grid-macro-label">protein</span>
+          </div>
+          <div class="meal-grid-macro">
+            <span class="meal-grid-macro-val" style="color:#C8A97E;">${meal.carb}g</span>
+            <span class="meal-grid-macro-label">carbs</span>
+          </div>
+          <div class="meal-grid-macro">
+            <span class="meal-grid-macro-val" style="color:#534AB7;">${meal.fat}g</span>
+            <span class="meal-grid-macro-label">fat</span>
+          </div>
+        </div>
+        <div class="meal-grid-footer">
+          <span class="meal-grid-countries">${meal.countries.map(c => countryFlag(c)).join('')} ${meal.countries.join(', ')}</span>
+          <span class="meal-grid-prep">⏱ ${meal.prep}m</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+function handleGridCardClick(e, id) {
+  if (!bulkMode) return;
+  if (e.target.type === 'checkbox') return;
+  toggleSelect(id, !selectedIds.has(id));
+}
+
+function setView(view) {
+  currentView = view;
+  document.getElementById('listViewBtn').classList.toggle('active', view === 'list');
+  document.getElementById('gridViewBtn').classList.toggle('active', view === 'grid');
+  renderGroups();
+  if (bulkMode) reapplyBulkUI();
+}
+
+function exportCSV() {
+  const visibleMeals = ALL_TAGS.flatMap(tag => getMealsForTag(tag.name, currentFilter))
+    .filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i);
+  const headers = ['Name','Type','Countries','Calories','Protein','Carbs','Fat','Prep Time (min)','Tags'];
+  const rows = visibleMeals.map(m => [
+    `"${m.name}"`, m.type,
+    `"${m.countries.join(', ')}"`,
+    m.cal, m.prot, m.carb, m.fat, m.prep,
+    `"${m.tags.join(', ')}"`
+  ]);
+  const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'akaani-meals.csv';
+  a.click(); URL.revokeObjectURL(url);
+  showToast('Meals exported as CSV', true);
+}
+
+function thumbBg(type) {
+  const map = { breakfast:'linear-gradient(135deg,#FDF6EE,#F5DEB3)', lunch:'linear-gradient(135deg,#E1F5EE,#9FE1CB)', dinner:'linear-gradient(135deg,#EEEDFE,#CECBF6)', snack:'linear-gradient(135deg,#E6F1FB,#B5D4F4)' };
+  return map[type] || '#F3F4F6';
+}
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+function countryFlag(c) { return {Nigeria:'🇳🇬',Ghana:'🇬🇭',Kenya:'🇰🇪'}[c]||'🌍'; }
+
+function renderGroups() {
+  const container = document.getElementById('contentArea');
+  let totalVisible = 0;
+  let html = '';
+
+  ALL_TAGS.forEach(tag => {
+    const meals = getMealsForTag(tag.name, currentFilter);
+    if (currentFilter.tag && tag.name !== currentFilter.tag) return;
+    totalVisible += meals.length;
+    const isOpen = openGroups.has(tag.id);
+
+    const contentHtml = meals.length === 0
+      ? `<div class="empty-state">No meals match the current filters in this tag.</div>`
+      : currentView === 'grid'
+        ? `<div class="meals-grid-inner">${meals.map(m => renderMealGridCard(m)).join('')}</div>`
+        : `<table class="meals-table">
+            <thead>
+              <tr>
+                <th class="cb-col"></th>
+                <th>Meal</th><th>Type</th><th>Countries</th>
+                <th style="text-align:center;">Calories</th>
+                <th style="text-align:center;">Protein</th>
+                <th style="text-align:center;">Carbs</th>
+                <th style="text-align:center;">Fat</th>
+                <th>Prep Time</th><th></th>
+              </tr>
+            </thead>
+            <tbody>${meals.map(m => renderMealRow(m)).join('')}</tbody>
+          </table>`;
+
+    const wrapClass = currentView === 'grid' ? 'tag-group-grid-wrap' : 'meals-table-wrap';
+
+    html += `
+    <div class="tag-group" id="group-${tag.id}">
+      <div class="tag-group-header ${isOpen?'open':''}" onclick="toggleGroup('${tag.id}')">
+        <div class="tag-group-color" style="background:${tag.color}"></div>
+        <div class="tag-group-name">${tag.name}</div>
+        <div class="tag-group-meta">${meals.length} meal${meals.length!==1?'s':''}</div>
+        <span class="tag-group-pill" style="background:${tag.pillBg};color:${tag.pillColor};">${tag.name}</span>
+        <button class="tag-group-select-all" onclick="event.stopPropagation();selectAllInGroup('${tag.id}','${tag.name}')">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Select all
+        </button>
+        <svg class="chevron ${isOpen?'open':''}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="${wrapClass} ${isOpen?'open':''}" id="wrap-${tag.id}">
+        ${contentHtml}
+      </div>
+    </div>`;
+  });
+
+  container.innerHTML = html || '<div class="empty-state" style="padding:60px 20px;text-align:center;color:var(--text-tertiary);">No meals found matching your filters.</div>';
+  document.getElementById('mealsCount').textContent = `${totalVisible} meals`;
+}
+
+// ═══════════════════════════════════════════
+// INTERACTIONS
+// ═══════════════════════════════════════════
+function toggleGroup(id) {
+  if (openGroups.has(id)) {
+    openGroups.delete(id);
+  } else {
+    openGroups.add(id);
+  }
+  const header = document.querySelector(`#group-${id} .tag-group-header`);
+  const wrap = document.getElementById(`wrap-${id}`);
+  const chevron = header.querySelector('.chevron');
+  const isNowOpen = openGroups.has(id);
+  header.classList.toggle('open', isNowOpen);
+  wrap.classList.toggle('open', isNowOpen);
+  chevron.classList.toggle('open', isNowOpen);
+}
+
+function reapplyBulkUI() {
+  document.getElementById('contentArea').classList.add('bulk-mode');
+  document.querySelectorAll('.meal-checkbox, .meal-grid-card-checkbox').forEach(cb => cb.style.display = 'block');
+}
+
+function toggleBulkMode() {
+  bulkMode = !bulkMode;
+  const btn = document.getElementById('bulkToggleBtn');
+  const label = document.getElementById('bulkBtnLabel');
+  const content = document.getElementById('contentArea');
+
+  btn.classList.toggle('active', bulkMode);
+  label.textContent = bulkMode ? 'Exit Bulk Edit' : 'Bulk Edit';
+  document.body.classList.toggle('bulk-mode-on', bulkMode);
+  content.classList.toggle('bulk-mode', bulkMode);
+
+  document.querySelectorAll('.meal-checkbox, .meal-grid-card-checkbox').forEach(cb => {
+    cb.style.display = bulkMode ? 'block' : 'none';
+  });
+
+  if (!bulkMode) {
+    clearSelection();
+  }
+}
+
+function handleRowClick(e, id) {
+  if (!bulkMode) return;
+  if (e.target.type === 'checkbox') return;
+  toggleSelect(id, !selectedIds.has(id));
+}
+
+function toggleSelect(id, checked) {
+  if (checked) {
+    selectedIds.add(id);
+  } else {
+    selectedIds.delete(id);
+  }
+  // Update list row
+  const row = document.getElementById(`row-${id}`);
+  if (row) {
+    row.classList.toggle('selected', checked);
+    const cb = row.querySelector('.meal-checkbox');
+    if (cb) cb.checked = checked;
+  }
+  // Update grid card
+  const card = document.getElementById(`gcard-${id}`);
+  if (card) {
+    card.classList.toggle('selected', checked);
+    const cb = card.querySelector('.meal-grid-card-checkbox');
+    if (cb) cb.checked = checked;
+  }
+  updateBulkBar();
+}
+
+function selectAllInGroup(groupId, tagName) {
+  const meals = getMealsForTag(tagName, currentFilter);
+  meals.forEach(m => {
+    selectedIds.add(m.id);
+    const row = document.getElementById(`row-${m.id}`);
+    if (row) {
+      row.classList.add('selected');
+      const cb = row.querySelector('.meal-checkbox');
+      if (cb) cb.checked = true;
+    }
+  });
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const count = selectedIds.size;
+  document.getElementById('bulkCount').textContent = count;
+  const bar = document.getElementById('bulkBar');
+  if (count > 0 && bulkMode) {
+    bar.classList.add('visible');
+  } else {
+    bar.classList.remove('visible');
+  }
+}
+
+function clearSelection() {
+  selectedIds.forEach(id => {
+    const row = document.getElementById(`row-${id}`);
+    if (row) { row.classList.remove('selected'); const cb = row.querySelector('.meal-checkbox'); if (cb) cb.checked = false; }
+    const card = document.getElementById(`gcard-${id}`);
+    if (card) { card.classList.remove('selected'); const cb = card.querySelector('.meal-grid-card-checkbox'); if (cb) cb.checked = false; }
+  });
+  selectedIds.clear();
+  updateBulkBar();
+}
+
+function applyBulkEdit() {
+  const addTag = document.getElementById('addTagSelect').value;
+  const removeTag = document.getElementById('removeTagSelect').value;
+  if (!addTag && !removeTag) {
+    showToast('Please select at least one tag action.', false);
+    return;
+  }
+
+  const count = selectedIds.size;
+  const selectedMeals = MEALS.filter(m => selectedIds.has(m.id));
+
+  // Apply data changes
+  selectedMeals.forEach(meal => {
+    if (addTag && !meal.tags.includes(addTag)) {
+      meal.tags.push(addTag);
+    }
+    if (removeTag) {
+      meal.tags = meal.tags.filter(t => t !== removeTag);
+    }
+  });
+
+  // Build toast message
+  let msg = `${count} meal${count!==1?'s':''} updated`;
+  if (addTag && removeTag) msg += ` · Added to "${addTag}", removed from "${removeTag}"`;
+  else if (addTag) msg += ` · Added to "${addTag}"`;
+  else if (removeTag) msg += ` · Removed from "${removeTag}"`;
+
+  // Reset selects
+  document.getElementById('addTagSelect').value = '';
+  document.getElementById('removeTagSelect').value = '';
+
+  clearSelection();
+  renderGroups();
+  if (bulkMode) reapplyBulkUI();
+  showToast(msg, true);
+}
+
+function showToast(msg, success=true) {
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.querySelector('svg').style.display = success ? 'block' : 'none';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function applyFilters() {
+  currentFilter.type = document.getElementById('filterType').value;
+  currentFilter.country = document.getElementById('filterCountry').value;
+  currentFilter.tag = document.getElementById('filterTag').value;
+  renderGroups();
+  if (bulkMode) reapplyBulkUI();
+}
+
+function filterMeals(query) {
+  currentFilter.search = query;
+  if (query.length > 0) ALL_TAGS.forEach(t => openGroups.add(t.id));
+  renderGroups();
+  if (bulkMode) reapplyBulkUI();
+}
+
+// Nav click
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', e => {
+    e.preventDefault();
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    item.classList.add('active');
+  });
+});
+
+// Init
+renderGroups();
+
+</script>
+<script src="../js/shared.js"></script>
+</body>
+</html>
