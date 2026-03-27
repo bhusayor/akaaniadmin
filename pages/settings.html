@@ -3,13 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Akaani Admin — Settings</title>
+<title>Akaani — Settings</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/shared.css">
 <style>
-
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
   --sidebar-bg: #003232; --sidebar-active: #004d4d;
@@ -30,14 +28,14 @@ html, body { height: 100%; font-family: 'Outfit', sans-serif; background: var(--
 .layout { display: flex; height: 100vh; overflow: hidden; }
 
 /* ── APP SIDEBAR ── */
-.sidebar { width: 220px; min-width: 220px; background: var(--sidebar-bg); display: flex; flex-direction: column; position: relative; overflow: hidden; flex-shrink: 0; }
-.sidebar::before { content:''; position:absolute; bottom:-60px; right:-60px; width:200px; height:200px; background:radial-gradient(circle,rgba(93,202,165,0.12) 0%,transparent 70%); pointer-events:none; }
-.sidebar-logo { padding:24px 20px 20px; border-bottom:1px solid var(--sidebar-border); display:flex; align-items:center; gap:10px; }
-.sidebar-logo-icon { width:32px; height:32px; background:var(--sidebar-accent); border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.sidebar-logo-icon svg { width:18px; height:18px; }
-.sidebar-logo-text { font-size:19px; font-weight:700; color:#fff; letter-spacing:-0.02em; }
-.sb-section { padding:20px 12px 8px; }
-.sb-section-label { font-size:10px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:rgba(255,255,255,0.25); padding:0 8px; margin-bottom:6px; }
+.app-sidebar { width: 220px; min-width: 220px; background: var(--sidebar-bg); display: flex; flex-direction: column; position: relative; overflow: hidden; flex-shrink: 0; }
+.app-sidebar::before { content:''; position:absolute; bottom:-60px; right:-60px; width:200px; height:200px; background:radial-gradient(circle,rgba(93,202,165,0.12) 0%,transparent 70%); pointer-events:none; }
+.sb-logo { padding:24px 20px 20px; border-bottom:1px solid var(--sidebar-border); display:flex; align-items:center; gap:10px; }
+.sb-logo-icon { width:32px; height:32px; background:var(--sidebar-accent); border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.sb-logo-icon svg { width:18px; height:18px; }
+.sb-logo-text { font-size:19px; font-weight:700; color:#fff; letter-spacing:-0.02em; }
+.sb-sect { padding:20px 12px 8px; }
+.sb-sect-lbl { font-size:10px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:rgba(255,255,255,0.25); padding:0 8px; margin-bottom:6px; }
 .nav-item { display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:var(--radius-sm); color:var(--sidebar-text); cursor:pointer; transition:all 0.18s; font-size:13.5px; font-weight:400; margin-bottom:1px; position:relative; text-decoration:none; }
 .nav-item:hover { background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.85); }
 .nav-item.active { background:var(--sidebar-active); color:var(--sidebar-text-active); font-weight:500; }
@@ -240,72 +238,694 @@ input:checked + .toggle-slider::before { transform:translateX(18px); }
 .modal-acts { display:flex; gap:8px; justify-content:flex-end; }
 
 @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-
-
-@media (max-width: 900px) { .settings-wrap { flex-direction: column; } .settings-nav { width: 100%; min-width: 0; border-right: none; border-bottom: 1px solid var(--border); flex-direction: row; overflow-x: auto; padding: 10px 12px; gap: 4px; } .snav-label { display: none; } .snav-item { white-space: nowrap; flex-shrink: 0; } .settings-content { padding: 16px; } }
-@media (max-width: 480px) { .form-row { grid-template-columns: 1fr !important; } .info-grid { grid-template-columns: 1fr !important; } .invite-row { flex-direction: column; } }
-
 </style>
 </head>
 <body>
 <div class="layout">
-<nav class="sidebar">
-  <div class="sidebar-logo">
-    <div class="logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#003232" stroke-width="2.5" stroke-linecap="round"><path d="M12 2C8 2 5 6 5 10c0 5 7 12 7 12s7-7 7-12c0-4-3-8-7-8z"/><circle cx="12" cy="10" r="2.5" fill="#003232" stroke="none"/></svg></div>
-    <span class="logo-text">akaani</span>
+
+<!-- ═══ APP SIDEBAR ═══ -->
+<nav class="app-sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#003232" stroke-width="2.5" stroke-linecap="round"><path d="M12 2C8 2 5 6 5 10c0 5 7 12 7 12s7-7 7-12c0-4-3-8-7-8z"/><circle cx="12" cy="10" r="2.5" fill="#003232" stroke="none"/></svg></div>
+    <span class="sb-logo-text">akaani</span>
   </div>
-  <div class="sb-section">
-    <div class="sb-section-label">Overview</div>
-    <a class="nav-item" data-page="dashboard" href="dashboard.html"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>Dashboard</a>
-    <a class="nav-item" data-page="customers" href="customers.html"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></span>Customers<span class="nav-badge">2,062</span></a>
+  <div class="sb-sect">
+    <div class="sb-sect-lbl">Overview</div>
+    <a class="nav-item" href="#"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>Dashboard</a>
+    <a class="nav-item" href="#"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></span>Customers<span class="nav-badge">2,062</span></a>
   </div>
-  <div class="sb-section">
-    <div class="sb-section-label">Content</div>
-    <a class="nav-item" data-page="meals" href="meals.html"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></span>Meals</a>
-    <a class="nav-item" href="#"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/></svg></span>Recipes</a>
+  <div class="sb-sect">
+    <div class="sb-sect-lbl">Content</div>
+    <a class="nav-item" href="#"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></span>Meals</a>
+    <a class="nav-item" href="#"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></span>Recipes</a>
     <a class="nav-item" href="#"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></span>Ingredients</a>
   </div>
-  <div class="sb-section">
-    <div class="sb-section-label">Management</div>
-    <a class="nav-item" href="#"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/></svg></span>Meals Tags</a>
+  <div class="sb-sect">
+    <div class="sb-sect-lbl">Management</div>
+    <a class="nav-item" href="#"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg></span>Meals Tags</a>
     <a class="nav-item" href="#"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>LU Facts</a>
-    <a class="nav-item active" data-page="settings" href="settings.html"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 1 0 21 12"/></svg></span>Settings</a>
+    <a class="nav-item active" href="#"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 1 0 21 12"/></svg></span>Settings</a>
   </div>
   <div class="sb-bottom">
     <div class="user-row">
-      <div class="user-avatar">PO</div>
-      <div class="user-info"><div class="user-name">Peter Omidiji</div><div class="user-role">Admin</div></div>
+      <div class="u-av">PO</div>
+      <div style="flex:1;min-width:0;"><div class="u-name">Peter Omidiji</div><div class="u-role">Admin</div></div>
       <button class="logout-btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg></button>
     </div>
   </div>
 </nav>
-<div class="sidebar-overlay"></div>
-<div class="main">
 
-</div>
-</div>
-<div class="notif-backdrop" id="notifBackdrop" onclick="closeNotifDrawer()"></div>
-<div class="notif-drawer" id="notifDrawer">
-  <div class="notif-drawer-header">
-    <div class="notif-drawer-title">Notifications<span class="notif-unread-badge" id="unreadBadge">7</span></div>
-    <div class="notif-header-actions">
-      <button class="notif-hdr-btn" onclick="markAllRead()">Mark all read</button>
-      <button class="notif-close-btn" onclick="closeNotifDrawer()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+<!-- ═══ MAIN ═══ -->
+<div class="main">
+  <div class="topbar">
+    <span class="page-title">Settings</span>
+    <button class="icon-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg><span class="notif-dot"></span></button>
+  </div>
+
+  <div class="settings-wrap">
+
+    <!-- ── SETTINGS NAV ── -->
+    <div class="settings-nav">
+      <div class="snav-label" style="margin-top:0;">Account</div>
+      <a class="snav-item active" onclick="switchTab('account')" href="#">
+        <span class="snav-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></span>
+        Profile
+      </a>
+      <a class="snav-item" onclick="switchTab('password')" href="#">
+        <span class="snav-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></span>
+        Password
+      </a>
+
+      <div class="snav-label">Platform</div>
+      <a class="snav-item" onclick="switchTab('platform')" href="#">
+        <span class="snav-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 1 0 21 12"/></svg></span>
+        General
+      </a>
+      <a class="snav-item" onclick="switchTab('localization')" href="#">
+        <span class="snav-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg></span>
+        Localization
+      </a>
+
+      <div class="snav-label">Notifications</div>
+      <a class="snav-item" onclick="switchTab('notifications')" href="#">
+        <span class="snav-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg></span>
+        Notifications
+        <span class="snav-badge">3</span>
+      </a>
+
+      <div class="snav-label">Team</div>
+      <a class="snav-item" onclick="switchTab('team')" href="#">
+        <span class="snav-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></span>
+        Members
+      </a>
+      <a class="snav-item" onclick="switchTab('roles')" href="#">
+        <span class="snav-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+        Roles & Permissions
+      </a>
+    </div>
+
+    <!-- ── SETTINGS CONTENT ── -->
+    <div class="settings-content">
+
+      <!-- ════════ PROFILE ════════ -->
+      <div class="section-panel active" id="panel-account">
+        <div class="sect-head">
+          <div class="sect-title">Profile</div>
+          <div class="sect-desc">Manage your personal account information and public profile.</div>
+        </div>
+
+        <div class="settings-card">
+          <div class="sc-header"><div><div class="sc-title">Personal Information</div><div class="sc-desc">Your name and contact details shown across the platform</div></div></div>
+          <div class="sc-body">
+            <div class="avatar-row">
+              <div class="avatar-preview" id="avatarPreview">PO</div>
+              <div>
+                <div style="font-size:13px;font-weight:500;color:var(--text-primary);margin-bottom:4px;">Profile photo</div>
+                <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:10px;">JPG, PNG or GIF. Max 2MB.</div>
+                <div style="display:flex;gap:8px;">
+                  <button class="avatar-change-btn">Upload photo</button>
+                  <button class="avatar-remove-btn">Remove</button>
+                </div>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="ff"><label class="fl">First name</label><input class="fi" value="Peter" placeholder="First name"></div>
+              <div class="ff"><label class="fl">Last name</label><input class="fi" value="Omidiji" placeholder="Last name"></div>
+            </div>
+            <div class="form-row full">
+              <div class="ff"><label class="fl">Email address</label><input class="fi" type="email" value="peter@useakaani.com" placeholder="Email address"><div class="fi-hint">This is used to log in and receive notifications.</div></div>
+            </div>
+            <div class="form-row">
+              <div class="ff"><label class="fl">Phone number</label><input class="fi" value="+234 801 234 5678" placeholder="Phone number"></div>
+              <div class="ff"><label class="fl">Job title</label><input class="fi" value="Product Designer" placeholder="Job title"></div>
+            </div>
+            <div class="save-row">
+              <button class="btn-cancel">Cancel</button>
+              <button class="btn-save" onclick="saveSection('profile')">Save Changes</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="danger-zone">
+          <div class="dz-header"><div class="dz-title">Danger Zone</div><div class="dz-desc">These actions are irreversible. Please proceed with caution.</div></div>
+          <div class="dz-body">
+            <div><div class="dz-action-label">Deactivate account</div><div class="dz-action-sub">Temporarily disable your account. You can reactivate at any time.</div></div>
+            <button class="btn-danger" onclick="openConfirm('deactivate')">Deactivate</button>
+          </div>
+          <div class="dz-body" style="border-top:1px solid #fca5a5;">
+            <div><div class="dz-action-label">Delete account</div><div class="dz-action-sub">Permanently delete your account and all associated data.</div></div>
+            <button class="btn-danger" onclick="openConfirm('delete-account')">Delete Account</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════ PASSWORD ════════ -->
+      <div class="section-panel" id="panel-password">
+        <div class="sect-head">
+          <div class="sect-title">Password & Security</div>
+          <div class="sect-desc">Update your password and manage two-factor authentication.</div>
+        </div>
+
+        <div class="settings-card">
+          <div class="sc-header"><div><div class="sc-title">Change Password</div><div class="sc-desc">Use a strong password of at least 8 characters</div></div></div>
+          <div class="sc-body">
+            <div class="form-row full">
+              <div class="ff"><label class="fl">Current password</label><input class="fi" type="password" id="curPw" placeholder="Enter current password" oninput="checkPwStrength()"></div>
+            </div>
+            <div class="form-row">
+              <div class="ff">
+                <label class="fl">New password</label>
+                <input class="fi" type="password" id="newPw" placeholder="New password" oninput="checkPwStrength()">
+                <div class="pw-strength">
+                  <div class="pw-bars">
+                    <div class="pw-bar" id="pb1"></div>
+                    <div class="pw-bar" id="pb2"></div>
+                    <div class="pw-bar" id="pb3"></div>
+                  </div>
+                  <span class="pw-label" id="pwLabel">Enter a password</span>
+                </div>
+              </div>
+              <div class="ff"><label class="fl">Confirm new password</label><input class="fi" type="password" id="confirmPw" placeholder="Confirm new password"></div>
+            </div>
+            <div class="save-row">
+              <button class="btn-cancel">Cancel</button>
+              <button class="btn-save" onclick="saveSection('password')">Update Password</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div class="sc-header"><div><div class="sc-title">Two-Factor Authentication</div><div class="sc-desc">Add an extra layer of security to your account</div></div></div>
+          <div class="sc-body">
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label">Authenticator app (TOTP)</div>
+                <div class="toggle-sub">Use Google Authenticator, Authy, or similar apps</div>
+              </div>
+              <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label">SMS verification</div>
+                <div class="toggle-sub">Receive a one-time code via text message</div>
+              </div>
+              <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label">Backup codes</div>
+                <div class="toggle-sub">Generate one-time backup codes for emergencies</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;margin-left:16px;">
+                <button class="avatar-change-btn" onclick="saveSection('backup-codes')">Generate codes</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════ PLATFORM GENERAL ════════ -->
+      <div class="section-panel" id="panel-platform">
+        <div class="sect-head">
+          <div class="sect-title">Platform Settings</div>
+          <div class="sect-desc">Configure your Akaani platform name, branding, and general behaviour.</div>
+        </div>
+
+        <div class="settings-card">
+          <div class="sc-header"><div><div class="sc-title">App Identity</div><div class="sc-desc">How your platform appears to users and in communications</div></div></div>
+          <div class="sc-body">
+            <div class="form-row">
+              <div class="ff"><label class="fl">Platform name</label><input class="fi" value="Akaani" placeholder="Platform name"></div>
+              <div class="ff"><label class="fl">Support email</label><input class="fi" type="email" value="support@useakaani.com" placeholder="Support email"></div>
+            </div>
+            <div class="form-row full">
+              <div class="ff"><label class="fl">Platform tagline</label><input class="fi" value="AI-powered food & meal planning" placeholder="Tagline shown in onboarding"><div class="fi-hint">Shown on the landing page and in user onboarding flows.</div></div>
+            </div>
+            <div class="form-row full">
+              <div class="ff"><label class="fl">Support URL</label><input class="fi" value="https://support.useakaani.com" placeholder="https://"></div>
+            </div>
+            <div class="save-row">
+              <button class="btn-cancel">Cancel</button>
+              <button class="btn-save" onclick="saveSection('platform')">Save Changes</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div class="sc-header"><div><div class="sc-title">Default Behaviours</div><div class="sc-desc">Platform-wide defaults for new users and sessions</div></div></div>
+          <div class="sc-body">
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label">Maintenance mode</div>
+                <div class="toggle-sub">Temporarily show a maintenance page to all users</div>
+              </div>
+              <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label">Allow new registrations</div>
+                <div class="toggle-sub">Enable or disable new user sign-ups on the platform</div>
+              </div>
+              <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label">Require email verification</div>
+                <div class="toggle-sub">New users must verify email before accessing the app</div>
+              </div>
+              <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════ LOCALIZATION ════════ -->
+      <div class="section-panel" id="panel-localization">
+        <div class="sect-head">
+          <div class="sect-title">Localization</div>
+          <div class="sect-desc">Set the default timezone, currency, language and regional preferences.</div>
+        </div>
+
+        <div class="settings-card">
+          <div class="sc-header"><div><div class="sc-title">Regional Settings</div><div class="sc-desc">These defaults apply to all new users unless they override them</div></div></div>
+          <div class="sc-body">
+            <div class="form-row">
+              <div class="ff">
+                <label class="fl">Default timezone</label>
+                <select class="fi fi-select">
+                  <option>Africa/Lagos (GMT+1)</option>
+                  <option>Africa/Accra (GMT+0)</option>
+                  <option>Africa/Nairobi (GMT+3)</option>
+                  <option>Africa/Johannesburg (GMT+2)</option>
+                  <option>Europe/London (GMT+0)</option>
+                  <option>America/New_York (GMT-5)</option>
+                </select>
+              </div>
+              <div class="ff">
+                <label class="fl">Default language</label>
+                <select class="fi fi-select">
+                  <option>English (en)</option>
+                  <option>French (fr)</option>
+                  <option>Yoruba (yo)</option>
+                  <option>Igbo (ig)</option>
+                  <option>Hausa (ha)</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="ff">
+                <label class="fl">Primary currency</label>
+                <select class="fi fi-select">
+                  <option>NGN — Nigerian Naira (₦)</option>
+                  <option>GHS — Ghanaian Cedi (₵)</option>
+                  <option>KES — Kenyan Shilling (KSh)</option>
+                  <option>USD — US Dollar ($)</option>
+                  <option>GBP — British Pound (£)</option>
+                </select>
+              </div>
+              <div class="ff">
+                <label class="fl">Date format</label>
+                <select class="fi fi-select">
+                  <option>DD / MM / YYYY</option>
+                  <option>MM / DD / YYYY</option>
+                  <option>YYYY-MM-DD</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="ff">
+                <label class="fl">Week starts on</label>
+                <select class="fi fi-select">
+                  <option>Monday</option>
+                  <option>Sunday</option>
+                  <option>Saturday</option>
+                </select>
+              </div>
+              <div class="ff">
+                <label class="fl">Measurement system</label>
+                <select class="fi fi-select">
+                  <option>Metric (kg, ml, cm)</option>
+                  <option>Imperial (lb, fl oz, in)</option>
+                </select>
+              </div>
+            </div>
+            <div class="save-row">
+              <button class="btn-cancel">Cancel</button>
+              <button class="btn-save" onclick="saveSection('localization')">Save Changes</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════ NOTIFICATIONS ════════ -->
+      <div class="section-panel" id="panel-notifications">
+        <div class="sect-head">
+          <div class="sect-title">Notifications</div>
+          <div class="sect-desc">Control which notifications you receive and how they're delivered.</div>
+        </div>
+
+        <div class="settings-card">
+          <div class="sc-header"><div><div class="sc-title">Email Notifications</div><div class="sc-desc">Sent to peter@useakaani.com</div></div></div>
+          <div class="sc-body">
+            <div class="toggle-row">
+              <div class="toggle-info"><div class="toggle-label">New customer sign-up</div><div class="toggle-sub">When a new user registers on the platform</div></div>
+              <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-info"><div class="toggle-label">Weekly summary report</div><div class="toggle-sub">Platform stats, revenue, and growth digest</div></div>
+              <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-info"><div class="toggle-label">Meal plan activity</div><div class="toggle-sub">When users create or update meal plans</div></div>
+              <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-info"><div class="toggle-label">Payment & billing alerts</div><div class="toggle-sub">Successful payments, failed transactions, refunds</div></div>
+              <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div class="sc-header"><div><div class="sc-title">Push Notifications</div><div class="sc-desc">In-app and browser push alerts</div></div></div>
+          <div class="sc-body">
+            <div class="toggle-row">
+              <div class="toggle-info"><div class="toggle-label">Real-time customer alerts</div><div class="toggle-sub">Instant notification when key customer events occur</div></div>
+              <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-info"><div class="toggle-label">System alerts</div><div class="toggle-sub">Downtime, maintenance, and critical platform updates</div></div>
+              <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-info"><div class="toggle-label">Lu AI insights</div><div class="toggle-sub">Notifications from the Lu AI recommendation engine</div></div>
+              <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div class="sc-header"><div><div class="sc-title">SMS Notifications</div><div class="sc-desc">Text messages to +234 801 234 5678</div></div></div>
+          <div class="sc-body">
+            <div class="toggle-row">
+              <div class="toggle-info"><div class="toggle-label">Critical security alerts</div><div class="toggle-sub">Login from new device, password changed, 2FA events</div></div>
+              <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-info"><div class="toggle-label">Large payment alerts</div><div class="toggle-sub">Transactions above ₦50,000</div></div>
+              <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="form-row" style="margin-top:16px;">
+              <div class="ff">
+                <label class="fl">Notification frequency</label>
+                <select class="fi fi-select">
+                  <option>Immediately</option>
+                  <option>Digest — every hour</option>
+                  <option>Digest — twice daily</option>
+                  <option>Daily summary only</option>
+                </select>
+                <div class="fi-hint">Applies to non-critical notifications only.</div>
+              </div>
+            </div>
+            <div class="save-row">
+              <button class="btn-save" onclick="saveSection('notifications')">Save Preferences</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════ TEAM MEMBERS ════════ -->
+      <div class="section-panel" id="panel-team">
+        <div class="sect-head">
+          <div class="sect-title">Team Members</div>
+          <div class="sect-desc">Invite and manage people who have access to the Akaani admin platform.</div>
+        </div>
+
+        <div class="settings-card">
+          <div class="sc-header"><div><div class="sc-title">Invite a team member</div><div class="sc-desc">They'll receive an email invitation to join the platform</div></div></div>
+          <div class="sc-body">
+            <div class="invite-row">
+              <div class="ff"><label class="fl">Email address</label><input class="fi" id="inviteEmail" placeholder="colleague@useakaani.com"></div>
+              <div class="ff" style="max-width:160px;"><label class="fl">Role</label>
+                <select class="fi fi-select" id="inviteRole">
+                  <option value="admin">Admin</option>
+                  <option value="manager">Manager</option>
+                  <option value="viewer">Viewer</option>
+                </select>
+              </div>
+              <button class="invite-btn" onclick="sendInvite()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                Send Invite
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div class="sc-header">
+            <div><div class="sc-title">Current Members</div><div class="sc-desc" id="memberCount">4 members with platform access</div></div>
+          </div>
+          <table class="team-table" id="teamTable">
+            <thead><tr><th>Member</th><th>Role</th><th>Joined</th><th>Status</th><th></th></tr></thead>
+            <tbody id="teamTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ════════ ROLES & PERMISSIONS ════════ -->
+      <div class="section-panel" id="panel-roles">
+        <div class="sect-head">
+          <div class="sect-title">Roles & Permissions</div>
+          <div class="sect-desc">Define what each role can see and do within the platform.</div>
+        </div>
+
+        <div class="settings-card">
+          <div class="sc-header"><div><div class="sc-title">Role Matrix</div><div class="sc-desc">Permissions applied to all members with each role</div></div></div>
+          <div class="sc-body">
+            <!-- Permission grid -->
+            <div style="overflow-x:auto;">
+              <table style="width:100%;border-collapse:collapse;min-width:480px;">
+                <thead>
+                  <tr>
+                    <th style="text-align:left;font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.07em;padding:8px 12px;border-bottom:1px solid var(--border-light);background:var(--surface-2);">Permission</th>
+                    <th style="text-align:center;font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.07em;padding:8px 12px;border-bottom:1px solid var(--border-light);background:var(--surface-2);">Admin</th>
+                    <th style="text-align:center;font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.07em;padding:8px 12px;border-bottom:1px solid var(--border-light);background:var(--surface-2);">Manager</th>
+                    <th style="text-align:center;font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.07em;padding:8px 12px;border-bottom:1px solid var(--border-light);background:var(--surface-2);">Viewer</th>
+                  </tr>
+                </thead>
+                <tbody id="permMatrix"></tbody>
+              </table>
+            </div>
+            <div class="save-row">
+              <button class="btn-save" onclick="saveSection('roles')">Save Permissions</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /settings-content -->
+  </div><!-- /settings-wrap -->
+</div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- Confirm modal -->
+<div class="overlay" id="confirmOv" onclick="closeConfirm()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeConfirm()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    <div class="modal-title" id="confirmTitle"></div>
+    <div class="modal-body" id="confirmBody"></div>
+    <div class="modal-acts">
+      <button class="btn-cancel" onclick="closeConfirm()">Cancel</button>
+      <button class="btn-danger" id="confirmAction">Confirm</button>
     </div>
   </div>
-  <div class="notif-filter-bar">
-    <button class="notif-filter-tab active" onclick="filterNotifs('all',this)">All</button>
-    <button class="notif-filter-tab" onclick="filterNotifs('unread',this)">Unread</button>
-    <button class="notif-filter-tab" onclick="filterNotifs('customers',this)">Customers</button>
-    <button class="notif-filter-tab" onclick="filterNotifs('platform',this)">Platform</button>
-    <button class="notif-filter-tab" onclick="filterNotifs('lu',this)">Lu AI</button>
-  </div>
-  <div class="notif-list" id="notifList"></div>
-  <div class="notif-footer"><button class="notif-footer-btn">View notification history</button></div>
 </div>
-<script>
 
+<!-- Toast -->
+<div class="toast" id="toast">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5DCAA5" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+  <span id="toastMsg"></span>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// TAB NAVIGATION
+// ═══════════════════════════════════════
+function switchTab(id) {
+  document.querySelectorAll('.snav-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.section-panel').forEach(el => el.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  const panel = document.getElementById('panel-' + id);
+  if (panel) panel.classList.add('active');
+  document.querySelector('.settings-content').scrollTop = 0;
+}
+
+// ═══════════════════════════════════════
+// PASSWORD STRENGTH
+// ═══════════════════════════════════════
+function checkPwStrength() {
+  const val = document.getElementById('newPw').value;
+  const bars = [document.getElementById('pb1'), document.getElementById('pb2'), document.getElementById('pb3')];
+  const label = document.getElementById('pwLabel');
+  bars.forEach(b => { b.className = 'pw-bar'; });
+  if (!val) { label.textContent = 'Enter a password'; label.style.color = 'var(--text-tertiary)'; return; }
+  let score = 0;
+  if (val.length >= 8) score++;
+  if (/[A-Z]/.test(val) && /[0-9]/.test(val)) score++;
+  if (/[^A-Za-z0-9]/.test(val)) score++;
+  const levels = [['weak','#E24B4A'],['medium','#C8A97E'],['strong','#1D9E75']];
+  for (let i = 0; i < score; i++) { bars[i].classList.add(levels[Math.min(score-1,2)][0]); }
+  const [cls, col] = levels[Math.min(score-1,2)];
+  label.textContent = ['Weak','Fair','Strong'][score-1] || 'Weak';
+  label.style.color = col;
+}
+
+// ═══════════════════════════════════════
+// SAVE HANDLERS
+// ═══════════════════════════════════════
+function saveSection(section) {
+  const msgs = {
+    profile: 'Profile updated successfully',
+    password: 'Password changed successfully',
+    platform: 'Platform settings saved',
+    localization: 'Localization preferences saved',
+    notifications: 'Notification preferences saved',
+    roles: 'Permissions matrix saved',
+    'backup-codes': 'Backup codes generated — check your email',
+  };
+  showToast(msgs[section] || 'Changes saved');
+}
+
+// ═══════════════════════════════════════
+// TEAM MEMBERS
+// ═══════════════════════════════════════
+const AVC = [{bg:'#E1F5EE',color:'#0B6646'},{bg:'#FDF6EE',color:'#7A4F2A'},{bg:'#E6F1FB',color:'#1055A0'},{bg:'#EEEDFE',color:'#534AB7'}];
+
+let TEAM = [
+  { id:1, name:'Peter Omidiji', email:'peter@useakaani.com', role:'admin', joined:'Jan 2024', status:'active', initials:'PO', av:AVC[0] },
+  { id:2, name:'Amara Okafor',  email:'amara@useakaani.com', role:'manager', joined:'Mar 2024', status:'active', initials:'AO', av:AVC[1] },
+  { id:3, name:'Kofi Mensah',   email:'kofi@useakaani.com',  role:'manager', joined:'Jun 2024', status:'active', initials:'KM', av:AVC[2] },
+  { id:4, name:'Njeri Wanjiku', email:'njeri@useakaani.com', role:'viewer',  joined:'Sep 2024', status:'pending', initials:'NW', av:AVC[3] },
+];
+
+function roleClass(r) { return { admin:'role-admin', manager:'role-manager', viewer:'role-viewer' }[r] || 'role-viewer'; }
+function roleLabel(r) { return { admin:'Admin', manager:'Manager', viewer:'Viewer' }[r] || r; }
+function statusPill(s) {
+  if (s === 'active') return `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;background:var(--green-light);color:#0B6646;"><span style="width:5px;height:5px;border-radius:50%;background:currentColor;"></span>Active</span>`;
+  return `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;background:var(--amber-light);color:#7A4A10;"><span style="width:5px;height:5px;border-radius:50%;background:currentColor;"></span>Pending</span>`;
+}
+
+function renderTeam() {
+  document.getElementById('memberCount').textContent = `${TEAM.length} member${TEAM.length!==1?'s':''} with platform access`;
+  document.getElementById('teamTbody').innerHTML = TEAM.map(m => `
+    <tr>
+      <td><div class="tm-cell"><div class="tm-av" style="background:${m.av.bg};color:${m.av.color};">${m.initials}</div><div><div class="tm-name">${m.name}</div><div class="tm-email">${m.email}</div></div></div></td>
+      <td><span class="role-badge ${roleClass(m.role)}">${roleLabel(m.role)}</span></td>
+      <td style="font-size:12px;color:var(--text-tertiary);">${m.joined}</td>
+      <td>${statusPill(m.status)}</td>
+      <td>
+        <div style="display:flex;gap:2px;">
+          <button class="tm-action-btn" title="Edit role" onclick="editTeamMember(${m.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg></button>
+          ${m.id !== 1 ? `<button class="tm-action-btn danger" title="Remove member" onclick="removeMember(${m.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg></button>` : ''}
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function sendInvite() {
+  const email = document.getElementById('inviteEmail').value.trim();
+  const role = document.getElementById('inviteRole').value;
+  if (!email || !email.includes('@')) { showToast('Enter a valid email address'); return; }
+  const names = email.split('@')[0].split('.').map(w => w[0].toUpperCase()+w.slice(1));
+  const name = names.slice(0,2).join(' ');
+  const initials = names.map(n=>n[0]).join('').slice(0,2);
+  TEAM.push({ id: Date.now(), name, email, role, joined:'Mar 2026', status:'pending', initials, av: AVC[TEAM.length % AVC.length] });
+  document.getElementById('inviteEmail').value = '';
+  renderTeam();
+  showToast(`Invitation sent to ${email}`);
+}
+
+function removeMember(id) {
+  const m = TEAM.find(t=>t.id===id); if(!m) return;
+  TEAM = TEAM.filter(t=>t.id!==id);
+  renderTeam();
+  showToast(`${m.name} removed from team`);
+}
+
+function editTeamMember(id) {
+  const m = TEAM.find(t=>t.id===id); if(!m) return;
+  const roles = ['admin','manager','viewer'];
+  const next = roles[(roles.indexOf(m.role)+1) % roles.length];
+  m.role = next;
+  renderTeam();
+  showToast(`${m.name} is now ${next}`);
+}
+
+// ═══════════════════════════════════════
+// PERMISSIONS MATRIX
+// ═══════════════════════════════════════
+const PERMS = [
+  { label:'View dashboard & analytics', admin:true,  manager:true,  viewer:true  },
+  { label:'Manage customers',           admin:true,  manager:true,  viewer:false },
+  { label:'Add & edit meals',           admin:true,  manager:true,  viewer:false },
+  { label:'Manage meal tags',           admin:true,  manager:true,  viewer:false },
+  { label:'Manage recipes',             admin:true,  manager:true,  viewer:true  },
+  { label:'View revenue stats',         admin:true,  manager:true,  viewer:false },
+  { label:'Export data (CSV)',          admin:true,  manager:true,  viewer:false },
+  { label:'Invite team members',        admin:true,  manager:false, viewer:false },
+  { label:'Edit platform settings',     admin:true,  manager:false, viewer:false },
+  { label:'Manage roles & permissions', admin:true,  manager:false, viewer:false },
+  { label:'Delete records',             admin:true,  manager:false, viewer:false },
+];
+
+function checkIcon(val) {
+  if (val) return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1D9E75" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+  return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+}
+
+function renderPermMatrix() {
+  document.getElementById('permMatrix').innerHTML = PERMS.map((p, i) => `
+    <tr>
+      <td style="padding:11px 12px;border-bottom:1px solid var(--border-light);font-size:13px;color:var(--text-primary);">${p.label}</td>
+      <td style="text-align:center;padding:11px 12px;border-bottom:1px solid var(--border-light);">${checkIcon(p.admin)}</td>
+      <td style="text-align:center;padding:11px 12px;border-bottom:1px solid var(--border-light);">${checkIcon(p.manager)}</td>
+      <td style="text-align:center;padding:11px 12px;border-bottom:1px solid var(--border-light);">${checkIcon(p.viewer)}</td>
+    </tr>`).join('');
+}
+
+// ═══════════════════════════════════════
+// CONFIRM MODAL
+// ═══════════════════════════════════════
+const confirmConfigs = {
+  deactivate: { title:'Deactivate your account?', body:'Your account will be temporarily disabled. You can reactivate at any time by logging back in. All your data will be preserved.' },
+  'delete-account': { title:'Permanently delete account?', body:'This will irreversibly delete your account, all team data, customer records, and platform configuration. This cannot be undone.' },
+};
+
+function openConfirm(type) {
+  const cfg = confirmConfigs[type]; if(!cfg) return;
+  document.getElementById('confirmTitle').textContent = cfg.title;
+  document.getElementById('confirmBody').textContent = cfg.body;
+  document.getElementById('confirmAction').onclick = () => { closeConfirm(); showToast('Action completed'); };
+  document.getElementById('confirmOv').classList.add('open');
+}
+function closeConfirm() { document.getElementById('confirmOv').classList.remove('open'); }
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeConfirm(); });
+
+// ═══════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+renderTeam();
+renderPermMatrix();
 </script>
-<script src="../js/shared.js"></script>
 </body>
 </html>
