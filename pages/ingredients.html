@@ -1,0 +1,1660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Akaani Admin — Ingredients</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/shared.css">
+<style>
+
+/* ── Page toolbar ── */
+.page-toolbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 28px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  position: sticky; top: 60px; z-index: 15;
+}
+.toolbar-left { display: flex; align-items: center; gap: 10px; flex: 1; flex-wrap: wrap; }
+.toolbar-right { display: flex; align-items: center; gap: 8px; }
+
+.filter-select {
+  height: 34px; padding: 0 28px 0 10px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface);
+  font-family: 'Outfit', sans-serif; font-size: 12.5px;
+  color: var(--text-primary); cursor: pointer; outline: none;
+  transition: border-color 0.15s; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%239CA3AF' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+}
+.filter-select:focus { border-color: var(--green-mid); }
+
+.count-badge {
+  font-size: 11px; font-weight: 600; color: var(--text-tertiary);
+  background: var(--border-light); padding: 3px 10px; border-radius: 20px;
+}
+.action-btn-primary {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 8px;
+  background: var(--green); color: #fff;
+  font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 500;
+  border: none; cursor: pointer; transition: opacity 0.18s; white-space: nowrap;
+}
+.action-btn-primary:hover { opacity: 0.85; }
+.action-btn-ghost {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 8px;
+  background: none; color: var(--text-secondary);
+  font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 500;
+  border: 1px solid var(--border); cursor: pointer;
+  transition: all 0.18s; white-space: nowrap;
+}
+.action-btn-ghost:hover { background: var(--bg); border-color: var(--green); color: var(--green); }
+
+/* ── Content ── */
+.content { padding: 20px 28px; }
+
+/* ── Ingredients table ── */
+.ing-table-wrap { overflow-x: auto; }
+.ing-table { width: 100%; border-collapse: collapse; }
+.ing-table th {
+  text-align: left; padding: 10px 16px;
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--text-tertiary);
+  background: var(--surface-2); border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.ing-table td {
+  padding: 12px 16px; font-size: 13px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-primary); vertical-align: middle;
+}
+.ing-table tbody tr:hover td { background: #FAFBFD; }
+.ing-table tr:last-child td { border-bottom: none; }
+
+.ing-name-cell { display: flex; align-items: center; gap: 10px; }
+.ing-thumb {
+  width: 34px; height: 34px; border-radius: 9px;
+  background: var(--green-light); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; overflow: hidden;
+}
+.ing-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.ing-name { font-weight: 500; }
+.ing-desc { font-size: 11.5px; color: var(--text-tertiary); }
+
+.grp-cell { font-size: 12.5px; }
+.grp-cat { font-size: 11.5px; color: var(--text-tertiary); }
+
+.macro-cell { white-space: nowrap; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.macro-kcal { font-weight: 600; }
+.macro-split { font-size: 11px; color: var(--text-tertiary); }
+.macro-none { color: var(--text-tertiary); font-style: italic; font-size: 12px; }
+
+.src-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border-radius: 6px;
+  font-size: 10.5px; font-weight: 600; white-space: nowrap;
+}
+.src-wafct { background: var(--green-light); color: #0B6646; }
+.src-manual { background: var(--purple-light); color: #534AB7; }
+.src-csv { background: var(--blue-light); color: #1055A0; }
+.src-empty { background: var(--border-light); color: var(--text-tertiary); }
+
+.row-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
+.ing-table tbody tr:hover .row-actions { opacity: 1; }
+.ra-btn {
+  width: 28px; height: 28px; border-radius: 7px;
+  border: 1px solid var(--border); background: var(--surface);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: var(--text-tertiary); transition: all 0.15s;
+}
+.ra-btn:hover { background: var(--bg); color: var(--green); border-color: var(--green); }
+.ra-btn.danger:hover { color: var(--chili); border-color: var(--chili); }
+
+.empty-state { padding: 60px 20px; text-align: center; }
+.empty-icon { font-size: 42px; opacity: 0.35; margin-bottom: 10px; }
+.empty-title { font-size: 14px; font-weight: 600; color: var(--text-secondary); }
+.empty-sub { font-size: 12.5px; color: var(--text-tertiary); margin-top: 3px; }
+
+/* ══════════════════════════════════════
+   MODAL — CREATE / EDIT INGREDIENT
+══════════════════════════════════════ */
+.modal-wide { max-width: 560px; }
+.modal-xwide { max-width: 900px; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-grid .span2 { grid-column: span 2; }
+.req { color: var(--chili); }
+
+/* Nutrition group */
+.nutri-group {
+  grid-column: span 2;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px 16px;
+  background: var(--surface-2);
+}
+.nutri-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.nutri-title { font-size: 12.5px; font-weight: 600; color: var(--text-primary); }
+.nutri-optional { font-size: 11px; color: var(--text-tertiary); }
+.nutri-help {
+  font-size: 11.5px; color: var(--text-secondary);
+  margin: 5px 0 12px; line-height: 1.45;
+  display: flex; gap: 6px; align-items: flex-start;
+}
+.nutri-help svg { flex-shrink: 0; margin-top: 2px; }
+.nutri-fields { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.nutri-fields .fl { font-size: 11px; }
+.nutri-fields .fi { padding: 7px 9px; font-size: 12.5px; }
+.unit-hint { font-size: 10px; color: var(--text-tertiary); font-weight: 400; }
+
+/* WAFCT suggestion card */
+.wafct-box { margin-top: 8px; display: none; }
+.wafct-box.open { display: block; animation: fadeUp 0.22s; }
+.wafct-card {
+  border: 1px solid var(--green-mid);
+  border-radius: var(--radius-md);
+  background: #F4FBF8; padding: 12px 14px;
+}
+.wafct-card.searching { border-color: var(--border); background: var(--surface-2); }
+.wafct-card.none { border-color: var(--border); background: var(--surface-2); }
+/* Amber, not green: estimated data must never look like measured data. */
+.wafct-card.ai { border-color: var(--amber); background: var(--amber-light); }
+.wafct-card.ai .wafct-src { color: #854F0B; }
+.conf-estimated { background: #F6E7D2; color: #7A4A10; }
+.use-btn.ai { background: var(--rust); }
+.ai-note { font-size: 11px; color: #7A4A10; line-height: 1.45; margin-top: 8px; }
+.spinner {
+  width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+  border: 2px solid rgba(0,0,0,0.12); border-top-color: var(--green-mid);
+  animation: spin 0.7s linear infinite; display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.src-ai { background: var(--amber-light); color: #854F0B; }
+.wafct-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.wafct-src {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.06em; color: #0B6646; margin-bottom: 3px;
+}
+.wafct-name { font-size: 13px; font-weight: 600; color: var(--text-primary); line-height: 1.35; }
+.conf-badge {
+  padding: 3px 8px; border-radius: 20px;
+  font-size: 10.5px; font-weight: 700; white-space: nowrap; flex-shrink: 0;
+}
+.conf-matched { background: var(--green-light); color: #0B6646; }
+.conf-review { background: var(--amber-light); color: #854F0B; }
+.wafct-macros {
+  display: flex; flex-wrap: wrap; gap: 4px 14px;
+  margin: 9px 0 11px; font-size: 12px; color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.wafct-macros b { color: var(--text-primary); font-weight: 600; }
+.wafct-macros .null-val { color: var(--text-tertiary); font-style: italic; }
+.wafct-acts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.use-btn {
+  padding: 6px 14px; border-radius: 8px;
+  background: var(--green); color: #fff;
+  font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 600;
+  border: none; cursor: pointer; transition: opacity 0.18s;
+}
+.use-btn:hover { opacity: 0.85; }
+.wafct-alts { border-top: 1px dashed var(--border); margin-top: 11px; padding-top: 10px; }
+.wafct-alts-label { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); margin-bottom: 6px; }
+.alt-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 0; }
+.alt-name { font-size: 12px; color: var(--text-secondary); line-height: 1.3; }
+.alt-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.alt-score { font-size: 11px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.alt-use {
+  padding: 4px 10px; border-radius: 7px;
+  background: none; border: 1px solid var(--border);
+  font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 500;
+  color: var(--text-secondary); cursor: pointer; transition: all 0.15s;
+}
+.alt-use:hover { border-color: var(--green); color: var(--green); background: #fff; }
+.wafct-msg { font-size: 12px; color: var(--text-tertiary); display: flex; align-items: center; gap: 7px; }
+
+.applied-note {
+  display: none; align-items: center; gap: 6px;
+  margin-top: 8px; padding: 7px 10px;
+  background: var(--green-light); border-radius: 8px;
+  font-size: 11.5px; color: #0B6646; font-weight: 500;
+}
+.applied-note.show { display: flex; }
+
+/* Image picker (step 2) */
+.img-row { display: grid; grid-template-columns: 180px 1fr; gap: 12px; align-items: start; }
+.img-url-col { display: flex; flex-direction: column; gap: 5px; }
+.img-url-hint { font-size: 11px; color: var(--text-tertiary); line-height: 1.45; }
+.img-picker {
+  border: 1.5px dashed var(--border); border-radius: var(--radius-md);
+  padding: 18px 14px; text-align: center; cursor: pointer;
+  transition: all 0.18s; background: var(--surface-2);
+}
+.img-picker:hover { border-color: var(--green-mid); background: #F4FBF8; }
+.img-picker-icon { font-size: 26px; opacity: 0.5; margin-bottom: 6px; }
+.img-picker-text { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+.img-picker-sub { font-size: 11.5px; color: var(--text-tertiary); margin-top: 2px; }
+.img-preview { max-width: 130px; max-height: 130px; border-radius: var(--radius-md); margin: 0 auto 10px; display: block; object-fit: cover; }
+
+/* ══════════════════════════════════════
+   CSV IMPORT WIZARD
+══════════════════════════════════════ */
+.csv-stage { display: none; }
+.csv-stage.active { display: block; animation: fadeIn 0.2s; }
+
+.dropzone {
+  border: 1.5px dashed var(--border); border-radius: var(--radius-lg);
+  padding: 38px 24px; text-align: center; cursor: pointer;
+  transition: all 0.18s; background: var(--surface-2);
+}
+.dropzone:hover, .dropzone.drag { border-color: var(--green-mid); background: #F4FBF8; }
+.dz-icon { font-size: 32px; opacity: 0.5; margin-bottom: 8px; }
+.dz-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.dz-sub { font-size: 12.5px; color: var(--text-tertiary); margin-top: 3px; }
+
+.csv-cols {
+  margin-top: 16px; padding: 13px 15px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.csv-cols-title { font-size: 11.5px; font-weight: 600; color: var(--text-secondary); margin-bottom: 7px; }
+.csv-cols code {
+  display: inline-block; font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 11px; background: var(--surface); border: 1px solid var(--border);
+  padding: 2px 6px; border-radius: 5px; margin: 0 4px 4px 0; color: var(--text-secondary);
+}
+.csv-cols-note { font-size: 11.5px; color: var(--text-tertiary); margin-top: 7px; line-height: 1.5; }
+.link-btn {
+  background: none; border: none; padding: 0;
+  font-family: 'Outfit', sans-serif; font-size: 11.5px; font-weight: 600;
+  color: var(--green-mid); cursor: pointer; text-decoration: underline;
+}
+
+.review-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 12px;
+}
+.review-stats { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; }
+.rstat { display: flex; align-items: center; gap: 5px; color: var(--text-secondary); }
+.rdot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+.csv-table-wrap { max-height: 400px; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-md); }
+.csv-table { width: 100%; border-collapse: collapse; min-width: 820px; }
+.csv-table th {
+  position: sticky; top: 0; z-index: 2;
+  text-align: left; padding: 9px 12px;
+  font-size: 10.5px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--text-tertiary);
+  background: var(--surface-2); border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.csv-table td {
+  padding: 9px 12px; font-size: 12.5px;
+  border-bottom: 1px solid var(--border-light); vertical-align: middle;
+}
+.csv-table tr:last-child td { border-bottom: none; }
+.csv-table tr.unmatched td { background: #FEFBFA; }
+.csv-table tr.unmatched .csv-name { color: var(--text-secondary); }
+.csv-name { font-weight: 500; }
+.csv-sub { font-size: 11px; color: var(--text-tertiary); }
+.csv-macros { font-size: 11.5px; color: var(--text-secondary); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cb { width: 15px; height: 15px; accent-color: #003232; cursor: pointer; }
+.no-apply { font-size: 11px; color: var(--text-tertiary); font-style: italic; white-space: nowrap; }
+
+.summary-hero { text-align: center; padding: 6px 0 18px; }
+.summary-num { font-size: 34px; font-weight: 700; color: var(--green); line-height: 1.1; }
+.summary-label { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+.summary-rows { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+.summary-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 11px 15px; font-size: 13px;
+  border-bottom: 1px solid var(--border-light);
+}
+.summary-row:last-child { border-bottom: none; }
+.summary-row .sl { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); }
+.summary-row .sv { font-weight: 600; font-variant-numeric: tabular-nums; }
+.summary-note {
+  margin-top: 14px; padding: 12px 14px;
+  background: var(--amber-light); border-radius: var(--radius-md);
+  font-size: 12px; color: #7A4A10; line-height: 1.5;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .page-toolbar { flex-direction: column; align-items: stretch; gap: 10px; position: static; }
+  .toolbar-right { flex-wrap: wrap; }
+  .ing-table { min-width: 760px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .form-grid .span2, .nutri-group { grid-column: span 1; }
+  .img-row { grid-template-columns: 1fr; }
+  .nutri-fields { grid-template-columns: repeat(2, 1fr); }
+  .row-actions { opacity: 1; }
+}
+@media (max-width: 480px) {
+  .nutri-fields { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+<!-- ═══ SIDEBAR ═══ -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#003232" stroke-width="2.5" stroke-linecap="round"><path d="M12 2C8 2 5 6 5 10c0 5 7 12 7 12s7-7 7-12c0-4-3-8-7-8z"/><circle cx="12" cy="10" r="2.5" fill="#003232" stroke="none"/></svg></div>
+    <span class="logo-text">akaani</span>
+  </div>
+  <div class="sb-section">
+    <div class="sb-section-label">Overview</div>
+    <a class="nav-item" data-page="dashboard" href="dashboard.html"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>Dashboard</a>
+    <a class="nav-item" data-page="customers" href="customers.html"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></span>Customers<span class="nav-badge">2,062</span></a>
+  </div>
+  <div class="sb-section">
+    <div class="sb-section-label">Content</div>
+    <a class="nav-item" data-page="meals" href="meals.html"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></span>Meals</a>
+    <a class="nav-item" href="#"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/></svg></span>Recipes</a>
+    <a class="nav-item" href="#"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 10h16M4 14h10"/></svg></span>Recipe Groups</a>
+    <a class="nav-item" data-page="ingredients" href="ingredients.html"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></span>Ingredients</a>
+  </div>
+  <div class="sb-section">
+    <div class="sb-section-label">Management</div>
+    <a class="nav-item" href="#"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg></span>Meals Tags</a>
+    <a class="nav-item" href="#"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>LU Facts</a>
+    <a class="nav-item" data-page="settings" href="settings.html"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 1 0 21 12"/></svg></span>Settings</a>
+  </div>
+  <div class="sb-bottom">
+    <div class="user-row">
+      <div class="user-avatar">PO</div>
+      <div class="user-info"><div class="user-name">Peter Omidiji</div><div class="user-role">Admin</div></div>
+      <button class="logout-btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg></button>
+    </div>
+  </div>
+</nav>
+<div class="sidebar-overlay"></div>
+
+<!-- ═══ MAIN ═══ -->
+<div class="main">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <button class="hamburger-btn" onclick="toggleSidebar()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+    <span class="page-title">Ingredients</span>
+    <div class="search-bar">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input placeholder="Search ingredients…" id="searchInput" oninput="renderTable()">
+    </div>
+    <div class="topbar-actions">
+      <button class="icon-btn" id="notifBtn" onclick="toggleNotifDrawer()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <span class="notif-dot" id="notifDot"></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Page toolbar -->
+  <div class="page-toolbar">
+    <div class="toolbar-left">
+      <select class="filter-select" id="filterGroup" onchange="renderTable()">
+        <option value="">All product groups</option>
+      </select>
+      <select class="filter-select" id="filterSource" onchange="renderTable()">
+        <option value="">All sources</option>
+        <option value="wafct">WAFCT (measured)</option>
+        <option value="ai">AI estimate</option>
+        <option value="manual">Manual</option>
+        <option value="none">No nutrition data</option>
+      </select>
+      <span class="count-badge" id="ingCount">0 ingredients</span>
+    </div>
+    <div class="toolbar-right">
+      <button class="action-btn-ghost" onclick="exportIngredients()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        Export
+      </button>
+      <button class="action-btn-ghost" onclick="openCsvModal()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+        Import CSV
+      </button>
+      <button class="action-btn-primary" onclick="openIngredientModal()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Create Ingredient
+      </button>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+    <div class="card">
+      <div class="ing-table-wrap">
+        <table class="ing-table">
+          <thead>
+            <tr>
+              <th>Ingredient</th>
+              <th>Product group</th>
+              <th>Unit</th>
+              <th>Nutrition (per 100g)</th>
+              <th>Source</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="ingBody"></tbody>
+        </table>
+      </div>
+      <div id="emptyState"></div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- ═══════════════════════════════════════
+     MODAL — CREATE / EDIT INGREDIENT
+═══════════════════════════════════════ -->
+<div class="overlay" id="ingModal">
+  <div class="modal modal-wide">
+    <button class="modal-close" onclick="closeIngredientModal()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    <div class="modal-title" id="ingModalTitle">Create Ingredient</div>
+    <div class="modal-sub" id="ingModalSub">Add a single ingredient to the Akaani library.</div>
+
+    <div id="ingForm">
+      <div class="form-grid">
+
+        <div class="ff span2">
+          <label class="fl" for="ingName">Name <span class="req">*</span></label>
+          <input class="fi" id="ingName" placeholder="e.g. Boiled Yam, Egusi, Fresh Tomato" autocomplete="off">
+          <!-- WAFCT auto-calculate suggestion lands here -->
+          <div class="wafct-box" id="wafctBox"></div>
+        </div>
+
+        <div class="ff span2">
+          <label class="fl" for="ingDesc">Description</label>
+          <input class="fi" id="ingDesc" placeholder="Short description (optional)">
+        </div>
+
+        <div class="ff span2">
+          <label class="fl" for="ingUnit">Unit</label>
+          <select class="fi fi-select" id="ingUnit"></select>
+        </div>
+
+        <!-- ── NUTRITION (PER 100g) ── -->
+        <div class="nutri-group">
+          <div class="nutri-head">
+            <span class="nutri-title">Nutrition (per 100g)</span>
+            <span class="nutri-optional">All optional — can be filled in later</span>
+          </div>
+          <div class="nutri-help">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span>These are always <strong>per 100g</strong>, whatever the Unit above is set to — including ounces and pounds. Unit only describes how this ingredient is normally measured or logged; it never changes the basis of the values below.</span>
+          </div>
+          <div class="nutri-fields">
+            <div class="ff">
+              <label class="fl" for="ingCalories">Calories <span class="unit-hint">kcal</span></label>
+              <input class="fi" id="ingCalories" type="number" step="any" min="0" placeholder="—">
+            </div>
+            <div class="ff">
+              <label class="fl" for="ingProtein">Protein <span class="unit-hint">g</span></label>
+              <input class="fi" id="ingProtein" type="number" step="any" min="0" placeholder="—">
+            </div>
+            <div class="ff">
+              <label class="fl" for="ingCarbs">Carbs <span class="unit-hint">g</span></label>
+              <input class="fi" id="ingCarbs" type="number" step="any" min="0" placeholder="—">
+            </div>
+            <div class="ff">
+              <label class="fl" for="ingFat">Fat <span class="unit-hint">g</span></label>
+              <input class="fi" id="ingFat" type="number" step="any" min="0" placeholder="—">
+            </div>
+            <div class="ff">
+              <label class="fl" for="ingFibre">Fibre <span class="unit-hint">g</span></label>
+              <input class="fi" id="ingFibre" type="number" step="any" min="0" placeholder="—">
+            </div>
+          </div>
+          <div class="applied-note" id="appliedNote">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span id="appliedNoteText"></span>
+          </div>
+        </div>
+
+        <div class="ff">
+          <label class="fl" for="ingGroup">Product Group <span class="req">*</span></label>
+          <select class="fi fi-select" id="ingGroup" onchange="onGroupChange()"></select>
+        </div>
+        <div class="ff">
+          <label class="fl" for="ingCategory">Product Category <span class="req">*</span></label>
+          <select class="fi fi-select" id="ingCategory"></select>
+        </div>
+
+        <div class="ff span2">
+          <label class="fl">Ingredient image</label>
+          <div class="img-row">
+            <div class="img-picker" onclick="document.getElementById('ingImageInput').click()">
+              <img class="img-preview" id="imgPreview" style="display:none;" alt="">
+              <div id="imgPickerEmpty">
+                <div class="img-picker-icon">🖼️</div>
+                <div class="img-picker-text">Choose Image</div>
+                <div class="img-picker-sub">PNG or JPG</div>
+              </div>
+            </div>
+            <div class="img-url-col">
+              <label class="fl" for="ingImageUrl">…or paste an image URL</label>
+              <input class="fi" id="ingImageUrl" placeholder="https://…/yam.jpg" oninput="onImageUrlInput()">
+              <div class="img-url-hint">Both are optional. Whichever you set last is the one that gets saved.</div>
+            </div>
+          </div>
+          <input type="file" id="ingImageInput" accept="image/*" style="display:none;" onchange="onImageChosen(event)">
+        </div>
+
+      </div>
+
+      <div class="modal-acts">
+        <button class="mb-ghost" onclick="closeIngredientModal()">Cancel</button>
+        <button class="mb-primary" onclick="submitIngredient()" id="submitBtn">Submit</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MODAL — CSV IMPORT
+═══════════════════════════════════════ -->
+<div class="overlay" id="csvModal">
+  <div class="modal modal-xwide">
+    <button class="modal-close" onclick="closeCsvModal()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    <div class="modal-title" id="csvTitle">Import Ingredients from CSV</div>
+    <div class="modal-sub" id="csvSub">Rows without nutrition are matched against WAFCT automatically. Nothing is written until you confirm.</div>
+
+    <!-- ── STAGE 1: UPLOAD ── -->
+    <div class="csv-stage active" id="csvStage1">
+      <div class="dropzone" id="dropzone" onclick="document.getElementById('csvFileInput').click()">
+        <div class="dz-icon">📄</div>
+        <div class="dz-title">Choose a CSV file</div>
+        <div class="dz-sub">or drag and drop it here</div>
+      </div>
+      <input type="file" id="csvFileInput" accept=".csv,text/csv" style="display:none;" onchange="onCsvChosen(event)">
+
+      <div class="csv-cols">
+        <div class="csv-cols-title">Expected columns</div>
+        <div>
+          <code>name</code><code>description</code><code>unit</code><code>product_group</code><code>product_category</code><code>calories</code><code>protein_g</code><code>carbs_g</code><code>fat_g</code><code>fibre_g</code>
+        </div>
+        <div class="csv-cols-note">
+          Only <strong>name</strong> is required. Extra columns are ignored, missing ones stay blank.
+          An optional <code>image_url</code> column is attached as the ingredient image.
+          A <code>product_url</code> column is still accepted and preserved on export.
+          <br><button class="link-btn" onclick="downloadTemplate()">Download a template CSV</button>
+        </div>
+      </div>
+
+      <div class="modal-acts">
+        <button class="mb-ghost" onclick="closeCsvModal()">Cancel</button>
+      </div>
+    </div>
+
+    <!-- ── STAGE 2: REVIEW ── -->
+    <div class="csv-stage" id="csvStage2">
+      <div class="review-bar">
+        <div class="review-stats" id="reviewStats"></div>
+        <div style="display:flex;gap:8px;">
+          <button class="action-btn-ghost" id="aiEstimateBtn" onclick="estimateMissing()"></button>
+          <button class="action-btn-ghost" onclick="setAllChecked(true)">Select all</button>
+          <button class="action-btn-ghost" onclick="setAllChecked(false)">Deselect all</button>
+        </div>
+      </div>
+
+      <div class="csv-table-wrap">
+        <table class="csv-table">
+          <thead>
+            <tr>
+              <th style="width:38px;"></th>
+              <th>Name</th>
+              <th>Group / Category</th>
+              <th>Nutrition (per 100g)</th>
+              <th>Source</th>
+              <th>Confidence</th>
+            </tr>
+          </thead>
+          <tbody id="csvBody"></tbody>
+        </table>
+      </div>
+
+      <div class="modal-acts">
+        <button class="mb-ghost" onclick="backToUpload()">Back</button>
+        <button class="mb-primary" onclick="applyImport()" id="applyBtn">Import selected</button>
+      </div>
+    </div>
+
+    <!-- ── STAGE 3: SUMMARY ── -->
+    <div class="csv-stage" id="csvStage3">
+      <div class="summary-hero">
+        <div class="summary-num" id="sumCreated">0</div>
+        <div class="summary-label">ingredients created</div>
+      </div>
+      <div class="summary-rows" id="summaryRows"></div>
+      <div id="summaryNote"></div>
+
+      <div class="modal-acts">
+        <button class="mb-ghost" id="downloadGapBtn" onclick="downloadGapReport()">Download skipped rows</button>
+        <button class="mb-primary" onclick="closeCsvModal()">Done</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ NOTIFICATION DRAWER ═══ -->
+<div class="notif-backdrop" id="notifBackdrop" onclick="closeNotifDrawer()"></div>
+<div class="notif-drawer" id="notifDrawer">
+  <div class="notif-drawer-header">
+    <div class="notif-drawer-title">Notifications<span class="notif-unread-badge" id="unreadBadge">7</span></div>
+    <div class="notif-header-actions">
+      <button class="notif-hdr-btn" onclick="markAllRead()">Mark all read</button>
+      <button class="notif-close-btn" onclick="closeNotifDrawer()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+  </div>
+  <div class="notif-filter-bar">
+    <button class="notif-filter-tab active" onclick="filterNotifs('all',this)">All</button>
+    <button class="notif-filter-tab" onclick="filterNotifs('unread',this)">Unread</button>
+    <button class="notif-filter-tab" onclick="filterNotifs('customers',this)">Customers</button>
+    <button class="notif-filter-tab" onclick="filterNotifs('platform',this)">Platform</button>
+    <button class="notif-filter-tab" onclick="filterNotifs('lu',this)">Lu AI</button>
+  </div>
+  <div class="notif-list" id="notifList"></div>
+  <div class="notif-footer"><button class="notif-footer-btn">View notification history</button></div>
+</div>
+
+<script src="../js/shared.js"></script>
+<script src="../js/wafct-data.js"></script>
+<script src="../js/wafctMatch.js"></script>
+<script src="../js/nutritionEstimate.js"></script>
+<script>
+'use strict';
+
+/* ═══════════════════════════════════════════
+   SETUP
+═══════════════════════════════════════════ */
+var WM      = window.WafctMatch;
+var DATASET = window.WAFCT_DATA || [];
+var WAFCT_SOURCE = 'FAO/INFOODS WAFCT 2019';
+var NE = window.NutritionEstimate;
+
+/* Flip to 'openai' once server/estimate-server.js is running with a key.
+   'mock' needs nothing and lets the whole flow be exercised offline. */
+if (NE) NE.configure({ provider: 'mock', endpoint: 'http://localhost:8787/estimate' });
+
+function isAiSource(src) { return !!src && src.indexOf('AI estimate') === 0; }
+
+var MACRO_KEYS = ['calories', 'protein_g', 'carbs_g', 'fat_g', 'fibre_g'];
+
+/* Seed rows — deliberately mixed, including one with no nutrition at all,
+   because an ingredient is allowed to be saved and filled in later. */
+var INGREDIENTS = [
+  { id: 1, name: 'Jollof Rice Base', description: 'Blended pepper base', unit: 'g',
+    product_group: 'Prepared Foods', product_category: 'Soups & Sauces',
+    calories: 96, protein_g: 1.8, carbs_g: 9.4, fat_g: 6.1, fibre_g: 1.9,
+    source: null, source_code: null, image: null },
+  { id: 2, name: 'Palm Oil', description: 'Unfortified red palm oil', unit: 'g',
+    product_group: 'Oils, Fats & Condiments', product_category: 'Oils & Fats',
+    calories: 900, protein_g: 0, carbs_g: 0, fat_g: 100, fibre_g: 0,
+    source: WAFCT_SOURCE, source_code: 'WAFCT_11_012', image: null },
+  { id: 3, name: 'Ugu Leaves', description: 'Fluted pumpkin leaves', unit: 'g',
+    product_group: 'Vegetables', product_category: 'Leafy Greens',
+    calories: null, protein_g: null, carbs_g: null, fat_g: null, fibre_g: null,
+    source: null, source_code: null, image: null }
+];
+var nextId = 100;
+
+/* ═══════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════ */
+
+/** '' / null / undefined / non-numeric -> null. A missing value is NEVER 0. */
+function toNum(v) {
+  if (v === null || v === undefined) return null;
+  var s = String(v).trim();
+  if (s === '') return null;
+  var n = Number(s);
+  return isNaN(n) ? null : n;
+}
+
+function fmt(v, suffix) {
+  if (v === null || v === undefined) return '<span class="null-val">—</span>';
+  return '<b>' + (Math.round(v * 10) / 10) + '</b>' + (suffix || '');
+}
+
+function esc(s) {
+  return String(s === null || s === undefined ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function el(id) { return document.getElementById(id); }
+
+/* ═══════════════════════════════════════════
+   THE SINGLE INGREDIENT WRITE PATH
+
+   Both the manual form and the CSV importer call this. There is no
+   second bulk-create path to drift out of sync.
+═══════════════════════════════════════════ */
+function createIngredient(data) {
+  var rec = {
+    id: nextId++,
+    name:             String(data.name || '').trim(),
+    description:      String(data.description || '').trim(),
+    unit:             data.unit || '',
+    product_group:    data.product_group || '',
+    product_category: data.product_category || '',
+    // Not a managed field -- nothing in the UI collects or shows it. Kept
+    // so a product_url column in an imported CSV round-trips back out on
+    // export rather than being silently dropped.
+    product_url:      data.product_url || '',
+    calories:         toNum(data.calories),
+    protein_g:        toNum(data.protein_g),
+    carbs_g:          toNum(data.carbs_g),
+    fat_g:            toNum(data.fat_g),
+    fibre_g:          toNum(data.fibre_g),
+    source:           data.source || null,
+    source_code:      data.source_code || null,
+    image:            data.image || null
+  };
+  INGREDIENTS.unshift(rec);
+  return rec;
+}
+
+function updateIngredient(id, data) {
+  var i = INGREDIENTS.findIndex(function (r) { return r.id === id; });
+  if (i === -1) return null;
+  var existing = INGREDIENTS[i];
+  var updated = createIngredient(data);   // same normalisation rules
+  INGREDIENTS.shift();                    // createIngredient unshifted it
+  updated.id = existing.id;
+  INGREDIENTS[i] = updated;
+  return updated;
+}
+
+function hasNutrition(r) {
+  return MACRO_KEYS.some(function (k) { return r[k] !== null && r[k] !== undefined; });
+}
+
+/* ═══════════════════════════════════════════
+   LIST RENDERING
+═══════════════════════════════════════════ */
+function sourceBadge(r) {
+  if (r.source === WAFCT_SOURCE) {
+    return '<span class="src-badge src-wafct" title="' + esc(r.source_code || '') + '">WAFCT</span>';
+  }
+  if (isAiSource(r.source)) {
+    return '<span class="src-badge src-ai" title="' + esc(r.source) +
+           ' — estimated, not measured">AI est.</span>';
+  }
+  if (!hasNutrition(r)) return '<span class="src-badge src-empty">No data</span>';
+  if (r.source === 'csv') return '<span class="src-badge src-csv">CSV</span>';
+  return '<span class="src-badge src-manual">Manual</span>';
+}
+
+function renderTable() {
+  var q     = (el('searchInput').value || '').toLowerCase().trim();
+  var grp   = el('filterGroup').value;
+  var src   = el('filterSource').value;
+
+  var rows = INGREDIENTS.filter(function (r) {
+    if (q && r.name.toLowerCase().indexOf(q) === -1 &&
+             (r.description || '').toLowerCase().indexOf(q) === -1) return false;
+    if (grp && r.product_group !== grp) return false;
+    if (src === 'wafct'  && r.source !== WAFCT_SOURCE) return false;
+    if (src === 'ai'     && !isAiSource(r.source)) return false;
+    if (src === 'manual' && (r.source === WAFCT_SOURCE || isAiSource(r.source) || !hasNutrition(r))) return false;
+    if (src === 'none'   && hasNutrition(r)) return false;
+    return true;
+  });
+
+  el('ingCount').textContent = INGREDIENTS.length + (INGREDIENTS.length === 1 ? ' ingredient' : ' ingredients');
+
+  if (!rows.length) {
+    el('ingBody').innerHTML = '';
+    el('emptyState').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">🌿</div>' +
+      '<div class="empty-title">' + (INGREDIENTS.length ? 'No ingredients match those filters' : 'No ingredients yet') + '</div>' +
+      '<div class="empty-sub">' + (INGREDIENTS.length ? 'Try clearing the search or filters.' : 'Create one, or import a CSV to add them in bulk.') + '</div></div>';
+    return;
+  }
+  el('emptyState').innerHTML = '';
+
+  el('ingBody').innerHTML = rows.map(function (r) {
+    var macros = hasNutrition(r)
+      ? '<div class="macro-cell"><span class="macro-kcal">' +
+          (r.calories === null ? '—' : r.calories + ' kcal') + '</span>' +
+          '<div class="macro-split">P ' + nn(r.protein_g) + ' · C ' + nn(r.carbs_g) +
+          ' · F ' + nn(r.fat_g) + ' · Fb ' + nn(r.fibre_g) + '</div></div>'
+      : '<span class="macro-none">Not set</span>';
+
+    var thumb = r.image
+      ? '<div class="ing-thumb"><img src="' + esc(r.image) + '" alt=""></div>'
+      : '<div class="ing-thumb">🥬</div>';
+
+    return '<tr>' +
+      '<td><div class="ing-name-cell">' + thumb +
+        '<div><div class="ing-name">' + esc(r.name) + '</div>' +
+        (r.description ? '<div class="ing-desc">' + esc(r.description) + '</div>' : '') +
+        '</div></div></td>' +
+      '<td><div class="grp-cell">' + (esc(r.product_group) || '<span class="macro-none">—</span>') +
+        (r.product_category ? '<div class="grp-cat">' + esc(r.product_category) + '</div>' : '') + '</div></td>' +
+      '<td>' + (esc(r.unit) || '—') + '</td>' +
+      '<td>' + macros + '</td>' +
+      '<td>' + sourceBadge(r) + '</td>' +
+      '<td><div class="row-actions">' +
+        '<button class="ra-btn" title="Edit" onclick="openIngredientModal(' + r.id + ')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg></button>' +
+        '<button class="ra-btn danger" title="Delete" onclick="deleteIngredient(' + r.id + ')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6M10 11v6M14 11v6"/></svg></button>' +
+      '</div></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function nn(v) { return v === null || v === undefined ? '—' : (Math.round(v * 10) / 10) + 'g'; }
+
+function deleteIngredient(id) {
+  var r = INGREDIENTS.find(function (x) { return x.id === id; });
+  if (!r || !confirm('Delete "' + r.name + '"?')) return;
+  INGREDIENTS = INGREDIENTS.filter(function (x) { return x.id !== id; });
+  renderTable();
+  showToast('Ingredient deleted');
+}
+
+/* ═══════════════════════════════════════════
+   DROPDOWNS
+═══════════════════════════════════════════ */
+function fillGroupSelects() {
+  var opts = WM.PRODUCT_GROUPS.map(function (g) {
+    return '<option value="' + esc(g) + '">' + esc(g) + '</option>';
+  }).join('');
+  el('ingGroup').innerHTML   = '<option value="">Select a product group…</option>' + opts;
+  el('filterGroup').innerHTML = '<option value="">All product groups</option>' + opts;
+  fillUnitSelect();
+}
+
+function fillUnitSelect() {
+  el('ingUnit').innerHTML = '<option value="">Select a unit…</option>' +
+    WM.UNITS.map(function (u) {
+      return '<option value="' + esc(u.value) + '">' + esc(u.label) + '</option>';
+    }).join('');
+}
+
+function onGroupChange(keepCategory) {
+  var g = el('ingGroup').value;
+  var cats = WM.PRODUCT_CATEGORIES[g] || [];
+  var current = keepCategory || '';
+  el('ingCategory').innerHTML = '<option value="">' +
+    (g ? 'Select a product category…' : 'Choose a product group first') + '</option>' +
+    cats.map(function (c) {
+      return '<option value="' + esc(c) + '"' + (c === current ? ' selected' : '') + '>' + esc(c) + '</option>';
+    }).join('');
+}
+
+/* ═══════════════════════════════════════════
+   CREATE / EDIT MODAL
+═══════════════════════════════════════════ */
+var editingId    = null;
+var currentProductUrl = '';   // CSV pass-through, preserved across edits
+var formSource   = null;   // stamped when a WAFCT suggestion is applied
+var formSourceCode = null;
+var pendingImage = null;
+var suggestTimer = null;
+var suggestions  = [];
+
+function openIngredientModal(id) {
+  editingId = (typeof id === 'number') ? id : null;
+  formSource = null; formSourceCode = null; pendingImage = null;
+  suggestions = []; aiResult = null; currentProductUrl = '';
+
+  ['ingName', 'ingDesc'].forEach(function (f) { el(f).value = ''; });
+  MACRO_KEYS.forEach(function (k) { el(macroField(k)).value = ''; });
+  fillUnitSelect();              // rebuilds, dropping any injected option
+  el('ingGroup').value = '';
+  onGroupChange();
+  el('wafctBox').className = 'wafct-box';
+  el('wafctBox').innerHTML = '';
+  el('appliedNote').classList.remove('show');
+  el('imgPreview').style.display = 'none';
+  el('imgPickerEmpty').style.display = 'block';
+  el('ingImageInput').value = '';
+  el('ingImageUrl').value = '';
+
+  if (editingId !== null) {
+    var r = INGREDIENTS.find(function (x) { return x.id === editingId; });
+    if (r) {
+      el('ingName').value = r.name;
+      el('ingDesc').value = r.description || '';
+      setUnitValue(r.unit || '');
+      el('ingGroup').value = r.product_group || '';
+      onGroupChange(r.product_category);
+      MACRO_KEYS.forEach(function (k) {
+        el(macroField(k)).value = (r[k] === null || r[k] === undefined) ? '' : r[k];
+      });
+      formSource = r.source; formSourceCode = r.source_code; pendingImage = r.image;
+      currentProductUrl = r.product_url || '';
+      if (r.image) {
+        showImagePreview(r.image);
+        // A remote image belongs back in the URL box; an uploaded one does not.
+        if (r.image.slice(0, 5) !== 'data:') el('ingImageUrl').value = r.image;
+      }
+    }
+    el('ingModalTitle').textContent = 'Edit Ingredient';
+    el('ingModalSub').textContent = 'Update this ingredient. Nutrition stays per 100g.';
+  } else {
+    el('ingModalTitle').textContent = 'Create Ingredient';
+    el('ingModalSub').textContent = 'Add a single ingredient to the Akaani library.';
+  }
+
+  el('ingModal').classList.add('open');
+  setTimeout(function () { el('ingName').focus(); }, 120);
+}
+
+/**
+ * Selects a unit, keeping one that is not in the list.
+ * A CSV can carry any unit string ("ml", "bunch"). Without this the select
+ * would fall back to blank and saving would quietly wipe the stored value.
+ */
+function setUnitValue(unit) {
+  var sel = el('ingUnit');
+  sel.value = unit || '';
+  if (unit && sel.value !== unit) {
+    var opt = document.createElement('option');
+    opt.value = unit;
+    opt.textContent = unit + ' (imported)';
+    sel.appendChild(opt);
+    sel.value = unit;
+  }
+}
+
+function macroField(key) {
+  return { calories: 'ingCalories', protein_g: 'ingProtein', carbs_g: 'ingCarbs',
+           fat_g: 'ingFat', fibre_g: 'ingFibre' }[key];
+}
+
+function closeIngredientModal() { el('ingModal').classList.remove('open'); }
+
+function validateForm() {
+  if (!el('ingName').value.trim())  { showToast('Name is required'); el('ingName').focus(); return false; }
+  if (!el('ingGroup').value)        { showToast('Product Group is required'); el('ingGroup').focus(); return false; }
+  if (!el('ingCategory').value)     { showToast('Product Category is required'); el('ingCategory').focus(); return false; }
+  return true;
+}
+
+function showImagePreview(src) {
+  if (src) {
+    el('imgPreview').src = src;
+    el('imgPreview').style.display = 'block';
+    el('imgPickerEmpty').style.display = 'none';
+  } else {
+    el('imgPreview').removeAttribute('src');
+    el('imgPreview').style.display = 'none';
+    el('imgPickerEmpty').style.display = 'block';
+  }
+}
+
+function onImageChosen(e) {
+  var f = e.target.files && e.target.files[0];
+  if (!f) return;
+  var reader = new FileReader();
+  reader.onload = function (ev) {
+    pendingImage = ev.target.result;
+    el('ingImageUrl').value = '';        // an upload supersedes a pasted URL
+    showImagePreview(pendingImage);
+  };
+  reader.readAsDataURL(f);
+}
+
+/** A pasted URL is used as-is, and supersedes any uploaded file. */
+function onImageUrlInput() {
+  var url = el('ingImageUrl').value.trim();
+  el('ingImageInput').value = '';
+  pendingImage = url || null;
+  showImagePreview(pendingImage);
+}
+
+function submitIngredient() {
+  if (!validateForm()) return;
+  var payload = {
+    name:             el('ingName').value,
+    description:      el('ingDesc').value,
+    unit:             el('ingUnit').value,
+    product_group:    el('ingGroup').value,
+    product_category: el('ingCategory').value,
+    // product_url is no longer collected here -- it survives only as a
+    // CSV pass-through (see createIngredient), so an edit must not wipe
+    // a value that arrived from a spreadsheet.
+    product_url:      editingId !== null ? currentProductUrl : '',
+    calories:         el('ingCalories').value,
+    protein_g:        el('ingProtein').value,
+    carbs_g:          el('ingCarbs').value,
+    fat_g:            el('ingFat').value,
+    fibre_g:          el('ingFibre').value,
+    source:           formSource,
+    source_code:      formSourceCode,
+    image:            pendingImage
+  };
+
+  if (editingId !== null) {
+    updateIngredient(editingId, payload);
+    showToast('Ingredient updated');
+  } else {
+    createIngredient(payload);
+    showToast('Ingredient created');
+  }
+  closeIngredientModal();
+  renderTable();
+}
+
+/* ═══════════════════════════════════════════
+   WAFCT AUTO-CALCULATE (debounced on Name)
+
+   A suggestion is only ever SHOWN here. Nothing is written into the
+   macro fields until someone clicks "Use this" — a 100 score included.
+═══════════════════════════════════════════ */
+el('ingName').addEventListener('input', function () {
+  clearTimeout(suggestTimer);
+  var box = el('wafctBox');
+  if (!this.value.trim()) { box.className = 'wafct-box'; box.innerHTML = ''; return; }
+  box.className = 'wafct-box open';
+  box.innerHTML = '<div class="wafct-card searching"><div class="wafct-msg">' +
+    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
+    'Looking up WAFCT…</div></div>';
+  suggestTimer = setTimeout(runSuggest, 400);
+});
+
+function runSuggest() {
+  var name = el('ingName').value;
+  var box  = el('wafctBox');
+  if (!name.trim()) { box.className = 'wafct-box'; box.innerHTML = ''; return; }
+  box.className = 'wafct-box open';   // owns its own visibility, however it was called
+
+  var all = WM.findMatches(name, DATASET);
+  suggestions = all.filter(function (r) { return r.score >= WM.REVIEW_THRESHOLD; });
+
+  if (!suggestions.length) {
+    renderNoWafct();
+    return;
+  }
+
+  var best = suggestions[0];
+  var f = best.food;
+  // Show alternates only when they are genuinely competitive.
+  var alts = suggestions.slice(1).filter(function (r) { return best.score - r.score <= 12; });
+
+  var html = '<div class="wafct-card"><div class="wafct-top"><div>' +
+    '<div class="wafct-src">WAFCT suggestion</div>' +
+    '<div class="wafct-name">' + esc(f.name) + '</div></div>' +
+    '<span class="conf-badge conf-' + best.confidence + '">' +
+      (best.confidence === 'matched' ? 'Matched' : 'Review') + ' · ' + Math.round(best.score) + '%' +
+    '</span></div>' +
+    '<div class="wafct-macros">' +
+      '<span>' + fmt(f.kcal, ' kcal') + '</span>' +
+      '<span>Protein ' + fmt(f.protein_g, 'g') + '</span>' +
+      '<span>Carbs ' + fmt(f.carbs_g, 'g') + '</span>' +
+      '<span>Fat ' + fmt(f.fat_g, 'g') + '</span>' +
+      '<span>Fibre ' + fmt(f.fibre_g, 'g') + '</span>' +
+    '</div>' +
+    '<div class="wafct-acts"><button class="use-btn" onclick="applySuggestion(0)">Use this</button>' +
+    (best.alias ? '<span class="alt-score">matched via alias “' + esc(best.alias) + '”</span>' : '') +
+    '</div>';
+
+  if (alts.length) {
+    html += '<div class="wafct-alts"><div class="wafct-alts-label">Other close matches</div>' +
+      alts.map(function (r) {
+        var i = suggestions.indexOf(r);
+        return '<div class="alt-row"><div class="alt-name">' + esc(r.food.name) + '</div>' +
+          '<div class="alt-right"><span class="alt-score">' + Math.round(r.score) + '%</span>' +
+          '<button class="alt-use" onclick="applySuggestion(' + i + ')">Use</button></div></div>';
+      }).join('') + '</div>';
+  }
+
+  box.innerHTML = html + '</div>';
+}
+
+function applySuggestion(idx) {
+  var s = suggestions[idx];
+  if (!s) return;
+  var f = s.food;
+
+  // Fill the five macro fields. null stays blank — never coerced to 0.
+  el('ingCalories').value = f.kcal      === null ? '' : f.kcal;
+  el('ingProtein').value  = f.protein_g === null ? '' : f.protein_g;
+  el('ingCarbs').value    = f.carbs_g   === null ? '' : f.carbs_g;
+  el('ingFat').value      = f.fat_g     === null ? '' : f.fat_g;
+  el('ingFibre').value    = f.fibre_g   === null ? '' : f.fibre_g;
+
+  formSource     = WAFCT_SOURCE;
+  formSourceCode = f.food_id;
+
+  // Group and category are auto-picked from the matched food, but only
+  // into fields that are still empty -- a choice already made is never
+  // overwritten. Both remain editable.
+  var tax = WM.suggestTaxonomy(f);
+  var filled = [];
+  if (tax.group && !el('ingGroup').value) {
+    el('ingGroup').value = tax.group;
+    onGroupChange(el('ingCategory').value || '');
+    filled.push('group');
+  }
+  if (tax.category && !el('ingCategory').value &&
+      (WM.PRODUCT_CATEGORIES[el('ingGroup').value] || []).indexOf(tax.category) !== -1) {
+    el('ingCategory').value = tax.category;
+    filled.push('category');
+  }
+
+  el('appliedNoteText').textContent =
+    'Filled from ' + f.name + ' · ' + WAFCT_SOURCE + ' (' + f.food_id + ')' +
+    (filled.length ? ' — product ' + filled.join(' and ') + ' picked too' : '') +
+    '. Every value is still editable.';
+  el('appliedNote').classList.add('show');
+  showToast('Nutrition filled from WAFCT');
+}
+
+/* ═══════════════════════════════════════════
+   AI FALLBACK
+
+   Only reachable when WAFCT has nothing. An estimate is a guess, so it
+   is styled differently, badged differently, stamped with its own source,
+   and — like every WAFCT suggestion — never applied without a click.
+═══════════════════════════════════════════ */
+var aiResult = null;
+
+function renderNoWafct() {
+  el('wafctBox').className = 'wafct-box open';
+  el('wafctBox').innerHTML =
+    '<div class="wafct-card none"><div class="wafct-msg">' +
+    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>' +
+    'Not in WAFCT. Enter the macros manually, leave them blank for now, or ask the model for an estimate.</div>' +
+    '<div class="wafct-acts" style="margin-top:11px;">' +
+    '<button class="use-btn ai" onclick="runAiEstimate()">Estimate with AI</button>' +
+    '</div></div>';
+}
+
+function runAiEstimate() {
+  var name = el('ingName').value.trim();
+  if (!name || !NE) return;
+  var box = el('wafctBox');
+  box.className = 'wafct-box open';
+  box.innerHTML = '<div class="wafct-card searching"><div class="wafct-msg">' +
+    '<span class="spinner"></span>Asking the model about “' + esc(name) + '”…</div></div>';
+
+  NE.estimate(name, function (err, res) {
+    // The name may have moved on while the request was in flight.
+    if (el('ingName').value.trim() !== name) return;
+    if (err) {
+      box.innerHTML = '<div class="wafct-card none"><div class="wafct-msg">' +
+        esc(err.message) + '</div><div class="wafct-acts" style="margin-top:10px;">' +
+        '<button class="use-btn ai" onclick="runAiEstimate()">Try again</button></div></div>';
+      return;
+    }
+    aiResult = res;
+    var m = res.macros;
+    box.innerHTML = '<div class="wafct-card ai"><div class="wafct-top"><div>' +
+      '<div class="wafct-src">AI estimate · not measured data</div>' +
+      '<div class="wafct-name">' + esc(res.name) + '</div></div>' +
+      '<span class="conf-badge conf-estimated">Estimated</span></div>' +
+      '<div class="wafct-macros">' +
+        '<span>' + fmt(m.calories, ' kcal') + '</span>' +
+        '<span>Protein ' + fmt(m.protein_g, 'g') + '</span>' +
+        '<span>Carbs ' + fmt(m.carbs_g, 'g') + '</span>' +
+        '<span>Fat ' + fmt(m.fat_g, 'g') + '</span>' +
+        '<span>Fibre ' + fmt(m.fibre_g, 'g') + '</span>' +
+      '</div>' +
+      '<div class="wafct-acts"><button class="use-btn ai" onclick="applyAiEstimate()">Use this estimate</button>' +
+      '<span class="alt-score">' + esc(res.model) + '</span></div>' +
+      (res.note ? '<div class="ai-note">' + esc(res.note) + '</div>' : '') +
+      '</div>';
+  });
+}
+
+function applyAiEstimate() {
+  if (!aiResult) return;
+  var m = aiResult.macros;
+  // null stays blank here too -- an estimate with gaps keeps its gaps.
+  el('ingCalories').value = m.calories  === null ? '' : m.calories;
+  el('ingProtein').value  = m.protein_g === null ? '' : m.protein_g;
+  el('ingCarbs').value    = m.carbs_g   === null ? '' : m.carbs_g;
+  el('ingFat').value      = m.fat_g     === null ? '' : m.fat_g;
+  el('ingFibre').value    = m.fibre_g   === null ? '' : m.fibre_g;
+
+  formSource     = aiResult.source;
+  formSourceCode = null;                 // there is no reference record to cite
+
+  el('appliedNoteText').textContent =
+    'Filled from an AI estimate (' + aiResult.model + '). This is a guess, not measured ' +
+    'data — check it before relying on it. Every value is still editable.';
+  el('appliedNote').classList.add('show');
+  showToast('Nutrition filled from AI estimate');
+}
+
+/* ═══════════════════════════════════════════
+   CSV IMPORT
+═══════════════════════════════════════════ */
+var csvRows = [];      // review rows
+var lastImport = null; // summary + gap report
+
+/** RFC-4180-ish parser: quoted fields, embedded commas/newlines, CRLF, BOM. */
+function parseCSV(text) {
+  text = String(text).replace(/^﻿/, '');
+  var rows = [], row = [], field = '', inQ = false, i = 0;
+  while (i < text.length) {
+    var c = text.charAt(i);
+    if (inQ) {
+      if (c === '"') {
+        if (text.charAt(i + 1) === '"') { field += '"'; i += 2; continue; }
+        inQ = false; i++; continue;
+      }
+      field += c; i++; continue;
+    }
+    if (c === '"')  { inQ = true; i++; continue; }
+    if (c === ',')  { row.push(field); field = ''; i++; continue; }
+    if (c === '\r') { i++; continue; }
+    if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; i++; continue; }
+    field += c; i++;
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(function (r) {
+    return r.some(function (f) { return String(f).trim() !== ''; });
+  });
+}
+
+function toCSV(rows) {
+  return rows.map(function (r) {
+    return r.map(function (c) {
+      var s = (c === null || c === undefined) ? '' : String(c);
+      return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    }).join(',');
+  }).join('\n');
+}
+
+function download(filename, text) {
+  var blob = new Blob([text], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+}
+
+/* Header aliases — tolerate the obvious spellings. */
+var HEADER_MAP = {
+  name: 'name', ingredient: 'name', ingredient_name: 'name',
+  description: 'description', desc: 'description',
+  unit: 'unit', units: 'unit',
+  product_group: 'product_group', group: 'product_group',
+  product_category: 'product_category', category: 'product_category',
+  product_url: 'product_url', url: 'product_url', link: 'product_url',
+  calories: 'calories', kcal: 'calories', energy: 'calories', calorie: 'calories',
+  protein_g: 'protein_g', protein: 'protein_g',
+  carbs_g: 'carbs_g', carbs: 'carbs_g', carbohydrate: 'carbs_g', carbohydrates: 'carbs_g',
+  fat_g: 'fat_g', fat: 'fat_g', fats: 'fat_g',
+  fibre_g: 'fibre_g', fibre: 'fibre_g', fiber: 'fibre_g', fiber_g: 'fibre_g',
+  image_url: 'image_url', image: 'image_url'
+};
+
+function openCsvModal() {
+  csvRows = []; lastImport = null;
+  el('csvFileInput').value = '';
+  showCsvStage(1);
+  el('csvModal').classList.add('open');
+}
+function closeCsvModal() {
+  el('csvModal').classList.remove('open');
+  renderTable();
+}
+function showCsvStage(n) {
+  [1, 2, 3].forEach(function (i) { el('csvStage' + i).classList.toggle('active', i === n); });
+  el('csvTitle').textContent = n === 1 ? 'Import Ingredients from CSV'
+                             : n === 2 ? 'Review before importing'
+                             : 'Import complete';
+  el('csvSub').textContent = n === 1 ? 'Rows without nutrition are matched against WAFCT automatically. Nothing is written until you confirm.'
+                           : n === 2 ? 'Uncheck anything you do not want created. Nothing has been written yet.'
+                           : 'Here is what happened.';
+}
+function backToUpload() { showCsvStage(1); }
+
+/* Drag and drop */
+var dz = el('dropzone');
+['dragenter', 'dragover'].forEach(function (ev) {
+  dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.add('drag'); });
+});
+['dragleave', 'drop'].forEach(function (ev) {
+  dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.remove('drag'); });
+});
+dz.addEventListener('drop', function (e) {
+  var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (f) readCsvFile(f);
+});
+
+function onCsvChosen(e) {
+  var f = e.target.files && e.target.files[0];
+  if (f) readCsvFile(f);
+}
+
+function readCsvFile(file) {
+  var reader = new FileReader();
+  reader.onload = function (ev) {
+    try {
+      buildReview(parseCSV(ev.target.result));
+    } catch (err) {
+      showToast('Could not read that CSV');
+    }
+  };
+  reader.readAsText(file);
+}
+
+/**
+ * Stage 2 — for every row missing calories (or missing all five macros),
+ * run the SAME findMatches() the manual form uses, and attach anything
+ * scoring >= 70.
+ */
+function buildReview(grid) {
+  if (!grid.length) { showToast('That CSV looks empty'); return; }
+
+  var headers = grid[0].map(function (h) {
+    return HEADER_MAP[String(h).trim().toLowerCase().replace(/\s+/g, '_')] || null;
+  });
+
+  if (headers.indexOf('name') === -1) {
+    showToast('CSV needs a "name" column');
+    return;
+  }
+
+  csvRows = [];
+  grid.slice(1).forEach(function (cells) {
+    var raw = {};
+    headers.forEach(function (h, i) { if (h) raw[h] = (cells[i] || '').trim(); });
+    if (!raw.name) return;
+
+    var macros = {
+      calories:  toNum(raw.calories),
+      protein_g: toNum(raw.protein_g),
+      carbs_g:   toNum(raw.carbs_g),
+      fat_g:     toNum(raw.fat_g),
+      fibre_g:   toNum(raw.fibre_g)
+    };
+    var allNull = MACRO_KEYS.every(function (k) { return macros[k] === null; });
+    var needsMatch = macros.calories === null || allNull;
+
+    var row = {
+      raw: raw,
+      name: raw.name,
+      description: raw.description || '',
+      unit: raw.unit || '',
+      product_group: raw.product_group || '',
+      product_category: raw.product_category || '',
+      product_url: raw.product_url || '',
+      image_url: raw.image_url || '',
+      macros: macros,
+      source: null, source_code: null,
+      match: null, score: null, confidence: null,
+      selectable: true, checked: false
+    };
+
+    if (!needsMatch) {
+      row.source = 'csv';
+      row.checked = true;
+    } else {
+      var best = WM.findMatches(raw.name, DATASET)[0];
+      if (best && best.score >= WM.REVIEW_THRESHOLD) {
+        var f = best.food;
+        row.match = f;
+        row.score = best.score;
+        row.confidence = best.confidence;
+        row.source = 'WAFCT';
+        row.source_code = f.food_id;
+        row.macros = {
+          calories: f.kcal, protein_g: f.protein_g, carbs_g: f.carbs_g,
+          fat_g: f.fat_g, fibre_g: f.fibre_g
+        };
+        // >= 88 pre-checked; 70-87 shown but unchecked, needing a look.
+        row.checked = best.score >= WM.MATCHED_THRESHOLD;
+
+        var tax = WM.suggestTaxonomy(f);
+        if (!row.product_group && tax.group) row.product_group = tax.group;
+        if (!row.product_category && tax.category &&
+            (WM.PRODUCT_CATEGORIES[row.product_group] || []).indexOf(tax.category) !== -1) {
+          row.product_category = tax.category;
+        }
+      } else {
+        // Below 70: macros stay blank and there is nothing to apply.
+        row.selectable = false;
+        row.checked = false;
+      }
+    }
+    csvRows.push(row);
+  });
+
+  if (!csvRows.length) { showToast('No usable rows in that CSV'); return; }
+  renderReview();
+  showCsvStage(2);
+}
+
+function renderReview() {
+  var fromCsv  = csvRows.filter(function (r) { return r.source === 'csv'; }).length;
+  var strong   = csvRows.filter(function (r) { return r.source === 'WAFCT' && r.score >= WM.MATCHED_THRESHOLD; }).length;
+  var review   = csvRows.filter(function (r) { return r.source === 'WAFCT' && r.score < WM.MATCHED_THRESHOLD; }).length;
+  var noMatch  = csvRows.filter(function (r) { return !r.selectable; }).length;
+
+  var aiRows  = csvRows.filter(function (r) { return isAiSource(r.source); }).length;
+
+  el('reviewStats').innerHTML =
+    '<span class="rstat"><span class="rdot" style="background:#185FA5"></span>' + fromCsv + ' from CSV</span>' +
+    '<span class="rstat"><span class="rdot" style="background:#1D9E75"></span>' + strong + ' WAFCT matched</span>' +
+    '<span class="rstat"><span class="rdot" style="background:#C8A97E"></span>' + review + ' needs review</span>' +
+    (aiRows ? '<span class="rstat"><span class="rdot" style="background:#7A4F2A"></span>' + aiRows + ' AI estimated</span>' : '') +
+    '<span class="rstat"><span class="rdot" style="background:#9CA3AF"></span>' + noMatch + ' no match</span>';
+
+  var btn = el('aiEstimateBtn');
+  if (btn) {
+    btn.style.display = noMatch ? 'flex' : 'none';
+    btn.textContent = 'Estimate ' + noMatch + ' with AI';
+    btn.disabled = false;
+  }
+
+  el('csvBody').innerHTML = csvRows.map(function (r, i) {
+    var macroTxt = r.selectable
+      ? '<span class="csv-macros">' + (r.macros.calories === null ? '—' : r.macros.calories + ' kcal') +
+        ' · P ' + nn(r.macros.protein_g) + ' · C ' + nn(r.macros.carbs_g) +
+        ' · F ' + nn(r.macros.fat_g) + ' · Fb ' + nn(r.macros.fibre_g) + '</span>'
+      : '<span class="no-apply">no nutrition found</span>';
+
+    var srcTxt = r.source === 'csv'   ? '<span class="src-badge src-csv">CSV</span>'
+               : r.source === 'WAFCT' ? '<span class="src-badge src-wafct">WAFCT</span>'
+               : isAiSource(r.source) ? '<span class="src-badge src-ai" title="' + esc(r.source) + '">AI est.</span>'
+               : '<span class="src-badge src-empty">—</span>';
+
+    var confTxt = isAiSource(r.source) ? '<span class="conf-badge conf-estimated">Estimated</span>'
+      : r.score === null ? '<span class="no-apply">—</span>'
+      : '<span class="conf-badge conf-' + (r.score >= WM.MATCHED_THRESHOLD ? 'matched' : 'review') + '">' +
+        Math.round(r.score) + '%</span>';
+
+    return '<tr class="' + (r.selectable ? '' : 'unmatched') + '">' +
+      '<td>' + (r.selectable
+        ? '<input type="checkbox" class="cb" ' + (r.checked ? 'checked' : '') +
+          ' onchange="toggleRow(' + i + ', this.checked)">'
+        : '') + '</td>' +
+      '<td><div class="csv-name">' + esc(r.name) + '</div>' +
+        (r.match ? '<div class="csv-sub">' + esc(r.match.name) + '</div>' : '') + '</td>' +
+      '<td><div class="csv-macros">' + (esc(r.product_group) || '—') + '</div>' +
+        '<div class="csv-sub">' + (esc(r.product_category) || '—') + '</div></td>' +
+      '<td>' + macroTxt + '</td>' +
+      '<td>' + srcTxt + '</td>' +
+      '<td>' + confTxt + '</td>' +
+    '</tr>';
+  }).join('');
+
+  var n = csvRows.filter(function (r) { return r.selectable && r.checked; }).length;
+  el('applyBtn').textContent = 'Import ' + n + ' ingredient' + (n === 1 ? '' : 's');
+}
+
+/**
+ * Estimates the rows WAFCT could not match. Results are never pre-checked:
+ * an estimate is weaker evidence than a measured match, so it always takes
+ * a deliberate tick before anything is created.
+ */
+function estimateMissing() {
+  if (!NE) return;
+  var pending = csvRows.filter(function (r) { return !r.selectable; });
+  if (!pending.length) return;
+
+  var btn = el('aiEstimateBtn');
+  btn.disabled = true;
+
+  NE.estimateMany(
+    pending.map(function (r) { return r.name; }),
+    function (done, total, name) {
+      btn.textContent = 'Estimating ' + done + '/' + total + '…';
+    },
+    function (results) {
+      var filled = 0;
+      results.forEach(function (out, i) {
+        var row = pending[i];
+        if (out.error || !out.result) return;
+        var m = out.result.macros;
+        // Nothing usable came back -> leave the row exactly as it was.
+        if (NE.MACRO_KEYS.every(function (k) { return m[k] === null; })) return;
+        row.macros      = m;
+        row.source      = out.result.source;
+        row.source_code = null;
+        row.selectable  = true;
+        row.checked     = false;
+        filled++;
+      });
+      renderReview();
+      showToast(filled ? filled + ' estimated — review before importing' : 'No estimates came back');
+    }
+  );
+}
+
+function toggleRow(i, checked) {
+  csvRows[i].checked = checked;
+  var n = csvRows.filter(function (r) { return r.selectable && r.checked; }).length;
+  el('applyBtn').textContent = 'Import ' + n + ' ingredient' + (n === 1 ? '' : 's');
+}
+
+function setAllChecked(v) {
+  csvRows.forEach(function (r) { if (r.selectable) r.checked = v; });
+  renderReview();
+}
+
+/** Stage 3 — writes through createIngredient(), the same path the form uses. */
+function applyImport() {
+  var created = 0, skipped = [], noMatch = [];
+
+  csvRows.forEach(function (r) {
+    if (!r.selectable) { noMatch.push(r); return; }
+    if (!r.checked)    { skipped.push(r); return; }
+
+    createIngredient({
+      name: r.name,
+      description: r.description,
+      unit: r.unit,
+      product_group: r.product_group,
+      product_category: r.product_category,
+      product_url: r.product_url,
+      calories:  r.macros.calories,
+      protein_g: r.macros.protein_g,
+      carbs_g:   r.macros.carbs_g,
+      fat_g:     r.macros.fat_g,
+      fibre_g:   r.macros.fibre_g,
+      source:      r.source === 'WAFCT' ? WAFCT_SOURCE : r.source,
+      source_code: r.source_code || null,
+      image:       r.image_url || null
+    });
+    created++;
+  });
+
+  lastImport = { created: created, skipped: skipped, noMatch: noMatch };
+  renderSummary();
+  showCsvStage(3);
+  renderTable();
+}
+
+function renderSummary() {
+  var s = lastImport;
+  el('sumCreated').textContent = s.created;
+  el('summaryRows').innerHTML =
+    '<div class="summary-row"><span class="sl">' +
+      '<span class="rdot" style="background:#1D9E75"></span>Created</span><span class="sv">' + s.created + '</span></div>' +
+    '<div class="summary-row"><span class="sl">' +
+      '<span class="rdot" style="background:#C8A97E"></span>Skipped (unchecked)</span><span class="sv">' + s.skipped.length + '</span></div>' +
+    '<div class="summary-row"><span class="sl">' +
+      '<span class="rdot" style="background:#9CA3AF"></span>No nutrition match</span><span class="sv">' + s.noMatch.length + '</span></div>';
+
+  var gaps = s.skipped.length + s.noMatch.length;
+  el('summaryNote').innerHTML = gaps
+    ? '<div class="summary-note"><strong>' + gaps + ' row' + (gaps === 1 ? '' : 's') +
+      '</strong> were not imported. Download them below so the gap stays visible — they are not lost, ' +
+      'just waiting on a name the matcher recognises or on manual macros.</div>'
+    : '';
+  el('downloadGapBtn').style.display = gaps ? 'inline-flex' : 'none';
+}
+
+function downloadGapReport() {
+  if (!lastImport) return;
+  var head = ['name', 'description', 'unit', 'product_group', 'product_category', 'product_url',
+              'calories', 'protein_g', 'carbs_g', 'fat_g', 'fibre_g', 'reason'];
+  var rows = [head];
+
+  lastImport.noMatch.forEach(function (r) {
+    rows.push([r.name, r.description, r.unit, r.product_group, r.product_category, r.product_url,
+               '', '', '', '', '',
+               'no WAFCT match above ' + WM.REVIEW_THRESHOLD + '% (not estimated)']);
+  });
+  lastImport.skipped.forEach(function (r) {
+    rows.push([r.name, r.description, r.unit, r.product_group, r.product_category, r.product_url,
+               r.macros.calories, r.macros.protein_g, r.macros.carbs_g, r.macros.fat_g, r.macros.fibre_g,
+               'unchecked during review' +
+               (isAiSource(r.source) ? ' (AI estimate)'
+                : r.score ? ' (WAFCT ' + Math.round(r.score) + '%)' : '')]);
+  });
+
+  download('akaani-ingredients-not-imported.csv', toCSV(rows));
+  showToast('Downloaded ' + (rows.length - 1) + ' rows');
+}
+
+function downloadTemplate() {
+  download('akaani-ingredients-template.csv', toCSV([
+    ['name', 'description', 'unit', 'product_group', 'product_category',
+     'calories', 'protein_g', 'carbs_g', 'fat_g', 'fibre_g'],
+    ['Boiled Yam', 'Peeled and boiled', 'g', '', '', '', '', '', '', ''],
+    ['Egusi', 'Ground melon seed', 'g', '', '', '', '', '', '', ''],
+    ['Olive Oil', 'Extra virgin', 'ml', 'Oils, Fats & Condiments', 'Oils & Fats', '900', '0', '0', '100', '0']
+  ]));
+}
+
+/* ═══════════════════════════════════════════
+   EXPORT
+═══════════════════════════════════════════ */
+function exportIngredients() {
+  var head = ['name', 'description', 'unit', 'product_group', 'product_category', 'product_url',
+              'calories', 'protein_g', 'carbs_g', 'fat_g', 'fibre_g', 'source', 'source_code'];
+  var rows = [head].concat(INGREDIENTS.map(function (r) {
+    return [r.name, r.description, r.unit, r.product_group, r.product_category, r.product_url,
+            r.calories, r.protein_g, r.carbs_g, r.fat_g, r.fibre_g, r.source, r.source_code]
+      .map(function (v) { return v === null || v === undefined ? '' : v; });
+  }));
+  download('akaani-ingredients.csv', toCSV(rows));
+  showToast('Exported ' + INGREDIENTS.length + ' ingredients');
+}
+
+/* ═══════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════ */
+fillGroupSelects();
+onGroupChange();
+renderTable();
+
+if (!DATASET.length) {
+  console.warn('WAFCT dataset did not load — auto-calculate is unavailable.');
+}
+</script>
+
+</body>
+</html>

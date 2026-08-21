@@ -1,53 +1,50 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Akaani Admin</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Outfit', sans-serif; background: #003232; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-  .splash {
-    display: flex; flex-direction: column; align-items: center; gap: 20px;
-    animation: fadeIn 0.6s ease both;
-  }
-  .logo-wrap {
-    width: 64px; height: 64px; background: #5DCAA5; border-radius: 16px;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .logo-wrap svg { width: 36px; height: 36px; }
-  .brand { font-size: 32px; font-weight: 700; color: #fff; letter-spacing: -0.03em; }
-  .sub { font-size: 14px; color: rgba(255,255,255,0.4); }
-  .loader { display: flex; gap: 6px; margin-top: 10px; }
-  .dot { width: 7px; height: 7px; border-radius: 50%; background: #5DCAA5; opacity: 0.3; animation: pulse 1.2s ease-in-out infinite; }
-  .dot:nth-child(2) { animation-delay: 0.2s; }
-  .dot:nth-child(3) { animation-delay: 0.4s; }
-  @keyframes pulse { 0%,100%{opacity:0.3;transform:scale(1)} 50%{opacity:1;transform:scale(1.2)} }
-  @keyframes fadeIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
-</style>
-</head>
-<body>
-<div class="splash">
-  <div class="logo-wrap">
-    <svg viewBox="0 0 24 24" fill="none" stroke="#003232" stroke-width="2.5" stroke-linecap="round">
-      <path d="M12 2C8 2 5 6 5 10c0 5 7 12 7 12s7-7 7-12c0-4-3-8-7-8z"/>
-      <circle cx="12" cy="10" r="2.5" fill="#003232" stroke="none"/>
-    </svg>
-  </div>
-  <div class="brand">akaani</div>
-  <div class="sub">Admin Dashboard</div>
-  <div class="loader">
-    <div class="dot"></div>
-    <div class="dot"></div>
-    <div class="dot"></div>
-  </div>
-</div>
-<script>
-  // Redirect to dashboard after brief splash
-  setTimeout(() => { window.location.href = 'pages/dashboard.html'; }, 1200);
-</script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Akaani Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="root">
+      <!-- React clears #root on mount, taking this with it. It is only ever
+           seen when the bundle never ran — this file opened directly, or served
+           by a plain static server such as VS Code Live Server, neither of
+           which can compile the JSX in /src. Beats a silent white page. -->
+      <div id="boot-help" hidden></div>
+    </div>
+
+    <script type="module" src="/src/main.jsx"></script>
+
+    <script>
+      // Classic script, so it runs even when the module above cannot.
+      setTimeout(function () {
+        var el = document.getElementById('boot-help');
+        if (!el) return; // React mounted and removed it — nothing to say
+        el.hidden = false;
+        el.style.cssText =
+          'font-family:system-ui,sans-serif;max-width:34rem;margin:12vh auto;' +
+          'padding:0 1.5rem;color:#111827;line-height:1.6';
+        el.innerHTML = [
+          '<h1 style="font-size:1.25rem;margin:0 0 .5rem">Akaani Admin needs to be built</h1>',
+          '<p style="color:#6B7280;margin:0 0 1.25rem">This page is the Vite entry point. It loads ',
+          '<code>/src/main.jsx</code>, which a plain static server cannot compile. Use one of these:</p>',
+          '<pre style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;padding:1rem;',
+          'overflow-x:auto;font-size:.8125rem;margin:0 0 1rem">npm install\nnpm run dev',
+          '            <span style="color:#6B7280"># http://localhost:5173</span></pre>',
+          '<p style="color:#6B7280;margin:0 0 .5rem">Prefer Live Server? Build first, then point it ',
+          'at <code>dist/</code> rather than this folder:</p>',
+          '<pre style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;padding:1rem;',
+          'overflow-x:auto;font-size:.8125rem;margin:0">npm run build:watch',
+          '    <span style="color:#6B7280"># rebuilds dist/ as you edit</span></pre>',
+        ].join('');
+      }, 2000);
+    </script>
+  </body>
 </html>

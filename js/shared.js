@@ -29,10 +29,11 @@ function closeSidebar() {
    PAGE NAVIGATION
 ══════════════════════════════════════ */
 const PAGES = {
-  dashboard:  'pages/dashboard.html',
-  customers:  'pages/customers.html',
-  meals:      'pages/meals.html',
-  settings:   'pages/settings.html',
+  dashboard:   'pages/dashboard.html',
+  customers:   'pages/customers.html',
+  meals:       'pages/meals.html',
+  ingredients: 'pages/ingredients.html',
+  settings:    'pages/settings.html',
 };
 
 function navigate(page) {
