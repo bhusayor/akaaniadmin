@@ -1,0 +1,16 @@
+/* Notification fixtures — carried over from the vanilla js/shared.js. */
+
+export const NOTIFICATIONS = [
+  { id:1,  group:'Today',     category:'customers', unread:true,  icon:'👤', iconBg:'#E6F1FB', msg:'<strong>Amara Okafor</strong> just signed up from Nigeria.',                         time:'2 min ago',         tag:'New user', tagBg:'#E6F1FB', tagColor:'#185FA5' },
+  { id:2,  group:'Today',     category:'lu',        unread:true,  icon:'🌿', iconBg:'#E1F5EE', msg:'<strong>Lu</strong> — Breakfast meals are underrepresented this week.',              time:'18 min ago',        tag:'Lu AI',    tagBg:'#E1F5EE', tagColor:'#0F6E56' },
+  { id:3,  group:'Today',     category:'platform',  unread:true,  icon:'💳', iconBg:'#FDF6EE', msg:'Payment of <strong>₦12,500</strong> received via Paystack.',                         time:'1 hr ago',          tag:'Payment',  tagBg:'#FDF6EE', tagColor:'#854F0B' },
+  { id:4,  group:'Today',     category:'customers', unread:true,  icon:'👤', iconBg:'#E6F1FB', msg:'<strong>Kofi Mensah</strong> updated their meal preferences.',                       time:'2 hr ago',          tag:'Activity', tagBg:'#EEEDFE', tagColor:'#534AB7' },
+  { id:5,  group:'Today',     category:'platform',  unread:true,  icon:'⚠️', iconBg:'#FDF6EE', msg:'API response time spiked to <strong>1.8s</strong> — now resolved.',                 time:'3 hr ago',          tag:'System',   tagBg:'#FDF6EE', tagColor:'#854F0B' },
+  { id:6,  group:'Today',     category:'customers', unread:false, icon:'👥', iconBg:'#E6F1FB', msg:'<strong>6 new users</strong> joined the platform today.',                            time:'5 hr ago',          tag:'Summary',  tagBg:'#E1F5EE', tagColor:'#0F6E56' },
+  { id:7,  group:'Yesterday', category:'lu',        unread:true,  icon:'🌿', iconBg:'#E1F5EE', msg:'<strong>Lu</strong> recommends adding more Lunch options for Ghana users.',          time:'Yesterday, 4:30 PM',tag:'Lu AI',    tagBg:'#E1F5EE', tagColor:'#0F6E56' },
+  { id:8,  group:'Yesterday', category:'platform',  unread:false, icon:'📊', iconBg:'#EEEDFE', msg:'Weekly report ready — <strong>47 new users</strong>, ↑18% growth.',                  time:'Yesterday, 9:00 AM',tag:'Report',   tagBg:'#EEEDFE', tagColor:'#534AB7' },
+  { id:9,  group:'Yesterday', category:'customers', unread:false, icon:'👤', iconBg:'#FEECEC', msg:'<strong>Njeri Wanjiku</strong> cancelled their subscription.',                        time:'Yesterday, 8:14 AM',tag:'Churn',    tagBg:'#FEECEC', tagColor:'#A32D2D' },
+  { id:10, group:'Earlier',   category:'platform',  unread:false, icon:'🔐', iconBg:'#E1F5EE', msg:'Two-factor authentication was enabled on your account.',                             time:'20 Mar, 3:00 PM',   tag:'Security', tagBg:'#E1F5EE', tagColor:'#0F6E56' },
+  { id:11, group:'Earlier',   category:'lu',        unread:false, icon:'🌿', iconBg:'#E1F5EE', msg:'<strong>Lu</strong> flagged 4 meals with incomplete macro data.',                    time:'19 Mar, 11:20 AM',  tag:'Lu AI',    tagBg:'#E1F5EE', tagColor:'#0F6E56' },
+  { id:12, group:'Earlier',   category:'platform',  unread:false, icon:'💳', iconBg:'#FDF6EE', msg:'Monthly billing: <strong>₦373,450</strong> total processed.',                        time:'18 Mar, 9:00 AM',   tag:'Billing',  tagBg:'#FDF6EE', tagColor:'#854F0B' },
+];
