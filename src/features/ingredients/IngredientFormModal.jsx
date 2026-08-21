@@ -5,7 +5,7 @@ import { IconCheck, IconInfo, IconImage } from '../../components/icons.jsx';
 import WafctSuggestion from './WafctSuggestion.jsx';
 import { PRODUCT_GROUPS, PRODUCT_CATEGORIES, suggestTaxonomy } from '../../lib/wafctMatch.js';
 import { useSettings } from '../../state/SettingsProvider.jsx';
-import { WAFCT_SOURCE, MACRO_KEYS } from '../../lib/ingredients.js';
+import { MACRO_KEYS } from '../../lib/ingredients.js';
 
 const MACRO_FIELDS = [
   ['calories', 'Calories', 'kcal'],
@@ -79,6 +79,10 @@ export default function IngredientFormModal({ open, onClose, onSubmit, editing }
         carbs_g: food.carbs_g ?? '',
         fat_g: food.fat_g ?? '',
         fibre_g: food.fibre_g ?? '',
+        /* Allergens come from the reference row, which knows what the food
+           is; a name typed into this form does not. An empty list on the
+           row means the reference has none, so it overwrites. */
+        allergens: food.allergens ?? [],
       };
       // Auto-pick only into empty fields; a choice already made stands.
       if (tax.group && !f.product_group) { next.product_group = tax.group; filled.push('group'); }
@@ -88,13 +92,16 @@ export default function IngredientFormModal({ open, onClose, onSubmit, editing }
         filled.push('category');
       }
       setApplied(
-        `Filled from ${food.name} · ${WAFCT_SOURCE} (${food.food_id})` +
+        /* The row's own source, not a constant — the database holds two
+           references now, and an ingredient must not record provenance it
+           does not have. */
+        `Filled from ${food.name} · ${food.source} (${food.food_id})` +
         (filled.length ? ` — product ${filled.join(' and ')} picked too` : '') +
         '. Every value is still editable.',
       );
       return next;
     });
-    setSource({ source: WAFCT_SOURCE, source_code: food.food_id });
+    setSource({ source: food.source, source_code: food.food_id });
   };
 
   const applyEstimate = (res) => {

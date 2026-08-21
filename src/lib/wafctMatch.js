@@ -8,7 +8,9 @@
    is exactly one copy of this logic.
    ═══════════════════════════════════════════════════════ */
 
-import WAFCT_DATA from './wafctData.js';
+/* Both reference sets, merged — see foodDatabase.js. The name WAFCT_DATA
+   is kept because every call site and test already uses it. */
+import WAFCT_DATA from './foodDatabase.js';
 import { PRODUCT_GROUPS, PRODUCT_CATEGORIES, UNITS } from './taxonomy.js';
 
 /* ══════════════════════════════════════
@@ -236,7 +238,18 @@ var ALIASES = {
   'ogbono': 'bush mango',
   'tatashe': 'sweet pepper',
   'titus': 'mackerel',
-  'panla': 'cod'
+  'panla': 'cod',
+  /* Everyday names that share no words with the reference entry they
+     belong to. Only aliases whose resolved row was checked against the
+     dataset are listed: an alias that lands on the wrong row is worse
+     than none, because the matcher reports it as `matched` and the form
+     fills the macros in. `garri` and `ogi` were tried and dropped for
+     exactly that reason — both resolved to the wrong cassava and maize
+     rows. */
+  'semo': 'semolina',
+  'semovita': 'semolina',
+  'dawa dawa': 'african locust bean',
+  'kuli kuli': 'groundnut'
 };
 
 /**

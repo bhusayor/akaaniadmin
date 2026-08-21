@@ -1,11 +1,40 @@
 import { useEffect, useRef, useState } from 'react';
 import { findMatches, REVIEW_THRESHOLD, MATCHED_THRESHOLD } from '../../lib/wafctMatch.js';
+import { datasetOf, DATASET_LABEL } from '../../lib/foodDatabase.js';
 import * as NE from '../../lib/nutritionEstimate.js';
 import { Badge, Spinner, cx } from '../../components/ui.jsx';
 import { IconInfo } from '../../components/icons.jsx';
 import { fmtMacro } from '../../lib/ingredients.js';
 
 const DEBOUNCE_MS = 400;
+
+/** Which reference the row came from — the two are measured differently
+    enough that it is worth saying which one answered. */
+function SourceTag({ food }) {
+  const kind = datasetOf(food);
+  return (
+    <span className={cx(
+      'rounded px-1.5 py-px text-[10px] font-semibold',
+      kind === 'usda' ? 'bg-ocean-light text-ocean-deep' : 'bg-mint-light text-mint-deep',
+    )}>
+      {DATASET_LABEL[kind]}
+    </span>
+  );
+}
+
+/** Allergens carried by the reference row. */
+function AllergenTags({ list }) {
+  if (!list?.length) return null;
+  return (
+    <div className="mb-2 flex flex-wrap gap-1">
+      {list.map((a) => (
+        <span key={a} className="rounded bg-amber-light px-1.5 py-px text-[10px] font-semibold text-amber-deep">
+          {a}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 function Macros({ m, kcalKey = 'kcal' }) {
   const val = (v, suffix) =>
@@ -129,8 +158,8 @@ export default function WafctSuggestion({ name, onApplyWafct, onApplyEstimate })
     <Shell tone="wafct">
       <div className="flex items-start justify-between gap-2.5">
         <div>
-          <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-mint-deep">
-            WAFCT suggestion
+          <div className="mb-0.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-mint-deep">
+            Reference match <SourceTag food={best.food} />
           </div>
           <div className="text-[13px] font-semibold leading-snug text-ink">{best.food.name}</div>
         </div>
@@ -140,6 +169,7 @@ export default function WafctSuggestion({ name, onApplyWafct, onApplyEstimate })
       </div>
 
       <Macros m={best.food} />
+      <AllergenTags list={best.food.allergens} />
 
       <div className="flex flex-wrap items-center gap-2">
         <button onClick={() => onApplyWafct(best.food)}

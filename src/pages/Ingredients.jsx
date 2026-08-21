@@ -11,6 +11,7 @@ import { useToast } from '../components/Toast.jsx';
 import IngredientFormModal from '../features/ingredients/IngredientFormModal.jsx';
 import CsvImportModal from '../features/ingredients/CsvImportModal.jsx';
 import { PRODUCT_GROUPS } from '../lib/wafctMatch.js';
+import { USDA_SOURCE_PREFIX } from '../lib/foodDatabase.js';
 import {
   hasNutrition, isAiSource, fmtMacro, WAFCT_SOURCE,
 } from '../lib/ingredients.js';
@@ -20,6 +21,9 @@ import { downloadCSV } from '../lib/csvImport.js';
 function SourceBadge({ record }) {
   if (record.source === WAFCT_SOURCE) {
     return <Badge tone="mint" title={record.source_code || ''}>WAFCT</Badge>;
+  }
+  if (String(record.source || '').startsWith(USDA_SOURCE_PREFIX)) {
+    return <Badge tone="ocean" title={record.source_code || ''}>USDA</Badge>;
   }
   if (isAiSource(record.source)) {
     return <Badge tone="amber" title={`${record.source} — estimated, not measured`}>AI est.</Badge>;
@@ -81,9 +85,13 @@ export default function Ingredients() {
 
   const exportCSV = () => {
     const head = ['name', 'description', 'unit', 'product_group', 'product_category', 'product_url',
-      'calories', 'protein_g', 'carbs_g', 'fat_g', 'fibre_g', 'source', 'source_code'];
+      'calories', 'protein_g', 'carbs_g', 'fat_g', 'fibre_g', 'allergens', 'source', 'source_code'];
     downloadCSV('akaani-ingredients.csv', [
-      head, ...ingredients.map((r) => head.map((k) => r[k] ?? '')),
+      head,
+      /* Arrays would stringify with commas and split the cell in two. */
+      ...ingredients.map((r) => head.map((k) => (
+        Array.isArray(r[k]) ? r[k].join(' | ') : r[k] ?? ''
+      ))),
     ]);
     toast(`Exported ${ingredients.length} ingredients`);
   };
@@ -130,6 +138,7 @@ export default function Ingredients() {
                   <Th>Product group</Th>
                   <Th>Unit</Th>
                   <Th>Nutrition (per 100g)</Th>
+                  <Th>Allergens</Th>
                   <Th>Source</Th>
                   <Th />
                 </tr>
@@ -164,6 +173,23 @@ export default function Ingredients() {
                         </div>
                       ) : (
                         <span className="text-xs italic text-ink-3">Not set</span>
+                      )}
+                    </Td>
+                    <Td>
+                      {/* An empty list means "no allergens recorded", which
+                          is not a claim that the food has none — the dash
+                          has to read as absence of data, not absence of
+                          allergens. */}
+                      {r.allergens?.length ? (
+                        <div className="flex max-w-40 flex-wrap gap-1">
+                          {r.allergens.map((a) => (
+                            <span key={a} className="rounded bg-amber-light px-1.5 py-px text-[10px] font-semibold whitespace-nowrap text-amber-deep">
+                              {a}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-[11.5px] italic text-ink-3">None recorded</span>
                       )}
                     </Td>
                     <Td><SourceBadge record={r} /></Td>

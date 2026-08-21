@@ -377,3 +377,54 @@ it('every unit has both a value and a label', function () {
     assert.ok(u.label.indexOf(u.value) !== -1, u.label + ' should show its short form');
   });
 });
+
+/* ── Matching across the merged WAFCT + USDA database ── */
+
+/* "Flour, almond" and "Flour, cassava" share a leading segment. Indexing on
+   that alone put every flour in one bucket, so any flour query answered
+   with whichever row happened to come first. */
+[['almond flour', 'Flour, almond'],
+ ['cassava flour', 'Flour, cassava'],
+ ['rye flour', 'Flour, rye'],
+ ['quinoa flour', 'Flour, quinoa'],
+ ['coconut flour', 'Flour, coconut'],
+ ['brazil nuts', 'Nuts, brazilnuts, raw'],
+ ['pine nuts', 'Nuts, pine nuts, raw'],
+ ['macadamia nuts', 'Nuts, macadamia nuts, raw'],
+].forEach(function (pair) {
+  it('inverted USDA name: "' + pair[0] + '" resolves to "' + pair[1] + '"', function () {
+    assert.strictEqual(M.findMatches(pair[0])[0].food.name, pair[1]);
+  });
+});
+
+it('still answers West African foods from WAFCT', function () {
+  ['egusi', 'moringa leaves', 'locust bean', 'tilapia'].forEach(function (q) {
+    var top = M.findMatches(q)[0];
+    assert.notStrictEqual(top.confidence, 'no_match', q);
+    assert.ok(top.food.source.indexOf('WAFCT') !== -1, q + ' came from WAFCT');
+  });
+});
+
+it('answers global staples from USDA', function () {
+  ['greek yogurt', 'alaska pollock', 'peanut butter'].forEach(function (q) {
+    var top = M.findMatches(q)[0];
+    assert.notStrictEqual(top.confidence, 'no_match', q);
+    assert.ok(top.food.source.indexOf('USDA') !== -1, q + ' came from USDA');
+  });
+});
+
+it('ships only aliases whose resolved row was checked', function () {
+  [['semo', 'semolina'], ['dawa dawa', 'locust bean'], ['kuli kuli', 'groundnut']]
+    .forEach(function (pair) {
+      assert.ok(
+        M.findMatches(pair[0])[0].food.name.toLowerCase().indexOf(pair[1]) !== -1,
+        pair[0] + ' lands on a ' + pair[1] + ' row',
+      );
+    });
+});
+
+it('declines rather than guessing where no alias was verified', function () {
+  // `garri` resolved to cassava *leaves*, so the alias was dropped. A
+  // confident wrong match is worse than none: the form fills the macros in.
+  assert.strictEqual(M.findMatches('garri')[0].confidence, 'no_match');
+});

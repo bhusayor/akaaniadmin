@@ -52,6 +52,12 @@ export function normalizeIngredient(data, id) {
     fibre_g: toNum(data.fibre_g),
     source: data.source || null,
     source_code: data.source_code || null,
+    /* Always an array. A missing list means "not assessed", which is not
+       the same as "contains nothing" — the UI has to be able to tell
+       those apart. */
+    allergens: Array.isArray(data.allergens)
+      ? data.allergens.filter(Boolean)
+      : String(data.allergens || '').split(',').map((s) => s.trim()).filter(Boolean),
     image: data.image || null,
   };
 }
