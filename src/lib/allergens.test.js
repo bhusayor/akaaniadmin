@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { ALLERGENS, allergensFor, formatAllergens, allergenDiff } from './allergens.js';
 import USDA_FOODS from './usdaData.js';
-import FOOD_DATABASE, { datasetOf } from './foodDatabase.js';
+import FOOD_DATABASE, { datasetOf, WAFCT_FOODS, USDA_FOODS } from './foodDatabase.js';
+import { findMatches, REVIEW_THRESHOLD } from './wafctMatch.js';
 
 describe('the traps the imported column fell into', () => {
   // Each of these was wrong in the supplied CSV.
@@ -207,5 +208,48 @@ describe('the merged food database', () => {
   it('lists WAFCT first, so West African foods win a tie', () => {
     expect(datasetOf(FOOD_DATABASE[0])).toBe('wafct');
     expect(datasetOf(FOOD_DATABASE[FOOD_DATABASE.length - 1])).toBe('usda');
+  });
+});
+
+describe('each reference answers on its own', () => {
+  // Searching both as one list lets the winner crowd the other set out of
+  // the results entirely, and when a food is in both, the second reading
+  // is the useful part.
+  const lookUp = (name) => {
+    const seen = new Set();
+    return [...findMatches(name, WAFCT_FOODS), ...findMatches(name, USDA_FOODS)]
+      .filter((r) => {
+        if (r.score < REVIEW_THRESHOLD || seen.has(r.food.food_id)) return false;
+        seen.add(r.food.food_id);
+        return true;
+      })
+      .sort((a, b) => b.score - a.score);
+  };
+
+  it.each(['sweet potato', 'spinach', 'tomato', 'onion'])(
+    'offers both references for "%s"', (term) => {
+      const kinds = new Set(lookUp(term).map((r) => datasetOf(r.food)));
+      expect(kinds.has('wafct')).toBe(true);
+      expect(kinds.has('usda')).toBe(true);
+    },
+  );
+
+  it('surfaces a cross-reference the score alone would have hidden', () => {
+    // USDA's sweet potato scores 86 against WAFCT's 100 — outside the
+    // 12-point window the alternatives list used to apply.
+    const hits = lookUp('sweet potato');
+    const best = hits[0];
+    const cross = hits.find((r) => datasetOf(r.food) !== datasetOf(best.food));
+    expect(cross).toBeDefined();
+    expect(best.score - cross.score).toBeGreaterThan(12);
+  });
+
+  it('never returns the same food twice', () => {
+    const ids = lookUp('rice').map((r) => r.food.food_id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('returns nothing for a name in neither reference', () => {
+    expect(lookUp('kpomo shaki bespoke')).toEqual([]);
   });
 });

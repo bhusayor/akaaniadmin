@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { findMatches, REVIEW_THRESHOLD, MATCHED_THRESHOLD } from '../../lib/wafctMatch.js';
-import { datasetOf, DATASET_LABEL } from '../../lib/foodDatabase.js';
+import { datasetOf, DATASET_LABEL, WAFCT_FOODS, USDA_FOODS } from '../../lib/foodDatabase.js';
 import * as NE from '../../lib/nutritionEstimate.js';
 import { Badge, Spinner, cx } from '../../components/ui.jsx';
 import { IconInfo } from '../../components/icons.jsx';
@@ -53,7 +53,26 @@ function Macros({ m, kcalKey = 'kcal' }) {
 }
 
 /**
- * WAFCT lookup on the name field, debounced.
+ * Looks the name up in each reference set separately, then merges.
+ *
+ * Searching the two as one list means the winner can crowd the other set
+ * out of the top three entirely — and when a food is in both, the second
+ * opinion is the useful part. Asking each set on its own guarantees both
+ * answers are available to offer.
+ */
+function lookUp(name) {
+  const seen = new Set();
+  return [...findMatches(name, WAFCT_FOODS), ...findMatches(name, USDA_FOODS)]
+    .filter((r) => {
+      if (r.score < REVIEW_THRESHOLD || seen.has(r.food.food_id)) return false;
+      seen.add(r.food.food_id);
+      return true;
+    })
+    .sort((a, b) => b.score - a.score);
+}
+
+/**
+ * Reference lookup on the name field, debounced.
  *
  * A suggestion is only ever *shown* here — nothing is written into the
  * macro fields until someone clicks, a 100% score included.
@@ -70,7 +89,7 @@ export default function WafctSuggestion({ name, onApplyWafct, onApplyEstimate })
 
     setState({ status: 'searching' });
     timer.current = setTimeout(() => {
-      const hits = findMatches(trimmed).filter((r) => r.score >= REVIEW_THRESHOLD);
+      const hits = lookUp(trimmed);
       setState(hits.length ? { status: 'matched', hits } : { status: 'no-match' });
     }, DEBOUNCE_MS);
 
@@ -100,7 +119,7 @@ export default function WafctSuggestion({ name, onApplyWafct, onApplyEstimate })
   );
 
   if (state.status === 'searching') {
-    return <Shell><div className="flex items-center gap-2 text-xs text-ink-3"><Spinner /> Looking up WAFCT…</div></Shell>;
+    return <Shell><div className="flex items-center gap-2 text-xs text-ink-3"><Spinner /> Looking up WAFCT and USDA…</div></Shell>;
   }
 
   if (state.status === 'estimating') {
@@ -114,7 +133,7 @@ export default function WafctSuggestion({ name, onApplyWafct, onApplyEstimate })
           <span className="mt-px shrink-0"><IconInfo /></span>
           {state.status === 'estimate-error'
             ? state.error
-            : 'Not in WAFCT. Enter the macros manually, leave them blank for now, or ask the model for an estimate.'}
+            : 'Not in WAFCT or USDA. Enter the macros manually, leave them blank for now, or ask the model for an estimate.'}
         </div>
         <button onClick={runEstimate}
           className="mt-2.5 cursor-pointer rounded-lg bg-rust px-3.5 py-1.5 text-xs font-semibold text-white transition hover:opacity-85">
@@ -150,9 +169,19 @@ export default function WafctSuggestion({ name, onApplyWafct, onApplyEstimate })
     );
   }
 
-  /* WAFCT match */
+  /* Reference match */
   const [best, ...rest] = state.hits;
-  const alts = rest.filter((r) => best.score - r.score <= 12);
+
+  /* The best answer from the set the winner did not come from. It is shown
+     however far behind it scores: when a food is in both references, the
+     second reading is worth seeing even if it is the weaker string match. */
+  const bestKind = datasetOf(best.food);
+  const crossBest = rest.find((r) => datasetOf(r.food) !== bestKind);
+
+  const alts = [
+    ...(crossBest ? [crossBest] : []),
+    ...rest.filter((r) => r !== crossBest && best.score - r.score <= 12),
+  ].slice(0, 3);
 
   return (
     <Shell tone="wafct">
@@ -182,11 +211,14 @@ export default function WafctSuggestion({ name, onApplyWafct, onApplyEstimate })
       {alts.length > 0 && (
         <div className="mt-2.5 border-t border-dashed border-line pt-2.5">
           <div className="mb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-ink-3">
-            Other close matches
+            {crossBest ? 'Also in the other reference' : 'Other close matches'}
           </div>
           {alts.map((r) => (
             <div key={r.food.food_id} className="flex items-center justify-between gap-2.5 py-1">
-              <span className="text-xs leading-snug text-ink-2">{r.food.name}</span>
+              <span className="flex min-w-0 items-center gap-1.5">
+                <SourceTag food={r.food} />
+                <span className="truncate text-xs leading-snug text-ink-2">{r.food.name}</span>
+              </span>
               <span className="flex shrink-0 items-center gap-2">
                 <span className="text-[11px] tabular-nums text-ink-3">{Math.round(r.score)}%</span>
                 <button onClick={() => onApplyWafct(r.food)}

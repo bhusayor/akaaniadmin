@@ -34,6 +34,10 @@ export const DATASET_LABEL = {
   unknown: 'Reference',
 };
 
+/* Each set on its own, so a lookup can ask them one at a time and offer
+   the best answer from each rather than whatever wins overall. */
+export { WAFCT_FOODS, USDA_FOODS };
+
 const FOOD_DATABASE = [...WAFCT_FOODS, ...USDA_FOODS];
 
 export default FOOD_DATABASE;
