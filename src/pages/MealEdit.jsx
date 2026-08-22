@@ -1,15 +1,29 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import useTopbar from '../hooks/useTopbar.js';
-import { Button, Card, EmptyState, Field, Input, Select, cx } from '../components/ui.jsx';
-import { IconTrash, IconImage } from '../components/icons.jsx';
+import { Button, Card, EmptyState, Field, Input, Select, Spinner, cx } from '../components/ui.jsx';
+import { IconTrash, IconImage, IconSparkles } from '../components/icons.jsx';
 import { useToast } from '../components/Toast.jsx';
 import { useMeals } from '../state/MealsProvider.jsx';
 import { ALL_TAGS, BLANK_MEAL } from '../data/meals.js';
 import { PRODUCT_GROUPS } from '../lib/taxonomy.js';
 import { Section, ChipSelect, StringRows, CATEGORIES } from '../features/meals/formParts.jsx';
+import ApplyDraftModal from '../features/meals/ApplyDraftModal.jsx';
+import ChunkBoundary from '../components/ChunkBoundary.jsx';
+import { conflictsWith, toFormState } from '../lib/mealStudio.js';
 import IngredientRows from '../features/meals/IngredientRows.jsx';
 import CookingSteps from '../features/meals/CookingSteps.jsx';
+
+/** One retry, so a rebuild landing mid-session does not strand the panel. */
+const lazyWithRetry = (load) =>
+  lazy(() => load().catch(() => new Promise((resolve, reject) => {
+    setTimeout(() => load().then(resolve, reject), 400);
+  })));
+
+/* Lazy: the panel computes macros from the food database, and that is a
+   third of a megabyte no other part of this page needs. Loading it only
+   when someone opens the Studio keeps it out of the main bundle. */
+const MealStudio = lazyWithRetry(() => import('../features/meals/MealStudio.jsx'));
 
 const TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
 const COUNTRIES = ['Nigeria', 'Ghana', 'Kenya', 'South Africa'];
@@ -52,6 +66,14 @@ function toForm(m) {
   };
 }
 
+/* Sized like the panel it replaces, so opening the Studio does not shift
+   the form sideways and then back. */
+const StudioLoading = () => (
+  <aside className="flex h-full w-[420px] shrink-0 items-center justify-center border-l border-line bg-surface max-lg:hidden">
+    <span className="inline-flex items-center gap-2 text-[13px] text-ink-3"><Spinner /> Opening Meal Studio…</span>
+  </aside>
+);
+
 export default function MealEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -66,6 +88,10 @@ export default function MealEdit() {
 
   const [form, setForm] = useState(() => (source ? toForm(source) : null));
   const [errors, setErrors] = useState([]);
+  /* Studio only assists creating a meal; editing an existing one through
+     conversation is explicitly out of MVP scope. */
+  const [studioOpen, setStudioOpen] = useState(false);
+  const [pendingApply, setPendingApply] = useState(null);
   const initial = useRef(form ? JSON.stringify(form) : '');
 
   useTopbar(isNew ? 'New Meal' : 'Edit Meal');
@@ -160,13 +186,51 @@ export default function MealEdit() {
     navigate(`/meals/${savedId}`);
   };
 
+  /**
+   * Copies a Studio draft into form state. One write, so a half-applied
+   * form is never a state anyone can reach.
+   *
+   * Macros come from the reference calculation rather than the model, and
+   * only when it actually resolved something.
+   */
+  const applyDraft = (draft, nutrition) => {
+    const next = toFormState(draft);
+    /* Whole-meal figures throughout. These fields sit beside "Total
+       calories" and carry no per-serving qualifier, so writing a
+       per-serving protein next to a total calorie count would put two
+       different bases on the same row. The form derives per-serving
+       calories from `cal` and `servings` on its own. */
+    const total = nutrition?.total;
+
+    setForm((f) => ({
+      ...f,
+      ...next,
+      /* Computed from the references, not generated — and only written
+         where there is actually a figure. */
+      cal: total?.kcal != null ? String(Math.round(total.kcal)) : f.cal,
+      prot: total?.protein_g != null ? String(total.protein_g) : f.prot,
+      carb: total?.carbs_g != null ? String(total.carbs_g) : f.carb,
+      fat: total?.fat_g != null ? String(total.fat_g) : f.fat,
+      fiber: total?.fibre_g != null ? String(total.fibre_g) : f.fiber,
+    }));
+    setErrors([]);
+    toast('Draft applied to the form — review it, then create the meal');
+  };
+
+  const requestApply = (draft, nutrition) => {
+    const conflicts = conflictsWith(draft, form);
+    if (conflicts.length) { setPendingApply({ draft, nutrition, conflicts }); return; }
+    applyDraft(draft, nutrition);
+  };
+
   const cancel = () => {
     if (dirty && !window.confirm('Discard unsaved changes?')) return;
     navigate(isNew ? '/meals' : `/meals/${meal.id}`);
   };
 
   return (
-    <>
+    <div className="flex min-h-0 flex-1">
+      <div className="min-w-0 flex-1">
       {/* Save bar — sticky, so you never scroll a form this long to commit it. */}
       <div className="sticky top-[60px] z-15 flex flex-wrap items-center gap-3 border-b border-line bg-surface px-7 pt-4 pb-3 max-md:static max-md:px-4">
         <div className="min-w-0">
@@ -180,6 +244,15 @@ export default function MealEdit() {
           </div>
         </div>
         <div className="ml-auto flex gap-2">
+          {isNew && (
+            <Button
+              variant="ghost"
+              onClick={() => setStudioOpen((v) => !v)}
+              className={cx(studioOpen && 'border-forest text-forest')}
+            >
+              <IconSparkles size={13} /> {studioOpen ? 'Hide' : 'Generate with'} Meal Studio
+            </Button>
+          )}
           <Button variant="ghost" onClick={cancel}>Cancel</Button>
           <Button onClick={save} disabled={!isNew && !dirty}>
             {isNew ? 'Create meal' : 'Save changes'}
@@ -385,6 +458,30 @@ export default function MealEdit() {
           </Button>
         </div>
       </div>
-    </>
+      </div>
+
+      {studioOpen && (
+        <ChunkBoundary>
+          <Suspense fallback={<StudioLoading />}>
+            <MealStudio
+              open
+              onClose={() => setStudioOpen(false)}
+              onApply={requestApply}
+              formHasContent={!!(form.name || form.description || form.ingredients.length)}
+            />
+          </Suspense>
+        </ChunkBoundary>
+      )}
+
+      <ApplyDraftModal
+        open={!!pendingApply}
+        conflicts={pendingApply?.conflicts ?? []}
+        onClose={() => setPendingApply(null)}
+        onConfirm={() => {
+          applyDraft(pendingApply.draft, pendingApply.nutrition);
+          setPendingApply(null);
+        }}
+      />
+    </div>
   );
 }

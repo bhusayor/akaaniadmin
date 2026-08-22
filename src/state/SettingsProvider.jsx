@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { loadSettings, saveSettings, endpointFor, mergeSettings, UNITS_BY_SYSTEM } from '../lib/settings.js';
 import * as nutritionEstimate from '../lib/nutritionEstimate.js';
 import * as blogGenerate from '../lib/blogGenerate.js';
+import * as mealStudioChat from '../lib/mealStudioChat.js';
 
 const SettingsContext = createContext(null);
 
@@ -15,6 +16,7 @@ export function SettingsProvider({ children }) {
     const { provider, baseUrl } = settings.ai;
     nutritionEstimate.configure({ provider, endpoint: endpointFor(baseUrl, '/estimate') });
     blogGenerate.configure({ provider, endpoint: endpointFor(baseUrl, '/generate-blog') });
+    mealStudioChat.configure({ provider, endpoint: endpointFor(baseUrl, '/meal-studio/chat') });
   }, [settings.ai]);
 
   useEffect(() => { saveSettings(settings); }, [settings]);

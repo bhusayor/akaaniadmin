@@ -116,13 +116,22 @@ const BLOG_SCHEMA = {
   }
 };
 
+/** The two-message form the estimate and blog routes use. */
 function callOpenAI(system, user, schema, temperature, cb) {
+  callOpenAIMessages([
+    { role: 'system', content: system },
+    { role: 'user', content: user }
+  ], schema, temperature, cb);
+}
+
+/**
+ * The multi-turn form. Meal Studio is a conversation, so it needs to send
+ * the history rather than a single prompt.
+ */
+function callOpenAIMessages(messages, schema, temperature, cb) {
   const payload = JSON.stringify({
     model: MODEL,
-    messages: [
-      { role: 'system', content: system },
-      { role: 'user', content: user }
-    ],
+    messages: messages,
     response_format: { type: 'json_schema', json_schema: schema },
     temperature
   });
@@ -181,6 +190,138 @@ function send(res, status, obj) {
   res.end(body);
 }
 
+/* ══════════════════════════════════════
+   MEAL STUDIO
+
+   Structured output, so the model returns an object rather than prose the
+   server has to parse back out. `meal` is a *patch*: only the fields this
+   turn changed, which is what lets the client keep everything else.
+══════════════════════════════════════ */
+
+const MEAL_PATCH_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    assistantMessage: {
+      type: 'string',
+      description: 'One or two sentences saying what changed. Never claim the meal was saved or published.',
+    },
+    changed: {
+      type: 'boolean',
+      description: 'False when the message asked for nothing that alters the recipe.',
+    },
+    meal: {
+      type: ['object', 'null'],
+      description: 'Only the fields this turn changed. Omit everything else so it keeps its value.',
+      additionalProperties: false,
+      properties: {
+        name: { type: 'string' },
+        description: { type: 'string' },
+        luTips: { type: 'string' },
+        notificationMessage: { type: 'string' },
+        portion: { type: 'string' },
+        category: { type: 'string' },
+        emoji: { type: 'string' },
+        types: { type: 'array', items: { type: 'string', enum: ['breakfast', 'lunch', 'dinner', 'snack'] } },
+        tags: { type: 'array', items: { type: 'string' } },
+        countries: { type: 'array', items: { type: 'string' } },
+        healthConditions: { type: 'array', items: { type: 'string' } },
+        servings: { type: ['number', 'null'] },
+        prep: { type: ['number', 'null'] },
+        ingredients: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              name: { type: 'string' },
+              quantity: { type: 'string' },
+              unit: { type: 'string' },
+              description: { type: 'string' },
+            },
+            required: ['name', 'quantity', 'unit', 'description'],
+          },
+        },
+        instructions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              text: { type: 'string' },
+              timeEstimate: { type: 'string' },
+            },
+            required: ['text', 'timeEstimate'],
+          },
+        },
+      },
+      required: [],
+    },
+  },
+  required: ['assistantMessage', 'changed', 'meal'],
+};
+
+const STUDIO_SYSTEM = [
+  'You are Meal Studio, a collaborative recipe editor inside the Akaani admin.',
+  'You draft and refine West African meals, Nigerian and Ghanaian in particular, in a warm, plain, practical voice.',
+  '',
+  'Rules you must follow:',
+  '- Return only the fields this turn changes. A field you omit keeps its current value.',
+  '- Never reset a section the user did not ask you to change.',
+  '- Set changed=false and meal=null when the message asks for nothing that alters the recipe.',
+  '- Never say the meal has been saved, created or published. You cannot save; a person does that.',
+  '- Do NOT provide calories or macronutrients. The admin computes those from FAO/INFOODS WAFCT',
+  '  and USDA reference data once ingredients are set. Write the ingredients precisely instead:',
+  '  a real quantity and a real unit for each, because that is what the calculation needs.',
+  '- Prefer ingredients as they are actually named in West African cooking.',
+  '- Make reasonable assumptions rather than asking questions, and say what you assumed.',
+].join('\n');
+
+function mealStudioTurn({ message, history, currentMeal }, cb) {
+  if (MOCK) {
+    cb(null, {
+      assistantMessage: 'Mock mode — no model was called. Set OPENAI_API_KEY and restart to draft for real.',
+      changed: false,
+      meal: null,
+      mode: 'mock',
+    });
+    return;
+  }
+
+  const messages = [
+    { role: 'system', content: STUDIO_SYSTEM },
+    ...history.filter((m) => m && (m.role === 'user' || m.role === 'assistant'))
+      .map((m) => ({ role: m.role, content: String(m.content || '').slice(0, 4000) })),
+    {
+      role: 'user',
+      content: currentMeal
+        ? `Current draft:\n${JSON.stringify(currentMeal)}\n\nInstruction: ${message}`
+        : message,
+    },
+  ];
+
+  callOpenAIMessages(messages, {
+    name: 'meal_studio_turn', strict: true, schema: MEAL_PATCH_SCHEMA,
+  }, 0.7, (err, parsed) => {
+    if (err) { cb(err); return; }
+
+    /* Model output is untrusted. The client sanitises it again against the
+       field list, but nothing structurally broken gets that far. */
+    if (!parsed || typeof parsed.assistantMessage !== 'string' || !parsed.assistantMessage.trim()) {
+      cb(new Error('The model returned no reply.'));
+      return;
+    }
+    const changed = !!parsed.changed && !!parsed.meal && typeof parsed.meal === 'object';
+    cb(null, {
+      assistantMessage: parsed.assistantMessage.trim(),
+      changed,
+      meal: changed ? parsed.meal : null,
+      mode: 'openai',
+      model: MODEL,
+    });
+  });
+}
+
 const server = http.createServer((req, res) => {
   if (req.method === 'OPTIONS') { send(res, 204, {}); return; }
 
@@ -191,21 +332,43 @@ const server = http.createServer((req, res) => {
 
   const isEstimate = req.method === 'POST' && req.url === '/estimate';
   const isBlog = req.method === 'POST' && req.url === '/generate-blog';
-  if (!isEstimate && !isBlog) {
-    send(res, 404, { error: 'POST /estimate, POST /generate-blog, or GET /health' });
+  const isStudio = req.method === 'POST' && req.url === '/meal-studio/chat';
+  if (!isEstimate && !isBlog && !isStudio) {
+    send(res, 404, { error: 'POST /estimate, POST /generate-blog, POST /meal-studio/chat, or GET /health' });
     return;
   }
+
+  /* A studio turn carries the running draft, so it is legitimately larger
+     than an estimate request — but still bounded. */
+  const LIMIT = isStudio ? 120000 : 10000;
 
   let body = '';
   req.on('data', (c) => {
     body += c;
-    if (body.length > 10000) { req.destroy(); }   // nothing legitimate is this large
+    if (body.length > LIMIT) { req.destroy(); }
   });
 
   req.on('end', () => {
     let parsedBody;
     try { parsedBody = JSON.parse(body); }
     catch (e) { send(res, 400, { error: 'Body must be JSON' }); return; }
+
+    if (isStudio) {
+      const message = String(parsedBody.message || '').trim().slice(0, 4000);
+      if (!message) { send(res, 400, { error: 'A "message" is required' }); return; }
+
+      /* Bounded on the server too — a client is not trusted to have
+         trimmed its own history. */
+      const history = Array.isArray(parsedBody.history) ? parsedBody.history.slice(-12) : [];
+      const currentMeal = parsedBody.currentMeal && typeof parsedBody.currentMeal === 'object'
+        ? parsedBody.currentMeal : null;
+
+      mealStudioTurn({ message, history, currentMeal }, (err, out) => {
+        if (err) { send(res, 502, { error: err.message }); return; }
+        send(res, 200, out);
+      });
+      return;
+    }
 
     if (isBlog) {
       const prompt = String(parsedBody.prompt || '').trim().slice(0, 2000);
