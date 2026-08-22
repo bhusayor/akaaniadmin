@@ -12,6 +12,7 @@ import { MealTagsProvider } from "./state/MealTagsProvider.jsx";
 import { LuFactsProvider } from "./state/LuFactsProvider.jsx";
 import { SettingsProvider } from "./state/SettingsProvider.jsx";
 import { Spinner } from "./components/ui.jsx";
+import ChunkBoundary from "./components/ChunkBoundary.jsx";
 import Splash from "./pages/Splash.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Customers from "./pages/Customers.jsx";
@@ -31,7 +32,21 @@ import Settings from "./pages/Settings.jsx";
 
 /* Split out on its own: this route pulls in the 960-food WAFCT dataset,
    which is most of the bundle and is useless to every other page. */
-const Ingredients = lazy(() => import("./pages/Ingredients.jsx"));
+/**
+ * Retries a code-split import once before giving up.
+ *
+ * The usual cause of a failure here is a rebuild landing while the tab was
+ * open, and a single retry clears the transient version of that. When it
+ * fails twice the error reaches ChunkBoundary, which explains it.
+ */
+const lazyWithRetry = (load) =>
+  lazy(() => load().catch(() => new Promise((resolve, reject) => {
+    setTimeout(() => load().then(resolve, reject), 400);
+  })));
+
+/* Lazy because this page carries the food database — a third of a megabyte
+   that no other page needs. */
+const Ingredients = lazyWithRetry(() => import("./pages/Ingredients.jsx"));
 
 const PageLoading = () => (
   <div className="grid flex-1 place-items-center py-20">
@@ -80,9 +95,11 @@ export default function App() {
               <Route
                 path="/ingredients"
                 element={
-                  <Suspense fallback={<PageLoading />}>
-                    <Ingredients />
-                  </Suspense>
+                  <ChunkBoundary>
+                    <Suspense fallback={<PageLoading />}>
+                      <Ingredients />
+                    </Suspense>
+                  </ChunkBoundary>
                 }
               />
               <Route path="/settings" element={<Settings />} />
