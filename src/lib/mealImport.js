@@ -117,6 +117,82 @@ export function cellProseList(v) {
   return s.split(/\s*\|\s*/).map((p) => p.trim()).filter(Boolean);
 }
 
+/** Fractions that begin a quantity just as a digit does. */
+const LEADING_QUANTITY = /^[\d½¼¾⅓⅔⅛⅜⅝⅞]/;
+
+/**
+ * Splits on commas, but only the ones that separate items.
+ *
+ * Real ingredient lists use the comma for two different jobs — "Onion
+ * (optional, minced), 1 cup Water" separates two items with one comma and
+ * qualifies a single item with the other. Two rules tell them apart:
+ *
+ *   · a comma inside brackets never separates;
+ *   · a fragment continues the previous item unless it opens a new one,
+ *     which means carrying a colon, a leading quantity, or a capital.
+ *
+ * That keeps "Avocados: 2 medium-sized, ripe but firm" whole while still
+ * splitting "Pinch of salt, 1/4 cup raisins" in two.
+ */
+export function splitCommaList(text) {
+  const s = cellText(text);
+  if (!s) return [];
+
+  const parts = [];
+  let depth = 0;
+  let current = '';
+  for (const ch of s) {
+    if (ch === '(' || ch === '[') depth += 1;
+    else if (ch === ')' || ch === ']') depth = Math.max(0, depth - 1);
+    if (ch === ',' && depth === 0) { parts.push(current); current = ''; continue; }
+    current += ch;
+  }
+  parts.push(current);
+
+  const out = [];
+  parts.map((p) => p.trim()).filter(Boolean).forEach((part) => {
+    const opensItem = part.includes(':') || LEADING_QUANTITY.test(part) || /^[A-Z]/.test(part);
+    if (opensItem || !out.length) out.push(part);
+    else out[out.length - 1] += `, ${part}`;
+  });
+  return out;
+}
+
+/**
+ * Splits a numbered run of steps held in one cell.
+ *
+ * The numbers have to be followed rather than trusted: a step says "cook
+ * for 10-12 minutes" and "preheat to 190°C", so any digit could look like
+ * a marker. Only a number that continues the sequence starts a new step,
+ * which is what stops "1.5 cups" and "8-10 minutes" from splitting one.
+ */
+export function splitNumberedList(text) {
+  const s = cellText(text);
+  if (!s) return [];
+
+  const marks = [];
+  let expected = 1;
+  const re = /(\d{1,2})\.\s+/g;
+  let m;
+  while ((m = re.exec(s)) !== null) {
+    const before = m.index === 0 ? '' : s[m.index - 1];
+    /* Part of a range or a decimal, not a step number. */
+    if (/[-–—/\d.]/.test(before)) continue;
+    if (Number(m[1]) !== expected) continue;
+    marks.push({ at: m.index, end: m.index + m[0].length });
+    expected += 1;
+  }
+
+  if (marks.length < 2) return s ? [s] : [];
+
+  return marks
+    .map((mark, i) => s.slice(mark.end, marks[i + 1]?.at ?? s.length).trim())
+    .filter(Boolean);
+}
+
+/** Whether a cell uses the exporter's pipes or a supplier's commas. */
+const hasPipes = (v) => cellText(v).includes('|');
+
 /**
  * Measurement words. The word after a quantity is only a unit if it is one
  * of these — "6 plum tomatoes" has no unit, and reading "plum" as one
@@ -139,9 +215,53 @@ const RECIPE_UNITS = new Set([
   'ball', 'balls', 'fillet', 'fillets', 'rasher', 'rashers',
 ]);
 
+/**
+ * An ingredient written as a colon pair.
+ *
+ * Suppliers write it both ways round — "2 cups: Rice" and "Rice: 2 cups" —
+ * so the side that starts with a quantity is the quantity, whichever side
+ * that is. A line that is only a label, "Egusi Sauce:", is a section
+ * heading and keeps its colon so it still reads as one.
+ */
+function parseColonPair(text) {
+  const at = text.indexOf(':');
+  const left = text.slice(0, at).trim();
+  const right = text.slice(at + 1).trim();
+
+  if (!right) return { name: `${left}:`, quantity: '', unit: '', description: '', heading: true };
+  if (!left) return null;
+
+  const [qty, name] = LEADING_QUANTITY.test(left) ? [left, right] : [right, left];
+
+  /* "Water: Enough to submerge the yam" is an instruction, not an amount.
+     Anything with no figure and more than two words reads as a note. */
+  if (!LEADING_QUANTITY.test(qty) && qty.split(/\s+/).length > 2) {
+    return { name, quantity: '', unit: '', description: qty };
+  }
+
+  /* The quantity may carry its own unit — "2 cups", "500g", "1 cup (120g)". */
+  const m = /^([\d½¼¾⅓⅔⅛⅜⅝⅞][\d\s./½¼¾⅓⅔⅛⅜⅝⅞-]*)\s*(.*)$/.exec(qty.trim());
+  return {
+    quantity: m ? m[1].trim() : qty,
+    unit: m ? m[2].trim() : '',
+    name,
+    description: '',
+  };
+}
+
 /** `3 cups rice — rinsed` back into its parts. */
 export function parseIngredient(text) {
-  const [main, ...noteParts] = String(text).split(/\s+—\s+|\s+--\s+/);
+  const raw = String(text ?? '').trim();
+  if (!raw) return { name: '', quantity: '', unit: '', description: '' };
+  /* Bracketed notes hold colons of their own, so only a colon outside them
+     marks a pair. */
+  const outside = raw.replace(/\([^)]*\)/g, (m) => ' '.repeat(m.length));
+  if (outside.includes(':')) {
+    const pair = parseColonPair(raw);
+    if (pair) return pair;
+  }
+
+  const [main, ...noteParts] = raw.split(/\s+—\s+|\s+--\s+/);
   const note = noteParts.join(' — ').trim();
   const m = /^([\d.,/]+)\s+(.*)$/.exec(main.trim());
   if (!m) return { name: main.trim(), quantity: '', unit: '', description: note };
@@ -163,11 +283,15 @@ export function parseStep(text) {
     : { text: stripped, timeEstimate: '' };
 }
 
-/** A meal type only if it is one we recognise — otherwise left unset. */
-export function normalizeType(v) {
+/** Every recognised meal type in the cell — "Breakfast, Lunch" is both. */
+export function normalizeTypes(v) {
   const s = cellText(v).toLowerCase();
-  const hit = MEAL_TYPES.find((t) => s.includes(t));
-  return hit ?? '';
+  return MEAL_TYPES.filter((t) => s.includes(t));
+}
+
+/** The first recognised type, for the single-value `type` field. */
+export function normalizeType(v) {
+  return normalizeTypes(v)[0] ?? '';
 }
 
 /**
@@ -210,13 +334,26 @@ export function buildMeal(row, fields) {
   const { image, warning: imageWarning } = normalizeImage(get('image'));
   if (imageWarning) warnings.push(imageWarning);
 
-  const type = normalizeType(get('type'));
+  const types = normalizeTypes(get('type'));
+  const type = types[0] ?? '';
   if (!type && cellText(get('type'))) {
     warnings.push(`Meal type "${cellText(get('type'))}" is not one of ${MEAL_TYPES.join(', ')} — left unset`);
   }
 
-  const ingredients = cellProseList(get('ingredients')).map(parseIngredient);
-  const instructions = cellProseList(get('instructions')).map(parseStep);
+  /* A file from this admin uses pipes; one from anywhere else uses commas
+     for ingredients and numbering for steps. */
+  const rawIngredients = get('ingredients');
+  const rawInstructions = get('instructions');
+
+  const ingredients = (hasPipes(rawIngredients)
+    ? cellProseList(rawIngredients)
+    : splitCommaList(rawIngredients)
+  ).map(parseIngredient);
+
+  const instructions = (hasPipes(rawInstructions)
+    ? cellProseList(rawInstructions)
+    : splitNumberedList(rawInstructions)
+  ).map(parseStep);
 
   const meal = {
     name,
@@ -225,7 +362,7 @@ export function buildMeal(row, fields) {
     image,
     emoji: cellText(get('emoji')) || '🍽️',
     type,
-    types: type ? [type] : [],
+    types,
     countries: cellList(get('countries')),
     category: cellText(get('category')),
     productGroup: cellText(get('productGroup')),

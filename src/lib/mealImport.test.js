@@ -4,6 +4,7 @@ import path from 'node:path';
 import { readXlsx, columnIndex, isSpreadsheet } from './xlsx.js';
 import {
   reviewMealRows, mapHeader, cellNum, cellList, cellProseList,
+  splitCommaList, splitNumberedList, normalizeTypes,
   parseIngredient, parseStep, normalizeType, normalizeImage, completeness, buildMeal,
 } from './mealImport.js';
 import { mealExportRows } from './mealExport.js';
@@ -262,6 +263,102 @@ describe('round trip through the exporter', () => {
 
   it('only leaves id and the derived per-serving column unmapped', () => {
     expect(review.unmapped).toEqual(['id', 'calories_per_serving']);
+  });
+});
+
+describe('supplier ingredient lists, split on commas', () => {
+  it('separates items but keeps a bracketed comma whole', () => {
+    expect(splitCommaList('2 cups: Rice, 2 cloves: Garlic (optional, minced)'))
+      .toEqual(['2 cups: Rice', '2 cloves: Garlic (optional, minced)']);
+  });
+
+  it('keeps a trailing qualifier with the item it qualifies', () => {
+    // "ripe but firm" and "diced" describe the item before them; splitting
+    // there turns one ingredient into three.
+    expect(splitCommaList('Avocados: 2 medium, ripe but firm, Eggs: 3 large'))
+      .toEqual(['Avocados: 2 medium, ripe but firm', 'Eggs: 3 large']);
+    expect(splitCommaList('Tomatoes: 2 medium (200g), diced'))
+      .toEqual(['Tomatoes: 2 medium (200g), diced']);
+  });
+
+  it('starts a new item on a quantity or a capital', () => {
+    expect(splitCommaList('1 cup millet, rinsed and drained, 4 cups water, Pinch of salt'))
+      .toEqual(['1 cup millet, rinsed and drained', '4 cups water', 'Pinch of salt']);
+  });
+
+  it('keeps a section heading as its own entry', () => {
+    expect(splitCommaList('Boiled Yam:, Yam: 1 tuber')).toEqual(['Boiled Yam:', 'Yam: 1 tuber']);
+  });
+
+  it('is empty for a blank cell', () => {
+    expect(splitCommaList('')).toEqual([]);
+  });
+});
+
+describe('supplier steps, split on their numbering', () => {
+  it('splits an ascending run', () => {
+    expect(splitNumberedList('1. Soak the beans. 2. Blend them. 3. Steam for 40 minutes.'))
+      .toEqual(['Soak the beans.', 'Blend them.', 'Steam for 40 minutes.']);
+  });
+
+  it('does not split on a number inside a step', () => {
+    // "10-12 minutes" and "1.5 cups" are not step markers.
+    const steps = splitNumberedList('1. Cook for 10-12 minutes. 2. Add 1.5 cups of stock. 3. Serve.');
+    expect(steps).toHaveLength(3);
+    expect(steps[1]).toBe('Add 1.5 cups of stock.');
+  });
+
+  it('ignores a number that breaks the sequence', () => {
+    // A stray "5." mid-text must not open a step when 3 is expected.
+    const steps = splitNumberedList('1. One. 2. Two mentions step 5. still going. 3. Three.');
+    expect(steps).toHaveLength(3);
+    expect(steps[1]).toContain('still going');
+  });
+
+  it('returns the text whole when it is not numbered', () => {
+    expect(splitNumberedList('Just do the thing.')).toEqual(['Just do the thing.']);
+  });
+});
+
+describe('colon-paired ingredients', () => {
+  it('reads quantity first', () => {
+    expect(parseIngredient('2 cups: Black-eyed peas')).toMatchObject({
+      quantity: '2', unit: 'cups', name: 'Black-eyed peas',
+    });
+  });
+
+  it('reads name first', () => {
+    expect(parseIngredient('Beef (cubed): 500g')).toMatchObject({
+      quantity: '500', unit: 'g', name: 'Beef (cubed)',
+    });
+  });
+
+  it('treats a bare label as a heading', () => {
+    expect(parseIngredient('Egusi Sauce:')).toMatchObject({ name: 'Egusi Sauce:', heading: true });
+  });
+
+  it('files a wordy right-hand side as a note, not a quantity', () => {
+    expect(parseIngredient('Water: Enough to submerge the yam')).toMatchObject({
+      name: 'Water', quantity: '', description: 'Enough to submerge the yam',
+    });
+  });
+
+  it('ignores a colon that only appears inside brackets', () => {
+    expect(parseIngredient('3 cups rice (ratio 1:2)')).toMatchObject({ quantity: '3', unit: 'cups' });
+  });
+});
+
+describe('several meal types in one cell', () => {
+  it('reads them all', () => {
+    expect(normalizeTypes('Breakfast, Lunch, Dinner')).toEqual(['breakfast', 'lunch', 'dinner']);
+  });
+
+  it('keeps only the ones it recognises', () => {
+    expect(normalizeTypes('Brunch, Lunch')).toEqual(['lunch']);
+  });
+
+  it('is empty when none match', () => {
+    expect(normalizeTypes('Main course')).toEqual([]);
   });
 });
 

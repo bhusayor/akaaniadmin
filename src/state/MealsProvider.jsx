@@ -32,11 +32,18 @@ export function MealsProvider({ children }) {
     setMeals((prev) => prev.filter((m) => m.id !== id));
   }, []);
 
+  /** Clears the list. Returns how many went, so the toast can say. */
+  const deleteAllMeals = useCallback(() => {
+    let n = 0;
+    setMeals((prev) => { n = prev.length; return []; });
+    return n;
+  }, []);
+
   const getMeal = useCallback((id) => meals.find((m) => String(m.id) === String(id)), [meals]);
 
   const value = useMemo(
-    () => ({ meals, createMeal, updateMeal, deleteMeal, getMeal }),
-    [meals, createMeal, updateMeal, deleteMeal, getMeal],
+    () => ({ meals, createMeal, updateMeal, deleteMeal, deleteAllMeals, getMeal }),
+    [meals, createMeal, updateMeal, deleteMeal, deleteAllMeals, getMeal],
   );
 
   return <MealsContext.Provider value={value}>{children}</MealsContext.Provider>;

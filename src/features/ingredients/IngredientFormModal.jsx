@@ -183,7 +183,7 @@ export default function IngredientFormModal({ open, onClose, onSubmit, editing }
 
         <Field
           label="Allergens"
-          hint={source.source ? 'from the reference match — editable' : 'optional'}
+          hint={source.source ? 'from the match' : 'optional'}
         >
           <AllergenPicker value={form.allergens} onChange={(v) => set('allergens', v)} />
         </Field>

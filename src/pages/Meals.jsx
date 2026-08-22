@@ -4,13 +4,14 @@ import useTopbar, { useSearch } from '../hooks/useTopbar.js';
 import {
   Button, Card, FilterSelect, CountBadge, PageToolbar, EmptyState, cx,
 } from '../components/ui.jsx';
-import { IconDownload, IconPlus, IconUpload } from '../components/icons.jsx';
+import { IconDownload, IconPlus, IconUpload, IconTrash } from '../components/icons.jsx';
 import { useToast } from '../components/Toast.jsx';
 import MealCard from '../features/meals/MealCard.jsx';
 import { useMeals } from '../state/MealsProvider.jsx';
 import { downloadCSV } from '../lib/csv.js';
 import { mealExportRows } from '../lib/mealExport.js';
 import MealImportModal from '../features/meals/MealImportModal.jsx';
+import ClearMealsModal from '../features/meals/ClearMealsModal.jsx';
 
 const PER_PAGE = 10;
 
@@ -28,12 +29,13 @@ export default function Meals() {
   const toast = useToast();
   const navigate = useNavigate();
   const [importOpen, setImportOpen] = useState(false);
+  const [clearOpen, setClearOpen] = useState(false);
 
   const [type, setType] = useState('');
   const [country, setCountry] = useState('');
   const [tag, setTag] = useState('');
   const [page, setPage] = useState(1);
-  const { meals, createMeal } = useMeals();
+  const { meals, createMeal, deleteAllMeals } = useMeals();
 
   /* Derived from the meals themselves, not a static list — otherwise
      renaming a tag in Meal Tags leaves this filter offering a name that
@@ -96,6 +98,11 @@ export default function Meals() {
           <>
             <Button variant="ghost" onClick={exportCSV}><IconDownload /> Export</Button>
             <Button variant="ghost" onClick={() => setImportOpen(true)}><IconUpload /> Import</Button>
+            {meals.length > 0 && (
+              <Button variant="danger" onClick={() => setClearOpen(true)}>
+                <IconTrash /> Delete all
+              </Button>
+            )}
             <Button onClick={() => navigate('/meals/new')}><IconPlus /> Add Meal</Button>
           </>
         }
@@ -147,6 +154,19 @@ export default function Meals() {
           </>
         )}
       </div>
+      {/* Typed confirmation, not a single click — this empties the whole
+          list and there is no undo. */}
+      <ClearMealsModal
+        open={clearOpen}
+        count={meals.length}
+        onClose={() => setClearOpen(false)}
+        onConfirm={() => {
+          const n = deleteAllMeals();
+          setClearOpen(false);
+          toast(`${n} meal${n === 1 ? '' : 's'} deleted`);
+        }}
+      />
+
       <MealImportModal
         open={importOpen}
         onClose={() => setImportOpen(false)}
