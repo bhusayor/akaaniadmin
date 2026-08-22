@@ -3,6 +3,7 @@ import Modal, { ModalActions } from '../../components/Modal.jsx';
 import { Field, Input, Select, ModalButton, cx } from '../../components/ui.jsx';
 import { IconCheck, IconInfo, IconImage } from '../../components/icons.jsx';
 import WafctSuggestion from './WafctSuggestion.jsx';
+import AllergenPicker from './AllergenPicker.jsx';
 import { PRODUCT_GROUPS, PRODUCT_CATEGORIES, suggestTaxonomy } from '../../lib/wafctMatch.js';
 import { useSettings } from '../../state/SettingsProvider.jsx';
 import { MACRO_KEYS } from '../../lib/ingredients.js';
@@ -18,6 +19,7 @@ const MACRO_FIELDS = [
 const BLANK = {
   name: '', description: '', unit: '', product_group: '', product_category: '',
   calories: '', protein_g: '', carbs_g: '', fat_g: '', fibre_g: '',
+  allergens: [],
   image: null, imageUrl: '',
 };
 
@@ -43,6 +45,7 @@ export default function IngredientFormModal({ open, onClose, onSubmit, editing }
         product_group: editing.product_group || '',
         product_category: editing.product_category || '',
         ...Object.fromEntries(MACRO_KEYS.map((k) => [k, editing[k] ?? ''])),
+        allergens: [...(editing.allergens ?? [])],
         image: editing.image,
         imageUrl: editing.image && !editing.image.startsWith('data:') ? editing.image : '',
       });
@@ -167,7 +170,7 @@ export default function IngredientFormModal({ open, onClose, onSubmit, editing }
             placeholder="Short description (optional)" />
         </Field>
 
-        <Field label="Unit" className="col-span-2 max-md:col-span-1">
+        <Field label="Unit">
           <Select value={form.unit} onChange={(e) => set('unit', e.target.value)}>
             <option value="">Select a unit…</option>
             {UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
@@ -176,6 +179,13 @@ export default function IngredientFormModal({ open, onClose, onSubmit, editing }
               <option value={form.unit}>{form.unit} (imported)</option>
             )}
           </Select>
+        </Field>
+
+        <Field
+          label="Allergens"
+          hint={source.source ? 'from the reference match — editable' : 'optional'}
+        >
+          <AllergenPicker value={form.allergens} onChange={(v) => set('allergens', v)} />
         </Field>
 
         {/* ── Nutrition ── */}

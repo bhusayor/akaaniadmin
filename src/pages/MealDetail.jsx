@@ -145,7 +145,14 @@ export default function MealDetail() {
                 <Stat label="Servings" value={meal.servings} />
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-line-light pt-3 text-[12.5px] text-ink-2">
-                <span className="inline-flex items-center gap-1.5"><IconClock size={12} /> {meal.prep} min prep</span>
+                {/* An absent prep time reads as "not given", never as a
+                    bare "min prep" with nothing in front of it. */}
+                <span className="inline-flex items-center gap-1.5">
+                  <IconClock size={12} />
+                  {meal.prep === null || meal.prep === undefined || meal.prep === ''
+                    ? <span className="italic text-ink-3">Prep time not given</span>
+                    : `${meal.prep} min prep`}
+                </span>
                 {meal.portion && <span>Portion: <strong className="font-semibold text-ink">{meal.portion}</strong></span>}
               </div>
             </Card>

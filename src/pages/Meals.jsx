@@ -4,12 +4,13 @@ import useTopbar, { useSearch } from '../hooks/useTopbar.js';
 import {
   Button, Card, FilterSelect, CountBadge, PageToolbar, EmptyState, cx,
 } from '../components/ui.jsx';
-import { IconDownload, IconPlus } from '../components/icons.jsx';
+import { IconDownload, IconPlus, IconUpload } from '../components/icons.jsx';
 import { useToast } from '../components/Toast.jsx';
 import MealCard from '../features/meals/MealCard.jsx';
 import { useMeals } from '../state/MealsProvider.jsx';
 import { downloadCSV } from '../lib/csv.js';
 import { mealExportRows } from '../lib/mealExport.js';
+import MealImportModal from '../features/meals/MealImportModal.jsx';
 
 const PER_PAGE = 10;
 
@@ -26,12 +27,13 @@ export default function Meals() {
   const [search] = useSearch();
   const toast = useToast();
   const navigate = useNavigate();
+  const [importOpen, setImportOpen] = useState(false);
 
   const [type, setType] = useState('');
   const [country, setCountry] = useState('');
   const [tag, setTag] = useState('');
   const [page, setPage] = useState(1);
-  const { meals } = useMeals();
+  const { meals, createMeal } = useMeals();
 
   /* Derived from the meals themselves, not a static list — otherwise
      renaming a tag in Meal Tags leaves this filter offering a name that
@@ -93,6 +95,7 @@ export default function Meals() {
         right={
           <>
             <Button variant="ghost" onClick={exportCSV}><IconDownload /> Export</Button>
+            <Button variant="ghost" onClick={() => setImportOpen(true)}><IconUpload /> Import</Button>
             <Button onClick={() => navigate('/meals/new')}><IconPlus /> Add Meal</Button>
           </>
         }
@@ -144,6 +147,14 @@ export default function Meals() {
           </>
         )}
       </div>
+      <MealImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImport={(list) => {
+          list.forEach((m) => createMeal(m));
+          toast(`${list.length} meal${list.length === 1 ? '' : 's'} imported`);
+        }}
+      />
     </>
   );
 }
