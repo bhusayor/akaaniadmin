@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import useTopbar from '../hooks/useTopbar.js';
 import { Button, Card, EmptyState, Field, Input, Select, Spinner, cx } from '../components/ui.jsx';
 import { IconTrash, IconImage, IconSparkles } from '../components/icons.jsx';
@@ -69,7 +69,7 @@ function toForm(m) {
 /* Sized like the panel it replaces, so opening the Studio does not shift
    the form sideways and then back. */
 const StudioLoading = () => (
-  <aside className="flex h-full w-[420px] shrink-0 items-center justify-center border-l border-line bg-surface max-lg:hidden">
+  <aside className="fixed bottom-0 right-0 top-[60px] z-40 flex w-[420px] items-center justify-center border-l border-line bg-surface shadow-tall">
     <span className="inline-flex items-center gap-2 text-[13px] text-ink-3"><Spinner /> Opening Meal Studio…</span>
   </aside>
 );
@@ -90,7 +90,10 @@ export default function MealEdit() {
   const [errors, setErrors] = useState([]);
   /* Studio only assists creating a meal; editing an existing one through
      conversation is explicitly out of MVP scope. */
-  const [studioOpen, setStudioOpen] = useState(false);
+  /* Arriving from the launcher on the meals list opens the panel straight
+     away, so that route is one step rather than two. */
+  const [params] = useSearchParams();
+  const [studioOpen, setStudioOpen] = useState(() => params.get('studio') === '1');
   const [pendingApply, setPendingApply] = useState(null);
   const initial = useRef(form ? JSON.stringify(form) : '');
 
@@ -229,7 +232,7 @@ export default function MealEdit() {
   };
 
   return (
-    <div className="flex min-h-0 flex-1">
+    <div className={cx('flex min-h-0 flex-1', studioOpen && 'lg:pr-[420px]')}>
       <div className="min-w-0 flex-1">
       {/* Save bar — sticky, so you never scroll a form this long to commit it. */}
       <div className="sticky top-[60px] z-15 flex flex-wrap items-center gap-3 border-b border-line bg-surface px-7 pt-4 pb-3 max-md:static max-md:px-4">

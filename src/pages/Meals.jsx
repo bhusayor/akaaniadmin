@@ -11,6 +11,7 @@ import { useMeals } from '../state/MealsProvider.jsx';
 import { downloadCSV } from '../lib/csv.js';
 import { mealExportRows } from '../lib/mealExport.js';
 import MealImportModal from '../features/meals/MealImportModal.jsx';
+import StudioLauncher from '../features/meals/StudioLauncher.jsx';
 import ClearMealsModal from '../features/meals/ClearMealsModal.jsx';
 
 const PER_PAGE = 10;
@@ -35,7 +36,7 @@ export default function Meals() {
   const [country, setCountry] = useState('');
   const [tag, setTag] = useState('');
   const [page, setPage] = useState(1);
-  const { meals, createMeal, deleteAllMeals } = useMeals();
+  const { meals, createMeal, updateMeal, deleteAllMeals } = useMeals();
 
   /* Derived from the meals themselves, not a static list — otherwise
      renaming a tag in Meal Tags leaves this filter offering a name that
@@ -108,7 +109,9 @@ export default function Meals() {
         }
       />
 
-      <div className="px-7 py-5 max-md:px-4">
+      {/* Extra room at the foot so the floating launcher never sits on top
+          of the pagination. */}
+      <div className="px-7 pt-5 pb-32 max-md:px-4">
         {!rows.length ? (
           <Card>
             <EmptyState icon="🍲" title="No meals match those filters" sub="Try clearing the search or filters." />
@@ -167,12 +170,23 @@ export default function Meals() {
         }}
       />
 
+      <StudioLauncher />
+
       <MealImportModal
         open={importOpen}
         onClose={() => setImportOpen(false)}
+        existingMeals={meals}
         onImport={(list) => {
-          list.forEach((m) => createMeal(m));
-          toast(`${list.length} meal${list.length === 1 ? '' : 's'} imported`);
+          let added = 0;
+          let replaced = 0;
+          list.forEach(({ meal, replaces }) => {
+            if (replaces) { updateMeal(replaces, meal); replaced += 1; }
+            else { createMeal(meal); added += 1; }
+          });
+          const parts = [];
+          if (added) parts.push(`${added} added`);
+          if (replaced) parts.push(`${replaced} replaced`);
+          toast(parts.length ? `Import done — ${parts.join(', ')}` : 'Nothing imported');
         }}
       />
     </>

@@ -425,6 +425,41 @@ export function reviewMealRows(rows) {
   };
 }
 
+/**
+ * Matches an incoming row against meals that already exist.
+ *
+ * Names are compared loosely — case, spacing and punctuation vary between
+ * exports of the same catalogue — but never fuzzily. A near-match silently
+ * treated as the same meal would overwrite the wrong recipe, so anything
+ * short of the same name normalised is a new meal.
+ */
+const nameKey = (v) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+export function findExisting(name, meals = []) {
+  const key = nameKey(name);
+  if (!key) return null;
+  return meals.find((m) => nameKey(m.name) === key) ?? null;
+}
+
+/** What to do with a row whose meal already exists. */
+export const DUPLICATE_ACTIONS = ['skip', 'replace', 'add'];
+
+/**
+ * Tags each reviewed row with the meal it would collide with.
+ *
+ * `skip` is the default for a duplicate: an import that silently replaced
+ * existing recipes would be the most destructive thing on this page, and
+ * the safe default is the one a hurried click lands on.
+ */
+export function markDuplicates(rows, existingMeals = []) {
+  return rows.map((row) => {
+    const existing = findExisting(row.meal?.name, existingMeals);
+    return existing
+      ? { ...row, existing: { id: existing.id, name: existing.name }, action: 'skip' }
+      : { ...row, existing: null, action: 'add' };
+  });
+}
+
 /** How much of a meal the file actually filled in. */
 export function completeness(meal) {
   const checked = [

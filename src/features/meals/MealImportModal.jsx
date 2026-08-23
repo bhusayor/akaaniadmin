@@ -4,7 +4,7 @@ import { ModalButton, Badge, Spinner, cx } from '../../components/ui.jsx';
 import { IconUpload, IconWarning, IconInfo } from '../../components/icons.jsx';
 import { parseCSV } from '../../lib/csv.js';
 import { readXlsx, isSpreadsheet } from '../../lib/xlsx.js';
-import { reviewMealRows, completeness } from '../../lib/mealImport.js';
+import { reviewMealRows, completeness, markDuplicates } from '../../lib/mealImport.js';
 
 /* ═══════════════════════════════════════════════════════
    MEAL IMPORT
@@ -30,12 +30,14 @@ function Bar({ filled, total }) {
   );
 }
 
-export default function MealImportModal({ open, onClose, onImport }) {
+export default function MealImportModal({ open, onClose, onImport, existingMeals = [] }) {
   const [state, setState] = useState({ status: 'idle' });
   const [skipped, setSkipped] = useState(() => new Set());
+  /* line -> 'skip' | 'replace' for rows that collide with an existing meal. */
+  const [actions, setActions] = useState({});
   const fileRef = useRef(null);
 
-  const close = () => { setState({ status: 'idle' }); setSkipped(new Set()); onClose(); };
+  const close = () => { setState({ status: 'idle' }); setSkipped(new Set()); setActions({}); onClose(); };
 
   const onFile = async (e) => {
     const file = e.target.files?.[0];
@@ -57,8 +59,10 @@ export default function MealImportModal({ open, onClose, onImport }) {
         });
         return;
       }
-      setSkipped(new Set(review.rows.filter((r) => !r.include).map((r) => r.line)));
-      setState({ status: 'review', fileName: file.name, ...review });
+      const marked = markDuplicates(review.rows, existingMeals);
+      setSkipped(new Set(marked.filter((r) => !r.include).map((r) => r.line)));
+      setActions(Object.fromEntries(marked.filter((r) => r.existing).map((r) => [r.line, 'skip'])));
+      setState({ status: 'review', fileName: file.name, ...review, rows: marked });
     } catch (err) {
       setState({ status: 'error', message: err.message || 'That file could not be read.' });
     } finally {
@@ -74,15 +78,36 @@ export default function MealImportModal({ open, onClose, onImport }) {
       return next;
     });
 
+  const selectable = state.status === 'review' ? state.rows.filter((r) => r.include) : [];
+  /* A duplicate left on "skip" is not imported at all — it was being
+     counted as chosen and added alongside the meal it duplicates. */
+  const chosen = selectable.filter((r) => (
+    !skipped.has(r.line) && !(r.existing && (actions[r.line] ?? 'skip') === 'skip')
+  ));
+  const chosenCount = chosen.length;
+  const blocked = state.status === 'review' ? state.rows.filter((r) => !r.include) : [];
+  const duplicates = state.status === 'review' ? state.rows.filter((r) => r.existing) : [];
+  const replacing = chosen.filter((r) => r.existing && actions[r.line] === 'replace').length;
+
+  const setAction = (line, value) => setActions((prev) => ({ ...prev, [line]: value }));
+
+  const setAllDuplicates = (value) =>
+    setActions((prev) => {
+      const next = { ...prev };
+      state.rows.filter((r) => r.existing).forEach((r) => { next[r.line] = value; });
+      return next;
+    });
+
   const confirm = () => {
-    const chosen = state.rows.filter((r) => r.include && !skipped.has(r.line));
-    onImport(chosen.map((r) => r.meal));
+    onImport(chosen.map((r) => ({
+      meal: r.meal,
+      /* A replacement carries the id it is replacing; everything else is
+         new. The page decides what to do with that, not this modal. */
+      replaces: r.existing && actions[r.line] === 'replace' ? r.existing.id : null,
+    })));
     close();
   };
 
-  const selectable = state.status === 'review' ? state.rows.filter((r) => r.include) : [];
-  const chosenCount = selectable.filter((r) => !skipped.has(r.line)).length;
-  const blocked = state.status === 'review' ? state.rows.filter((r) => !r.include) : [];
 
   return (
     <Modal
@@ -138,12 +163,40 @@ export default function MealImportModal({ open, onClose, onImport }) {
             <span><strong className="text-ink">{state.fileName}</strong></span>
             <span>{state.mappedCount} columns understood</span>
             <span>{chosenCount} of {selectable.length} rows selected</span>
+            {duplicates.length > 0 && (
+              <span className="text-amber-deep">
+                {replacing} replacing, {duplicates.length - replacing} skipping
+              </span>
+            )}
           </div>
 
           {state.unmapped.length > 0 && (
             <div className="mb-3 rounded-lg bg-amber-light px-3.5 py-2.5 text-[12px] leading-relaxed text-amber-deep">
               Not recognised, and skipped: {state.unmapped.map((u) => `"${u}"`).join(', ')}.
               The rest of each row still imports.
+            </div>
+          )}
+
+          {duplicates.length > 0 && (
+            <div className="mb-3 rounded-lg border border-amber/30 bg-amber-light px-3.5 py-3">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <span className="text-[12.5px] font-semibold text-amber-deep">
+                  {duplicates.length} meal{duplicates.length === 1 ? '' : 's'} already exist
+                </span>
+                <span className="text-[12px] text-amber-deep/80">
+                  Choose what happens to each, or set them all at once.
+                </span>
+                <span className="ml-auto flex gap-1.5">
+                  <button type="button" onClick={() => setAllDuplicates('skip')}
+                    className="cursor-pointer rounded-md border border-amber/40 bg-surface px-2.5 py-1 text-[11.5px] font-medium text-amber-deep transition hover:border-amber">
+                    Skip all
+                  </button>
+                  <button type="button" onClick={() => setAllDuplicates('replace')}
+                    className="cursor-pointer rounded-md border border-amber/40 bg-surface px-2.5 py-1 text-[11.5px] font-medium text-amber-deep transition hover:border-chili hover:text-chili-deep">
+                    Replace all
+                  </button>
+                </span>
+              </div>
             </div>
           )}
 
@@ -184,6 +237,34 @@ export default function MealImportModal({ open, onClose, onImport }) {
                         <div className="text-[13px] font-medium text-ink">
                           {r.meal.name || <span className="italic text-chili">no name</span>}
                         </div>
+                        {r.existing && (
+                          /* The choice sits on the row it applies to, so
+                             nobody has to hold a mapping in their head. */
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                            <span className="text-[11px] text-amber-deep">Already exists —</span>
+                            {[['skip', 'Skip'], ['replace', 'Replace']].map(([value, label]) => {
+                              const on = (actions[r.line] ?? 'skip') === value;
+                              return (
+                                <button
+                                  key={value}
+                                  type="button"
+                                  onClick={() => setAction(r.line, value)}
+                                  aria-pressed={on}
+                                  className={cx(
+                                    'cursor-pointer rounded-md border px-2 py-0.5 text-[11px] font-medium transition',
+                                    on
+                                      ? value === 'replace'
+                                        ? 'border-chili bg-chili-light text-chili-deep'
+                                        : 'border-line bg-line-light text-ink-2'
+                                      : 'border-line text-ink-3 hover:border-ink-3',
+                                  )}
+                                >
+                                  {label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                         {r.warnings.map((w) => (
                           <div key={w} className="mt-0.5 text-[11px] leading-snug text-amber-deep">{w}</div>
                         ))}
@@ -226,6 +307,7 @@ export default function MealImportModal({ open, onClose, onImport }) {
         {state.status === 'review' ? (
           <ModalButton onClick={confirm} disabled={!chosenCount}>
             Import {chosenCount} meal{chosenCount === 1 ? '' : 's'}
+            {replacing > 0 && `, replacing ${replacing}`}
           </ModalButton>
         ) : state.status === 'error' ? (
           <ModalButton onClick={() => fileRef.current?.click()}>Choose another file</ModalButton>

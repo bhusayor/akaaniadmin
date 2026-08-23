@@ -7,6 +7,7 @@ import {
   parseQuantity, toGrams, resolveIngredient, computeNutrition, CONFIDENCE_NOTE,
 } from './mealNutrition.js';
 import { mockTurn, sendTurn, applyTurn, configure } from './mealStudioChat.js';
+import { isChunkError } from '../components/ChunkBoundary.jsx';
 
 describe('model output is treated as untrusted', () => {
   it('drops keys that are not in the schema', () => {
@@ -287,5 +288,28 @@ describe('the conversation', () => {
     const t = await sendTurn({ message: 'a vegan jollof' });
     const draft = applyTurn(emptyDraft(), t);
     Object.keys(draft).forEach((k) => expect(STUDIO_FIELDS).toContain(k));
+  });
+});
+
+describe('chunk-failure detection decides whether to auto-reload', () => {
+  it('recognises the failures a stale index.html produces', () => {
+    [
+      'Failed to fetch dynamically imported module: /assets/Ingredients-abc.js',
+      'error loading dynamically imported module',
+      'Importing a module script failed.',
+      'ChunkLoadError: Loading chunk 3 failed',
+    ].forEach((m) => expect(isChunkError(new Error(m))).toBe(true));
+  });
+
+  it('does not treat a render bug as one', () => {
+    // Reloading on a genuine bug would hide it behind an endless refresh.
+    expect(isChunkError(new TypeError("Cannot read properties of null (reading 'name')"))).toBe(false);
+    expect(isChunkError(new Error('Something went wrong'))).toBe(false);
+  });
+
+  it('survives a non-Error being thrown', () => {
+    expect(isChunkError('just a string')).toBe(false);
+    expect(isChunkError(null)).toBe(false);
+    expect(isChunkError(undefined)).toBe(false);
   });
 });

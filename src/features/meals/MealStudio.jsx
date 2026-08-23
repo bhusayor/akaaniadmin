@@ -6,6 +6,7 @@ import {
 import { sendTurn, applyTurn } from '../../lib/mealStudioChat.js';
 import { emptyDraft, validateDraft, summarise } from '../../lib/mealStudio.js';
 import { computeNutrition, CONFIDENCE_NOTE } from '../../lib/mealNutrition.js';
+import DraftReview from './DraftReview.jsx';
 
 /* ═══════════════════════════════════════════════════════
    MEAL STUDIO PANEL
@@ -86,10 +87,24 @@ export default function MealStudio({ open, onClose, onApply, formHasContent }) {
       const turn = await sendTurn({
         message: text,
         currentMeal: draft,
+        /* Draft snapshots are for reading, not for re-sending — the model
+           already receives the current draft as `currentMeal`. */
         history: messages.filter((m) => m.role === 'user' || m.role === 'assistant'),
       });
       say('assistant', turn.assistantMessage);
-      if (turn.changed) setDraft((d) => applyTurn(d ?? emptyDraft(), turn));
+      if (turn.changed) {
+        setDraft((d) => {
+          const next = applyTurn(d ?? emptyDraft(), turn);
+          /* Snapshotted at this turn, so scrolling back shows what the
+             draft actually looked like then rather than what it is now. */
+          setMessages((prev) => [...prev, {
+            id: `draft-${Date.now()}-${prev.length}`,
+            role: 'draft',
+            draft: next,
+          }]);
+          return next;
+        });
+      }
     } catch (err) {
       /* The typed message and the draft both survive a failure — losing
          either would make a flaky connection cost real work. */
@@ -119,7 +134,14 @@ export default function MealStudio({ open, onClose, onApply, formHasContent }) {
   if (!open) return null;
 
   return (
-    <aside className="flex h-full w-[420px] shrink-0 flex-col border-l border-line bg-surface max-lg:fixed max-lg:inset-y-0 max-lg:right-0 max-lg:z-50 max-lg:w-[min(420px,100vw)] max-lg:shadow-tall">
+    /* Pinned to the viewport, not scrolled with the form. The form is long,
+       and a panel that scrolled away would put the conversation out of reach
+       exactly when you are checking a field against it.
+
+       Fixed rather than sticky: sticky needs every ancestor between it and
+       the scroll container to leave overflow alone, and the admin shell does
+       not. Fixed does not care what the ancestors do. */
+    <aside className="fixed bottom-0 right-0 top-[60px] z-40 flex w-[420px] flex-col border-l border-line bg-surface shadow-tall max-lg:z-50 max-lg:w-[min(420px,100vw)]">
       {/* ── Header ── */}
       <div className="flex shrink-0 items-center gap-2.5 border-b border-line px-4 py-3">
         <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-mint-light text-mint-deep">
@@ -165,8 +187,17 @@ export default function MealStudio({ open, onClose, onApply, formHasContent }) {
           </div>
         )}
 
-        {messages.map((m) => (
-          <Bubble key={m.id} role={m.role} tone={m.tone}>{m.content}</Bubble>
+        {messages.map((m, i) => (
+          m.role === 'draft' ? (
+            <DraftReview
+              key={m.id}
+              draft={m.draft}
+              nutrition={computeNutrition(m.draft.ingredients, m.draft.servings)}
+              latest={!messages.slice(i + 1).some((x) => x.role === 'draft')}
+            />
+          ) : (
+            <Bubble key={m.id} role={m.role} tone={m.tone}>{m.content}</Bubble>
+          )
         ))}
 
         {busy && (

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Field, Input, cx } from '../../components/ui.jsx';
+import { IconImage } from '../../components/icons.jsx';
 import { RowButtons, StringRows } from './formParts.jsx';
 import { useToast } from '../../components/Toast.jsx';
 
@@ -73,23 +74,23 @@ export default function CookingSteps({ foodItems, instructions, onFoodItems, onI
 
                 <div className="mt-2">
                   <span className="text-xs font-medium text-ink-2">Step image <span className="text-[10px] font-normal text-ink-3">optional</span></span>
-                  <div className="mt-1.5 flex items-start gap-2">
-                    <label className="relative grid h-20 w-32 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-lg border border-dashed border-line bg-surface transition hover:border-mint">
+                  {/* Full width — a step photo is the thing being judged, and
+                      a thumbnail beside two buttons is too small to judge it by. */}
+                  <div className="mt-1.5">
+                    <label className="relative grid h-44 w-full cursor-pointer place-items-center overflow-hidden rounded-lg border border-dashed border-line bg-surface transition hover:border-mint">
                       {step.image ? (
                         <img src={step.image} alt="" className="size-full object-cover" />
                       ) : (
-                        <span className="text-[11px] text-ink-3">Choose image</span>
+                        <span className="flex flex-col items-center gap-1 text-[11.5px] text-ink-3">
+                          <IconImage />
+                          Choose image
+                        </span>
                       )}
                       <input type="file" accept="image/*" className="hidden"
                         onChange={(e) => pickImage(i, e.target.files?.[0])} />
                     </label>
-                    <div className="flex flex-col gap-1.5">
-                      {step.image && (
-                        <button type="button" onClick={() => setAt(i, { image: null })}
-                          className="cursor-pointer rounded-md border border-line px-2.5 py-1.5 text-[11.5px] font-medium text-ink-2 transition hover:border-chili hover:text-chili">
-                          Remove image
-                        </button>
-                      )}
+
+                    <div className="mt-2 flex flex-wrap gap-1.5">
                       {/* Present because the production form has it, but honest:
                           it needs an image-generation endpoint that this build
                           has no credentials for. */}
@@ -99,6 +100,12 @@ export default function CookingSteps({ foodItems, instructions, onFoodItems, onI
                         className="cursor-pointer rounded-md border border-dashed border-line px-2.5 py-1.5 text-[11.5px] font-medium text-ink-3 transition hover:border-mint hover:text-forest">
                         Generate image
                       </button>
+                      {step.image && (
+                        <button type="button" onClick={() => setAt(i, { image: null })}
+                          className="cursor-pointer rounded-md border border-line px-2.5 py-1.5 text-[11.5px] font-medium text-ink-2 transition hover:border-chili hover:text-chili">
+                          Remove image
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

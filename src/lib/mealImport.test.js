@@ -5,6 +5,7 @@ import { readXlsx, columnIndex, isSpreadsheet } from './xlsx.js';
 import {
   reviewMealRows, mapHeader, cellNum, cellList, cellProseList,
   splitCommaList, splitNumberedList, normalizeTypes,
+  findExisting, markDuplicates, DUPLICATE_ACTIONS,
   parseIngredient, parseStep, normalizeType, normalizeImage, completeness, buildMeal,
 } from './mealImport.js';
 import { mealExportRows } from './mealExport.js';
@@ -368,5 +369,50 @@ describe('completeness', () => {
     expect(full.filled).toBeGreaterThan(10);
     const bare = completeness({ name: 'X', tags: [], countries: [], ingredients: [], instructions: [] });
     expect(bare.filled).toBe(0);
+  });
+});
+
+describe('duplicate detection on import', () => {
+  const meals = [
+    { id: 1, name: 'Jollof Rice & Grilled Chicken' },
+    { id: 2, name: 'Egusi Soup & Fufu' },
+  ];
+
+  it('matches the same name written differently', () => {
+    expect(findExisting('  JOLLOF rice  &  grilled chicken ', meals)?.id).toBe(1);
+  });
+
+  it('does not match a merely similar name', () => {
+    // A near-match treated as the same meal would overwrite the wrong
+    // recipe, so only the same name normalised counts.
+    expect(findExisting('Jollof Rice and Grilled Chicken', meals)).toBe(null);
+    expect(findExisting('Jollof', meals)).toBe(null);
+  });
+
+  it('is null for a nameless row', () => {
+    expect(findExisting('', meals)).toBe(null);
+  });
+
+  it('defaults a duplicate to skip, not replace', () => {
+    // An import that silently replaced recipes is the most destructive
+    // thing on this page, so the safe option is the one a hurried click
+    // lands on.
+    const marked = markDuplicates(
+      [{ meal: { name: 'Egusi Soup & Fufu' } }, { meal: { name: 'Brand New' } }],
+      meals,
+    );
+    expect(marked[0].action).toBe('skip');
+    expect(marked[0].existing).toMatchObject({ id: 2 });
+    expect(marked[1].action).toBe('add');
+    expect(marked[1].existing).toBe(null);
+  });
+
+  it('marks nothing when the catalogue is empty', () => {
+    const marked = markDuplicates([{ meal: { name: 'Anything' } }], []);
+    expect(marked[0].existing).toBe(null);
+  });
+
+  it('offers the actions the modal implements', () => {
+    expect(DUPLICATE_ACTIONS).toEqual(['skip', 'replace', 'add']);
   });
 });
