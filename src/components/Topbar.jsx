@@ -2,10 +2,10 @@ import { IconMenu, IconSearch, IconBell } from './icons.jsx';
 
 export default function Topbar({ title, searchPlaceholder, search, onSearch, onMenu, onBell, unread }) {
   return (
-    <div className="sticky top-0 z-20 flex h-[60px] shrink-0 items-center gap-4 border-b border-line bg-surface px-7 max-md:gap-2.5 max-md:px-4">
+    <div className="sticky top-0 z-20 flex h-[60px] shrink-0 items-center gap-4 border-b border-line bg-surface px-7 max-md:gap-2.5 max-lg:px-4">
       <button
         onClick={onMenu}
-        className="hidden size-9 shrink-0 place-items-center rounded-[10px] border border-line bg-surface text-ink-2 transition hover:bg-canvas max-md:grid"
+        className="hidden size-9 shrink-0 place-items-center rounded-[10px] border border-line bg-surface text-ink-2 transition hover:bg-canvas max-lg:grid"
       >
         <IconMenu />
       </button>

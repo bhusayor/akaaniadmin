@@ -36,7 +36,7 @@ export default function CustomerEdit() {
 
   if (!customer) {
     return (
-      <div className="px-7 py-5 max-md:px-4">
+      <div className="px-7 py-5 max-lg:px-4">
         <EmptyState icon="👤" title="Customer not found" sub="They may have been deleted." />
         <div className="text-center">
           <Button variant="ghost" onClick={() => navigate('/customers')}>Back to customers</Button>
@@ -76,7 +76,7 @@ export default function CustomerEdit() {
   };
 
   return (
-    <div className="space-y-5 px-7 py-5 max-md:px-4">
+    <div className="space-y-5 px-7 py-5 max-lg:px-4">
       <Link
         to={`/customers/${customer.id}`}
         className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-3 transition hover:text-ink"

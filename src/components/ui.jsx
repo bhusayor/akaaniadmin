@@ -187,7 +187,7 @@ export function EmptyState({ icon = '🌿', title, sub }) {
 
 export function PageToolbar({ left, right }) {
   return (
-    <div className="sticky top-[60px] z-15 flex flex-wrap items-center gap-3 border-b border-line bg-surface px-7 pt-4 pb-3 max-md:static">
+    <div className="sticky top-[60px] z-15 flex flex-wrap items-center gap-3 border-b border-line bg-surface px-7 pt-4 pb-3 max-lg:px-4 max-md:static">
       <div className="flex flex-1 flex-wrap items-center gap-2.5">{left}</div>
       <div className="flex flex-wrap items-center gap-2">{right}</div>
     </div>
@@ -200,10 +200,61 @@ export const Th = ({ className, children }) => (
   </th>
 );
 
-export const Td = ({ className, children, ...props }) => (
-  <td className={cx('border-b border-line-light px-4 py-3 text-[13px] align-middle', className)} {...props}>
-    {children}
+/**
+ * A cell that becomes a labelled row on a phone.
+ *
+ * An admin table is unreadable at 390px: the first column fits and every
+ * other one, including the actions, is off to the right behind a sideways
+ * scroll nobody finds. Below `md` the table stacks — each row becomes a
+ * card and each cell a `label: value` line — which is why `label` matters.
+ *
+ * Pass `label` on every cell that carries data. Omit it on a checkbox or an
+ * action column, where a heading beside the control would be noise.
+ */
+export const Td = ({ className, label, children, ...props }) => (
+  <td
+    data-label={label}
+    className={cx(
+      'border-b border-line-light px-4 py-3 text-[13px] align-middle',
+      'max-md:border-0 max-md:px-0 max-md:py-1',
+      // With a label the cell is a `label: value` line; without one it is a
+      // block, so a name and its blurb stack instead of sitting side by side.
+      label
+        ? 'max-md:flex max-md:items-baseline max-md:gap-3 max-md:before:w-24 max-md:before:shrink-0 max-md:before:text-[11px] max-md:before:leading-5 max-md:before:text-ink-3 max-md:before:content-[attr(data-label)]'
+        : 'max-md:block',
+      className,
+    )}
+    {...props}
+  >
+    {/* On a phone the cell is a flex row holding the label and the value, so
+        a cell with two children would sit them side by side. The wrapper
+        keeps them together as one value; `md:contents` dissolves it again on
+        a desktop, leaving the table layout exactly as it was. */}
+    {label ? <div className="min-w-0 flex-1 md:contents">{children}</div> : children}
   </td>
+);
+
+/**
+ * A table that turns into a list of cards on a phone.
+ *
+ * The markup stays a real table — semantics, keyboard order and the desktop
+ * layout are unchanged — and only the display switches below `md`.
+ */
+export const DataTable = ({ className, children, ...props }) => (
+  <table
+    className={cx(
+      'w-full border-collapse',
+      'max-md:block',
+      '[&_thead]:max-md:hidden',
+      '[&_tbody]:max-md:block',
+      '[&_tbody_tr]:max-md:mb-2 [&_tbody_tr]:max-md:block [&_tbody_tr]:max-md:rounded-xl',
+      '[&_tbody_tr]:max-md:border [&_tbody_tr]:max-md:border-line [&_tbody_tr]:max-md:bg-surface [&_tbody_tr]:max-md:p-3.5',
+      className,
+    )}
+    {...props}
+  >
+    {children}
+  </table>
 );
 
 export { cx };

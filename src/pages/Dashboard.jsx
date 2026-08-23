@@ -26,7 +26,7 @@ export default function Dashboard() {
   const recentMeals = MEALS.slice(0, 5);
 
   return (
-    <div className="px-7 py-5 max-md:px-4">
+    <div className="px-7 py-5 max-lg:px-4">
       {/* Lu insight banner */}
       <div className="mb-5 flex items-start gap-3 rounded-card border border-mint/20 bg-mint-light px-5 py-4">
         <div className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-white text-lg">🌿</div>

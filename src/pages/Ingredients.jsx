@@ -4,7 +4,7 @@ import useTopbar, { useSearch } from '../hooks/useTopbar.js';
 import Modal, { ModalActions } from '../components/Modal.jsx';
 import {
   Badge, Button, Card, FilterSelect, IconButton, CountBadge,
-  PageToolbar, Th, Td, EmptyState, ModalButton,
+  PageToolbar, DataTable, Th, Td, EmptyState, ModalButton,
 } from '../components/ui.jsx';
 import { IconDownload, IconUpload, IconPlus, IconEdit, IconTrash } from '../components/icons.jsx';
 import { useToast } from '../components/Toast.jsx';
@@ -128,10 +128,10 @@ export default function Ingredients() {
         }
       />
 
-      <div className="px-7 py-5 max-md:px-4">
+      <div className="px-7 py-5 max-lg:px-4">
         <Card>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse max-md:min-w-[760px]">
+          <div className="md:overflow-x-auto">
+            <DataTable>
               <thead>
                 <tr>
                   <Th>Ingredient</Th>
@@ -157,12 +157,12 @@ export default function Ingredients() {
                         </div>
                       </div>
                     </Td>
-                    <Td>
+                    <Td label="Group">
                       <div className="text-[12.5px]">{r.product_group || <span className="italic text-ink-3">—</span>}</div>
                       {r.product_category && <div className="text-[11.5px] text-ink-3">{r.product_category}</div>}
                     </Td>
-                    <Td className="text-ink-2">{r.unit || '—'}</Td>
-                    <Td>
+                    <Td label="Unit" className="text-ink-2">{r.unit || '—'}</Td>
+                    <Td label="Per 100g">
                       {hasNutrition(r) ? (
                         <div className="whitespace-nowrap tabular-nums">
                           <span className="font-semibold">{r.calories === null ? '—' : `${r.calories} kcal`}</span>
@@ -175,7 +175,7 @@ export default function Ingredients() {
                         <span className="text-xs italic text-ink-3">Not set</span>
                       )}
                     </Td>
-                    <Td>
+                    <Td label="Allergens">
                       {/* An empty list means "no allergens recorded", which
                           is not a claim that the food has none — the dash
                           has to read as absence of data, not absence of
@@ -192,8 +192,8 @@ export default function Ingredients() {
                         <span className="text-[11.5px] italic text-ink-3">None recorded</span>
                       )}
                     </Td>
-                    <Td><SourceBadge record={r} /></Td>
-                    <Td>
+                    <Td label="Source"><SourceBadge record={r} /></Td>
+                    <Td className="max-md:mt-2.5 max-md:border-t max-md:border-line-light max-md:pt-2.5">
                       <div className="flex gap-1">
                         <IconButton title="Edit" onClick={() => { setEditing(r); setFormOpen(true); }}>
                           <IconEdit />
@@ -207,7 +207,7 @@ export default function Ingredients() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </DataTable>
           </div>
 
           {!rows.length && (

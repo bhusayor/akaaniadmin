@@ -69,7 +69,7 @@ function toForm(m) {
 /* Sized like the panel it replaces, so opening the Studio does not shift
    the form sideways and then back. */
 const StudioLoading = () => (
-  <aside className="fixed bottom-0 right-0 top-[60px] z-40 flex w-[420px] items-center justify-center border-l border-line bg-surface shadow-tall">
+  <aside className="fixed bottom-0 right-0 top-[60px] z-40 flex w-[420px] items-center justify-center border-l border-line bg-surface shadow-tall max-lg:z-50 max-lg:w-[min(420px,100vw)]">
     <span className="inline-flex items-center gap-2 text-[13px] text-ink-3"><Spinner /> Opening Meal Studio…</span>
   </aside>
 );
@@ -120,7 +120,7 @@ export default function MealEdit() {
      an error. */
   if ((!isNew && !meal) || !form) {
     return (
-      <div className="px-7 py-5 max-md:px-4">
+      <div className="px-7 py-5 max-lg:px-4">
         <Card>
           <EmptyState icon="🍽️" title="Meal not found" sub="It may have been deleted." />
           <div className="flex justify-center pb-8">
@@ -235,7 +235,7 @@ export default function MealEdit() {
     <div className={cx('flex min-h-0 flex-1', studioOpen && 'lg:pr-[420px]')}>
       <div className="min-w-0 flex-1">
       {/* Save bar — sticky, so you never scroll a form this long to commit it. */}
-      <div className="sticky top-[60px] z-15 flex flex-wrap items-center gap-3 border-b border-line bg-surface px-7 pt-4 pb-3 max-md:static max-md:px-4">
+      <div className="sticky top-[60px] z-15 flex flex-wrap items-center gap-3 border-b border-line bg-surface px-7 pt-4 pb-3 max-md:static max-lg:px-4">
         <div className="min-w-0">
           <div className="truncate text-[13px] font-medium text-ink">
             {isNew ? (form.name.trim() || 'New meal') : meal.name}
@@ -263,7 +263,7 @@ export default function MealEdit() {
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-[1100px] px-7 py-5 max-md:px-4">
+      <div className="mx-auto w-full max-w-[1100px] px-7 py-5 max-lg:px-4">
         {errors.length > 0 && (
           <div className="mb-4 rounded-xl border border-chili/30 bg-chili-light px-4 py-3">
             <div className="text-[13px] font-semibold text-chili-deep">
@@ -275,7 +275,7 @@ export default function MealEdit() {
           </div>
         )}
 
-        <Card className="px-6 py-2 max-md:px-4">
+        <Card className="px-6 py-2 max-lg:px-4">
           {/* ── DETAILS ── */}
           <Section title="Details" defaultOpen>
             <div className="flex flex-col gap-4">

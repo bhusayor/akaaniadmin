@@ -42,7 +42,7 @@ export default function BlogPost() {
 
   if (!post) {
     return (
-      <div className="px-7 py-5 max-md:px-4">
+      <div className="px-7 py-5 max-lg:px-4">
         <Card>
           <EmptyState icon="📝" title="Post not found" sub="It may have been deleted." />
           <div className="flex justify-center pb-8">
@@ -59,7 +59,7 @@ export default function BlogPost() {
     <>
       {/* Actions stay on a bar of their own, so nothing chrome-like
           intrudes on the post itself below. */}
-      <div className="sticky top-[60px] z-15 flex flex-wrap items-center gap-3 border-b border-line bg-surface px-7 pt-4 pb-3 max-md:static max-md:px-4">
+      <div className="sticky top-[60px] z-15 flex flex-wrap items-center gap-3 border-b border-line bg-surface px-7 pt-4 pb-3 max-md:static max-lg:px-4">
         <Link to="/blogs" className="text-[12.5px] text-ink-3 transition hover:text-ink">← All posts</Link>
         <span className={cx('rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize', STATUS_TONE[post.status])}>
           {post.status}
@@ -76,7 +76,7 @@ export default function BlogPost() {
 
       {/* A reading column, not a full-width dashboard row — long prose set
           across 1400px is unreadable. */}
-      <article className="mx-auto max-w-[760px] px-7 py-8 max-md:px-4">
+      <article className="mx-auto max-w-[760px] px-7 py-8 max-lg:px-4">
         <div className="flex flex-wrap gap-1.5">
           {post.tags.map((t) => (
             <span key={t} className="rounded-full bg-mint-light px-2.5 py-1 text-[11.5px] font-medium text-mint-deep">

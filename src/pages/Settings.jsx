@@ -137,7 +137,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="flex min-h-0 flex-1">
+    <div className="flex min-h-0 flex-1 max-lg:flex-col">
       {/* ── SETTINGS NAV ── */}
       <nav className="scroll-thin w-[220px] shrink-0 overflow-y-auto border-r border-line bg-surface px-3 py-5 max-lg:hidden">
         {NAV.map(([group, items]) => (
@@ -167,7 +167,7 @@ export default function Settings() {
       </nav>
 
       {/* mobile tab strip */}
-      <div className="hidden max-lg:block">
+      <div className="hidden shrink-0 max-lg:block">
         <div className="flex gap-1 overflow-x-auto border-b border-line bg-surface px-4 py-2">
           {NAV.flatMap(([, items]) => items).map(([key, label]) => (
             <button key={key} onClick={() => setTab(key)}
@@ -180,7 +180,7 @@ export default function Settings() {
       </div>
 
       {/* ── CONTENT ── */}
-      <div className="scroll-thin min-w-0 flex-1 overflow-y-auto px-8 py-7 max-md:px-4 max-md:py-5">
+      <div className="scroll-thin min-w-0 flex-1 overflow-y-auto px-8 py-7 max-lg:px-4 max-md:py-5">
         <div className="mx-auto max-w-[820px] animate-fade-up">
 
           {tab === 'profile' && (

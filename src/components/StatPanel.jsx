@@ -126,7 +126,7 @@ export default function StatPanel({ title, subtitle, cards, footer, className })
   return (
     <div
       className={cx(
-        'rounded-card border border-line bg-surface px-6 pt-5 pb-6 shadow-soft max-md:px-4',
+        'rounded-card border border-line bg-surface px-6 pt-5 pb-6 shadow-soft max-lg:px-4',
         className,
       )}
     >

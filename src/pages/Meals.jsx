@@ -111,7 +111,7 @@ export default function Meals() {
 
       {/* Extra room at the foot so the floating launcher never sits on top
           of the pagination. */}
-      <div className="px-7 pt-5 pb-32 max-md:px-4">
+      <div className="px-7 pt-5 pb-32 max-lg:px-4">
         {!rows.length ? (
           <Card>
             <EmptyState icon="🍲" title="No meals match those filters" sub="Try clearing the search or filters." />

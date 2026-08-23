@@ -107,7 +107,7 @@ function ListCard({ group, onEdit, onDelete }) {
     <Card className="group">
       <div className="flex gap-5 max-md:flex-col">
         <Cover group={group} className="w-[220px] shrink-0 self-stretch max-md:h-40 max-md:w-full" />
-        <div className="flex min-w-0 flex-1 flex-col gap-2.5 py-5 pr-5 max-md:px-4 max-md:pb-4 max-md:pt-0">
+        <div className="flex min-w-0 flex-1 flex-col gap-2.5 py-5 pr-5 max-lg:px-4 max-md:pb-4 max-md:pt-0">
           <div className="flex items-start justify-between gap-4">
             <h3 className="text-[19px] font-semibold tracking-[-0.01em] text-ink">{group.name}</h3>
             <Actions onEdit={onEdit} onDelete={onDelete} />
@@ -236,7 +236,7 @@ export default function RecipeGroups() {
         }
       />
 
-      <div className={cx('px-7 py-5 max-md:px-4', view === 'grid'
+      <div className={cx('px-7 py-5 max-lg:px-4', view === 'grid'
         ? 'grid grid-cols-3 gap-5 max-xl:grid-cols-2 max-md:grid-cols-1'
         : 'flex flex-col gap-3.5')}>
         {rows.length ? rows.map((group) => (

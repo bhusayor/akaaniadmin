@@ -120,7 +120,7 @@ export default function BlogEditor() {
   return (
     <>
       {/* Top bar */}
-      <div className="sticky top-[60px] z-15 flex flex-wrap items-center gap-3 border-b border-line bg-surface px-7 pt-3 pb-3 max-md:static max-md:px-4">
+      <div className="sticky top-[60px] z-15 flex flex-wrap items-center gap-3 border-b border-line bg-surface px-7 pt-3 pb-3 max-md:static max-lg:px-4">
         <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-amber-light text-amber-deep">
           <IconFile size={14} />
         </span>
@@ -155,7 +155,7 @@ export default function BlogEditor() {
 
       <div className="grid grid-cols-[minmax(0,1fr)_340px] items-start max-[1100px]:grid-cols-1">
         {/* ── Composer ── */}
-        <div className="min-w-0 px-10 py-8 max-md:px-4 max-md:py-5">
+        <div className="min-w-0 px-10 py-8 max-lg:px-4 max-md:py-5">
           <div className="mx-auto max-w-[720px]">
             <input
               value={form.title}

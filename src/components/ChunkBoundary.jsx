@@ -74,7 +74,7 @@ export default class ChunkBoundary extends Component {
        never needed to see. */
     if (recovering) {
       return (
-        <div className="px-7 py-16 text-center text-[13px] text-ink-3 max-md:px-4">
+        <div className="px-7 py-16 text-center text-[13px] text-ink-3 max-lg:px-4">
           Updating to the latest version…
         </div>
       );
@@ -83,7 +83,7 @@ export default class ChunkBoundary extends Component {
     const stale = isChunkError(error);
 
     return (
-      <div className="px-7 py-16 max-md:px-4">
+      <div className="px-7 py-16 max-lg:px-4">
         <div className="mx-auto max-w-[440px] text-center">
           <div className="mx-auto grid size-11 place-items-center rounded-full bg-amber-light text-amber-deep">
             <IconWarning />

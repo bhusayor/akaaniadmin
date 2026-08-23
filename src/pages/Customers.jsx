@@ -4,7 +4,7 @@ import useTopbar, { useSearch } from '../hooks/useTopbar.js';
 import Modal, { ModalActions } from '../components/Modal.jsx';
 import {
   Button, Card, FilterSelect, IconButton, CountBadge, StatusPill,
-  PageToolbar, Th, Td, EmptyState, ModalButton, cx,
+  PageToolbar, DataTable, Th, Td, EmptyState, ModalButton, cx,
 } from '../components/ui.jsx';
 import { IconDownload, IconEdit, IconTrash, IconArrowRight } from '../components/icons.jsx';
 import StatPanel from '../components/StatPanel.jsx';
@@ -194,7 +194,7 @@ export default function Customers() {
         }
       />
 
-      <div className="px-7 py-5 max-md:px-4">
+      <div className="px-7 py-5 max-lg:px-4">
         <StatPanel
           className="mb-5"
           title="Customer overview"
@@ -210,8 +210,8 @@ export default function Customers() {
         />
 
         <Card>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse max-md:min-w-[760px]">
+          <div className="md:overflow-x-auto">
+            <DataTable>
               <thead>
                 <tr>
                   <Th className="w-10">
@@ -229,7 +229,7 @@ export default function Customers() {
               <tbody>
                 {rows.map((c) => (
                   <tr key={c.id} className="group transition hover:bg-[#FAFBFD]">
-                    <Td>
+                    <Td className="max-md:float-right max-md:!py-0">
                       <input type="checkbox" className="size-3.5 cursor-pointer accent-forest"
                         checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
                     </Td>
@@ -250,17 +250,18 @@ export default function Customers() {
                         </div>
                       </div>
                     </Td>
-                    <Td className="tabular-nums text-ink-2">{c.phone}</Td>
-                    <Td className="text-ink-2">{c.country}</Td>
-                    <Td><StatusPill status={c.status} /></Td>
-                    <Td className="tabular-nums text-ink-2">{c.joined}</Td>
-                    <Td>
-                      <div className="flex items-center justify-end gap-1.5">
+                    <Td label="Phone" className="tabular-nums text-ink-2">{c.phone}</Td>
+                    <Td label="Country" className="text-ink-2">{c.country}</Td>
+                    <Td label="Status"><StatusPill status={c.status} /></Td>
+                    <Td label="Joined" className="whitespace-nowrap tabular-nums text-ink-2">{c.joined}</Td>
+                    <Td className="max-md:mt-2.5 max-md:border-t max-md:border-line-light max-md:pt-2.5">
+                      <div className="flex items-center justify-end gap-1.5 max-md:justify-start">
                         <button
                           onClick={() => navigate(`/customers/${c.id}`)}
                           className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-line bg-surface px-2 py-1 text-[11.5px] font-medium text-ink-2 transition hover:border-forest/30 hover:text-forest"
+                          title={`Manage ${c.name}`}
                         >
-                          Manage <IconArrowRight />
+                          <span className="max-lg:hidden max-md:inline">Manage</span> <IconArrowRight />
                         </button>
                         <IconButton title={`Edit ${c.name}`} onClick={() => navigate(`/customers/edit/${c.id}`)}>
                           <IconEdit />
@@ -277,7 +278,7 @@ export default function Customers() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </DataTable>
           </div>
 
           {!rows.length && <EmptyState icon="👤" title="No customers match those filters" sub="Try clearing the search or filters." />}

@@ -46,12 +46,12 @@ const ACTIVE =
 export default function Sidebar({ open, onClose }) {
   return (
     <>
-      {open && <div className="fixed inset-0 z-49 bg-black/50 md:hidden" onClick={onClose} />}
+      {open && <div className="fixed inset-0 z-49 bg-black/50 lg:hidden" onClick={onClose} />}
       <nav
         className={cx(
           'relative z-50 flex w-[220px] min-w-[220px] shrink-0 flex-col overflow-hidden bg-forest',
-          'transition-transform duration-300 max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:h-screen',
-          open ? 'max-md:translate-x-0' : 'max-md:-translate-x-full',
+          'transition-transform duration-300 max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:h-screen',
+          open ? 'max-lg:translate-x-0' : 'max-lg:-translate-x-full',
         )}
       >
         {/* Ambient glow, as in the original */}

@@ -5,7 +5,7 @@ import Avatar, { MealThumb } from '../components/Avatar.jsx';
 import RevenueChart from '../features/dashboard/RevenueChart.jsx';
 import { KpiCard, Segmented, ShareBar, SplitBar, SectionHead } from '../features/finances/parts.jsx';
 import {
-  Button, Card, FilterSelect, PageToolbar, EmptyState, Badge, Th, Td, cx,
+  Button, Card, FilterSelect, PageToolbar, EmptyState, Badge, DataTable, Th, Td, cx,
 } from '../components/ui.jsx';
 import {
   IconWallet, IconBookOpen, IconUsers, IconRepeat, IconWarning,
@@ -266,7 +266,7 @@ export default function Finances() {
         }
       />
 
-      <div className="space-y-5 px-7 py-5 max-md:px-4">
+      <div className="space-y-5 px-7 py-5 max-lg:px-4">
         {/* ── Headline numbers ── */}
         <div className="grid grid-cols-4 gap-4 max-xl:grid-cols-2 max-sm:grid-cols-1">
           {/* MRR and subscriber count are point-in-time figures, so they carry
@@ -380,8 +380,8 @@ export default function Finances() {
             {planRows.rows.length === 0 ? (
               <EmptyState icon="🔁" title="No plans in this currency" />
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
+              <div className="md:overflow-x-auto">
+                <DataTable>
                   <thead>
                     <tr>
                       <Th>Plan</Th>
@@ -401,19 +401,19 @@ export default function Finances() {
                           </div>
                           <div className="mt-0.5 max-w-64 text-[11.5px] leading-snug text-ink-3">{p.blurb}</div>
                         </Td>
-                        <Td className="text-right whitespace-nowrap tabular-nums">
+                        <Td label="Price" className="text-right whitespace-nowrap tabular-nums max-md:text-left">
                           {formatMoney(p.price, p.currency)}
                           <span className="text-ink-3">/{p.interval === 'annual' ? 'yr' : 'mo'}</span>
                         </Td>
-                        <Td className="text-right tabular-nums">{p.subscribers.toLocaleString()}</Td>
-                        <Td className="text-right font-semibold whitespace-nowrap tabular-nums">
+                        <Td label="Subscribers" className="text-right tabular-nums max-md:text-left">{p.subscribers.toLocaleString()}</Td>
+                        <Td label="MRR" className="text-right font-semibold whitespace-nowrap tabular-nums max-md:text-left">
                           {p.active ? compact(p.mrr) : '—'}
                         </Td>
-                        <Td><ShareBar value={p.mrr} total={planRows.total} /></Td>
+                        <Td label="Share" className="max-md:items-center"><ShareBar value={p.mrr} total={planRows.total} /></Td>
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </DataTable>
               </div>
             )}
           </Card>
@@ -481,8 +481,8 @@ export default function Finances() {
             <EmptyState icon="🧾" title="No transactions match" sub="Try clearing a filter or the search box." />
           ) : (
             <>
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
+              <div className="md:overflow-x-auto">
+                <DataTable>
                   <thead>
                     <tr>
                       <Th>Customer</Th>
@@ -506,24 +506,24 @@ export default function Finances() {
                             </div>
                           </div>
                         </Td>
-                        <Td>
+                        <Td label="For">
                           <div className="flex items-center gap-2">
                             <Badge className={TX_TYPES[t.type].tone}>{TX_TYPES[t.type].label}</Badge>
                             <span className="truncate text-ink-2">{t.item}</span>
                           </div>
                         </Td>
-                        <Td className="text-ink-2 whitespace-nowrap">{t.method}</Td>
-                        <Td className="text-ink-2 whitespace-nowrap tabular-nums">{t.date}</Td>
-                        <Td className={cx(
+                        <Td label="Method" className="text-ink-2 whitespace-nowrap">{t.method}</Td>
+                        <Td label="Date" className="text-ink-2 whitespace-nowrap tabular-nums">{t.date}</Td>
+                        <Td label="Amount" className={cx(
                           'text-right font-semibold whitespace-nowrap tabular-nums',
                           t.status === 'refunded' ? 'text-chili-deep line-through' : 'text-ink',
                         )}>
                           {formatMoney(t.amount, t.currency)}
                         </Td>
-                        <Td>
+                        <Td label="Status">
                           <Badge className={TX_STATUSES[t.status].tone}>{TX_STATUSES[t.status].label}</Badge>
                         </Td>
-                        <Td className="text-right whitespace-nowrap">
+                        <Td className="text-right whitespace-nowrap max-md:mt-2.5 max-md:border-t max-md:border-line-light max-md:pt-2.5 max-md:text-left">
                           {/* One entry point for every charge — what can be
                               done depends on why it is in this state, and
                               that lives in the drawer. */}
@@ -542,7 +542,7 @@ export default function Finances() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </DataTable>
               </div>
 
               {shown < filteredTx.length && (

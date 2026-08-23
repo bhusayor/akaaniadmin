@@ -69,7 +69,7 @@ export default function Blogs() {
         }
       />
 
-      <div className="px-7 py-5 max-md:px-4">
+      <div className="px-7 py-5 max-lg:px-4">
         {/* Status strip — how many are actually live is the first question. */}
         <div className="mb-4 grid grid-cols-4 gap-3 max-sm:grid-cols-2">
           {[

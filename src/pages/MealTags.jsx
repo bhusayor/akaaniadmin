@@ -3,7 +3,7 @@ import useTopbar, { useSearch } from '../hooks/useTopbar.js';
 import Modal, { ModalActions } from '../components/Modal.jsx';
 import {
   Button, Card, FilterSelect, CountBadge, IconButton, PageToolbar,
-  Th, Td, EmptyState, ModalButton, Badge, cx,
+  DataTable, Th, Td, EmptyState, ModalButton, Badge, cx,
 } from '../components/ui.jsx';
 import { IconPlus, IconEdit, IconTrash, IconDownload, IconInfo, IconLink } from '../components/icons.jsx';
 import { useToast } from '../components/Toast.jsx';
@@ -127,7 +127,7 @@ export default function MealTags() {
         }
       />
 
-      <div className="px-7 py-5 max-md:px-4">
+      <div className="px-7 py-5 max-lg:px-4">
         <div className="mb-4 grid grid-cols-4 gap-3 max-sm:grid-cols-2">
           {[
             ['Tags', tags.length, 'text-ink'],
@@ -188,8 +188,8 @@ export default function MealTags() {
         </p>
 
         <Card>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse max-md:min-w-[760px]">
+          <div className="md:overflow-x-auto">
+            <DataTable>
               <thead>
                 <tr>
                   <Th className="w-10">
@@ -208,21 +208,21 @@ export default function MealTags() {
                   const count = usage.get(tag.name) ?? 0;
                   return (
                     <tr key={tag.id} className="group transition hover:bg-[#FAFBFD]">
-                      <Td>
+                      <Td className="max-md:float-right max-md:!py-0">
                         <input type="checkbox" className="size-3.5 cursor-pointer accent-forest"
                           checked={selected.has(tag.id)} onChange={() => toggle(tag.id)} />
                       </Td>
                       <Td><span className="font-medium">{tag.name}</span></Td>
-                      <Td>
+                      <Td label="Category">
                         <span className={cx('rounded-full px-2.5 py-1 text-[11px] font-semibold',
                           CATEGORY_TONE[tag.category] ?? 'bg-line-light text-ink-3')}>
                           {tag.category || 'Uncategorised'}
                         </span>
                       </Td>
-                      <Td className="max-w-[420px] text-ink-2">
+                      <Td label="About" className="max-w-[420px] text-ink-2 max-md:max-w-none">
                         {tag.description || <span className="italic text-ink-3">No description</span>}
                       </Td>
-                      <Td>
+                      <Td label="Meals">
                         {/* A bordered control with an icon and a verb. The
                             count alone read as a static badge, so nobody
                             could tell this was how meals get attached. */}
@@ -248,11 +248,11 @@ export default function MealTags() {
                           )}
                         </button>
                       </Td>
-                      <Td>
+                      <Td className="max-md:mt-2.5 max-md:border-t max-md:border-line-light max-md:pt-2.5">
                         {/* No attach button here — the Meals attached column
                             already carries it, and two controls for one job
                             just makes people wonder how they differ. */}
-                        <div className="flex justify-end gap-1">
+                        <div className="flex justify-end gap-1 max-md:justify-start">
                           <IconButton title="Edit" className="text-ink-2"
                             onClick={() => setForm({ open: true, tag })}>
                             <IconEdit />
@@ -267,7 +267,7 @@ export default function MealTags() {
                   );
                 })}
               </tbody>
-            </table>
+            </DataTable>
           </div>
 
           {!rows.length && (

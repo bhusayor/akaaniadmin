@@ -3,7 +3,7 @@ import useTopbar, { useSearch } from '../hooks/useTopbar.js';
 import Modal, { ModalActions } from '../components/Modal.jsx';
 import {
   Button, Card, FilterSelect, CountBadge, IconButton, PageToolbar,
-  Th, Td, EmptyState, ModalButton, cx,
+  DataTable, Th, Td, EmptyState, ModalButton, cx,
 } from '../components/ui.jsx';
 import { IconPlus, IconEdit, IconTrash, IconDownload, IconInfo } from '../components/icons.jsx';
 import { useToast } from '../components/Toast.jsx';
@@ -87,7 +87,7 @@ export default function LuFacts() {
         }
       />
 
-      <div className="px-7 py-5 max-md:px-4">
+      <div className="px-7 py-5 max-lg:px-4">
         <div className="mb-4 grid grid-cols-4 gap-3 max-sm:grid-cols-2">
           {[
             ['Facts', facts.length, 'text-ink'],
@@ -117,8 +117,8 @@ export default function LuFacts() {
         )}
 
         <Card>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse max-md:min-w-[820px]">
+          <div className="md:overflow-x-auto">
+            <DataTable>
               <thead>
                 <tr>
                   <Th>Subject</Th>
@@ -149,7 +149,7 @@ export default function LuFacts() {
                     </Td>
                     {/* Two lines of the actual fact, not one clipped line —
                         the point of the row is to let you read it. */}
-                    <Td className="max-w-[520px]">
+                    <Td label="Fact" className="max-w-[520px] max-md:max-w-none max-md:flex-col max-md:gap-1">
                       <p className="line-clamp-2 text-[13px] leading-relaxed text-ink-2">{fact.body}</p>
                       {bodyLoad(fact.body) > 1 && (
                         <span className="mt-1 inline-block text-[11px] font-medium text-amber-deep">
@@ -157,21 +157,21 @@ export default function LuFacts() {
                         </span>
                       )}
                     </Td>
-                    <Td>
+                    <Td label="Category">
                       <span className={cx('rounded-full px-2.5 py-1 text-[11px] font-semibold',
                         CATEGORY_TONE[fact.category] ?? 'bg-line-light text-ink-3')}>
                         {fact.category}
                       </span>
                     </Td>
-                    <Td>
+                    <Td label="Status">
                       <span className={cx('rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize',
                         fact.status === 'published' ? 'bg-mint-light text-mint-deep' : 'bg-amber-light text-amber-deep')}>
                         {fact.status}
                       </span>
                     </Td>
-                    <Td className="whitespace-nowrap text-ink-3">{formatDate(fact.updatedAt)}</Td>
-                    <Td>
-                      <div className="flex justify-end gap-1">
+                    <Td label="Updated" className="whitespace-nowrap text-ink-3">{formatDate(fact.updatedAt)}</Td>
+                    <Td className="max-md:mt-2.5 max-md:border-t max-md:border-line-light max-md:pt-2.5">
+                      <div className="flex justify-end gap-1 max-md:justify-start">
                         <IconButton title="Preview as Lu shows it" className="text-ink-2"
                           onClick={() => setPreview(fact)}>
                           <span className="text-[11px]">👁</span>
@@ -189,7 +189,7 @@ export default function LuFacts() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </DataTable>
           </div>
 
           {!rows.length && (

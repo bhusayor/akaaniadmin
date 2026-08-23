@@ -4,7 +4,7 @@ import useTopbar from '../hooks/useTopbar.js';
 import Avatar from '../components/Avatar.jsx';
 import Modal, { ModalActions } from '../components/Modal.jsx';
 import {
-  Button, Card, Badge, StatusPill, EmptyState, ModalButton, Th, Td, cx,
+  Button, Card, Badge, StatusPill, EmptyState, ModalButton, DataTable, Th, Td, cx,
 } from '../components/ui.jsx';
 import { IconEdit, IconTrash, IconArrowRight } from '../components/icons.jsx';
 import { useToast } from '../components/Toast.jsx';
@@ -52,7 +52,7 @@ export default function CustomerDetail() {
 
   if (!customer) {
     return (
-      <div className="px-7 py-5 max-md:px-4">
+      <div className="px-7 py-5 max-lg:px-4">
         <EmptyState icon="👤" title="Customer not found" sub="They may have been deleted." />
         <div className="text-center">
           <Button variant="ghost" onClick={() => navigate('/customers')}>Back to customers</Button>
@@ -65,7 +65,7 @@ export default function CustomerDetail() {
 
   return (
     <>
-      <div className="space-y-5 px-7 py-5 max-md:px-4">
+      <div className="space-y-5 px-7 py-5 max-lg:px-4">
         <Link
           to="/customers"
           className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-3 transition hover:text-ink"
@@ -177,8 +177,8 @@ export default function CustomerDetail() {
           {history.length === 0 ? (
             <EmptyState icon="🧾" title="No payments yet" sub="Nothing has been charged to this account." />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
+            <div className="md:overflow-x-auto">
+              <DataTable>
                 <thead>
                   <tr>
                     <Th>Date</Th>
@@ -191,27 +191,27 @@ export default function CustomerDetail() {
                 <tbody>
                   {history.slice(0, 15).map((t) => (
                     <tr key={t.id} className="transition hover:bg-surface-2">
-                      <Td className="whitespace-nowrap tabular-nums text-ink-2">{t.date}</Td>
-                      <Td>
+                      <Td label="Date" className="whitespace-nowrap tabular-nums text-ink-2">{t.date}</Td>
+                      <Td label="For">
                         <div className="flex items-center gap-2">
                           <Badge className={TX_TYPES[t.type].tone}>{TX_TYPES[t.type].label}</Badge>
                           <span className="truncate text-ink-2">{t.item}</span>
                         </div>
                       </Td>
-                      <Td className="whitespace-nowrap text-ink-2">{t.method}</Td>
-                      <Td className={cx(
+                      <Td label="Method" className="whitespace-nowrap text-ink-2">{t.method}</Td>
+                      <Td label="Amount" className={cx(
                         'text-right font-semibold whitespace-nowrap tabular-nums',
                         t.status === 'refunded' ? 'text-chili-deep line-through' : 'text-ink',
                       )}>
                         {formatMoney(t.amount, t.currency)}
                       </Td>
-                      <Td>
+                      <Td label="Status">
                         <Badge className={TX_STATUSES[t.status].tone}>{TX_STATUSES[t.status].label}</Badge>
                       </Td>
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </DataTable>
               {history.length > 15 && (
                 <div className="border-t border-line-light px-5 py-3 text-center text-[12px] text-ink-3">
                   Showing the 15 most recent of {history.length} charges.

@@ -61,7 +61,7 @@ export default function MealDetail() {
 
   if (!meal) {
     return (
-      <div className="px-7 py-5 max-md:px-4">
+      <div className="px-7 py-5 max-lg:px-4">
         <Card>
           <EmptyState icon="🍽️" title="Meal not found" sub="It may have been deleted." />
           <div className="flex justify-center pb-8">
@@ -92,7 +92,7 @@ export default function MealDetail() {
   return (
     <>
       {/* Action bar */}
-      <div className="sticky top-[60px] z-15 flex flex-wrap items-center gap-3 border-b border-line bg-surface px-7 pt-4 pb-3 max-md:static max-md:px-4">
+      <div className="sticky top-[60px] z-15 flex flex-wrap items-center gap-3 border-b border-line bg-surface px-7 pt-4 pb-3 max-md:static max-lg:px-4">
         <Link
           to="/meals"
           className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium text-ink-2 transition hover:bg-canvas hover:text-forest"
@@ -116,7 +116,7 @@ export default function MealDetail() {
         </div>
       </div>
 
-      <div className="px-7 py-5 max-md:px-4">
+      <div className="px-7 py-5 max-lg:px-4">
         <div className="grid grid-cols-[380px_1fr] gap-5 max-[1100px]:grid-cols-1">
           {/* ── Photo + at-a-glance ── */}
           <div className="flex flex-col gap-4">
