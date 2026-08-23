@@ -24,9 +24,14 @@ export const isChunkError = (error) =>
   /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|ChunkLoadError/i
     .test(String(error?.message ?? error));
 
-/* One automatic reload per tab. Kept in sessionStorage rather than state
-   because the reload is what clears the state. */
+/* One automatic reload per tab, kept in sessionStorage because the reload
+   is what clears component state.
+   
+   Time-boxed rather than once-per-session: a loop retries within seconds,
+   but a genuine second failure ten minutes later deserves its own recovery
+   — and a single flag would have disabled it for the rest of the tab. */
 const RELOAD_KEY = 'akaani.chunkReloaded';
+const LOOP_WINDOW_MS = 15000;
 
 export default class ChunkBoundary extends Component {
   constructor(props) {
@@ -50,9 +55,11 @@ export default class ChunkBoundary extends Component {
      * cannot put the page in a reload loop.
      */
     if (!isChunkError(error)) return;
-    let already = 'true';
-    try { already = sessionStorage.getItem(RELOAD_KEY); } catch { /* private mode */ }
-    if (already) return;
+
+    let last = Date.now();
+    try { last = Number(sessionStorage.getItem(RELOAD_KEY)) || 0; } catch { /* private mode */ }
+    /* Reloaded moments ago and failed again — that is a loop, so stop. */
+    if (Date.now() - last < LOOP_WINDOW_MS) return;
 
     try { sessionStorage.setItem(RELOAD_KEY, String(Date.now())); } catch { /* ignore */ }
     this.setState({ recovering: true });

@@ -134,14 +134,24 @@ export default function MealStudio({ open, onClose, onApply, formHasContent }) {
   if (!open) return null;
 
   return (
-    /* Pinned to the viewport, not scrolled with the form. The form is long,
-       and a panel that scrolled away would put the conversation out of reach
-       exactly when you are checking a field against it.
+    <>
+      {/* Below the width where the form can give up 420px, the panel is an
+          overlay rather than a column. Without this backdrop it simply sat
+          on top of the fields, cutting each one in half, which reads as a
+          broken layout rather than a panel to close. */}
+      <div
+        className="fixed inset-0 top-[60px] z-30 bg-black/30 lg:hidden"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      {/* Pinned to the viewport, not scrolled with the form. The form is
+          long, and a panel that scrolled away would put the conversation out
+          of reach exactly when you are checking a field against it.
 
-       Fixed rather than sticky: sticky needs every ancestor between it and
-       the scroll container to leave overflow alone, and the admin shell does
-       not. Fixed does not care what the ancestors do. */
-    <aside className="fixed bottom-0 right-0 top-[60px] z-40 flex w-[420px] flex-col border-l border-line bg-surface shadow-tall max-lg:z-50 max-lg:w-[min(420px,100vw)]">
+          Fixed rather than sticky: sticky needs every ancestor between it
+          and the scroll container to leave overflow alone, and the admin
+          shell does not. Fixed does not care what the ancestors do. */}
+      <aside className="fixed bottom-0 right-0 top-[60px] z-40 flex w-[420px] flex-col border-l border-line bg-surface shadow-tall max-lg:z-50 max-lg:w-[min(420px,100vw)]">
       {/* ── Header ── */}
       <div className="flex shrink-0 items-center gap-2.5 border-b border-line px-4 py-3">
         <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-mint-light text-mint-deep">
@@ -315,5 +325,6 @@ export default function MealStudio({ open, onClose, onApply, formHasContent }) {
         </div>
       </form>
     </aside>
+    </>
   );
 }
