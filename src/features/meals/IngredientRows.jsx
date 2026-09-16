@@ -1,5 +1,7 @@
-import { Field, Input, Select, cx } from '../../components/ui.jsx';
+import { useState } from 'react';
+import { Field, Input, Select } from '../../components/ui.jsx';
 import { RowButtons, UNITS } from './formParts.jsx';
+import NutritionDbSearch, { SourceTag } from '../nutrition/NutritionDbSearch.jsx';
 
 const BLANK = { name: '', description: '', quantity: '', unit: '' };
 
@@ -8,11 +10,29 @@ const BLANK = { name: '', description: '', quantity: '', unit: '' };
  *
  * Keeping the prep note in its own field is what stops "1 medium-sized
  * onion, sliced" being torn into two ingredients further down the line.
+ *
+ * A row can also be linked to a platform nutrition record (nutritionId,
+ * nutritionName, nutritionSource), which is what the meal nutrition
+ * calculator totals up.
  */
 export default function IngredientRows({ items, onChange }) {
+  /* Index of the row whose nutrition search is open. Closed whenever rows
+     are added or removed, since indexes shift. */
+  const [linking, setLinking] = useState(null);
   const setAt = (i, patch) => onChange(items.map((x, n) => (n === i ? { ...x, ...patch } : x)));
-  const addAt = (i) => onChange([...items.slice(0, i + 1), { ...BLANK }, ...items.slice(i + 1)]);
-  const removeAt = (i) => onChange(items.filter((_, n) => n !== i));
+  const addAt = (i) => {
+    setLinking(null);
+    onChange([...items.slice(0, i + 1), { ...BLANK }, ...items.slice(i + 1)]);
+  };
+  const removeAt = (i) => {
+    setLinking(null);
+    onChange(items.filter((_, n) => n !== i));
+  };
+  const link = (i, rec) => {
+    setAt(i, { nutritionId: String(rec._id), nutritionName: rec.name, nutritionSource: rec.source });
+    setLinking(null);
+  };
+  const unlink = (i) => setAt(i, { nutritionId: undefined, nutritionName: undefined, nutritionSource: undefined });
 
   if (!items.length) {
     return (
@@ -47,7 +67,31 @@ export default function IngredientRows({ items, onChange }) {
               </Select>
             </Field>
           </div>
-          <div className="mt-1.5">
+          {linking === i && (
+            <NutritionDbSearch
+              initialQuery={row.name}
+              pickLabel="Link"
+              onPick={(rec) => link(i, rec)}
+              onClose={() => setLinking(null)}
+            />
+          )}
+          <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
+            {row.nutritionId ? (
+              <span className="flex min-w-0 flex-wrap items-center gap-1.5 text-[11.5px] text-ink-2">
+                <span className="text-ink-3">Nutrition:</span>
+                <span className="font-medium">{row.nutritionName || row.nutritionId}</span>
+                {row.nutritionSource && <SourceTag source={row.nutritionSource} />}
+                <button type="button" onClick={() => setLinking(i)}
+                  className="cursor-pointer text-ink-3 underline-offset-2 hover:text-forest hover:underline">change</button>
+                <button type="button" onClick={() => unlink(i)}
+                  className="cursor-pointer text-ink-3 underline-offset-2 hover:text-chili hover:underline">unlink</button>
+              </span>
+            ) : linking !== i ? (
+              <button type="button" onClick={() => setLinking(i)}
+                className="cursor-pointer text-[11.5px] font-medium text-ocean-deep underline-offset-2 hover:underline">
+                + Link nutrition data
+              </button>
+            ) : <span />}
             <RowButtons onDelete={() => removeAt(i)} onAdd={() => addAt(i)}
               disableDelete={items.length === 1} />
           </div>

@@ -3,9 +3,11 @@ import Modal, { ModalActions } from '../../components/Modal.jsx';
 import { Field, Input, Select, ModalButton, cx } from '../../components/ui.jsx';
 import { IconCheck, IconInfo, IconImage } from '../../components/icons.jsx';
 import WafctSuggestion from './WafctSuggestion.jsx';
+import NutritionDbSearch from '../nutrition/NutritionDbSearch.jsx';
 import { PRODUCT_GROUPS, PRODUCT_CATEGORIES, suggestTaxonomy } from '../../lib/wafctMatch.js';
 import { useSettings } from '../../state/SettingsProvider.jsx';
 import { WAFCT_SOURCE, MACRO_KEYS } from '../../lib/ingredients.js';
+import { nutritionSourceLabel, nutritionToMacros } from '../../lib/api.js';
 
 const MACRO_FIELDS = [
   ['calories', 'Calories', 'kcal'],
@@ -31,10 +33,11 @@ export default function IngredientFormModal({ open, onClose, onSubmit, editing }
   /* Not collected any more — carried so an edit cannot wipe a value
      that arrived from a CSV. */
   const [productUrl, setProductUrl] = useState('');
+  const [dbSearchOpen, setDbSearchOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setApplied(''); setError('');
+    setApplied(''); setError(''); setDbSearchOpen(false);
     if (editing) {
       setForm({
         name: editing.name,
@@ -109,6 +112,23 @@ export default function IngredientFormModal({ open, onClose, onSubmit, editing }
     );
   };
 
+  /* A pick from the platform nutrition database. Same rule as WAFCT:
+     a nutrient the source did not publish stays blank, never 0. */
+  const applyNutritionRecord = (rec) => {
+    const macros = nutritionToMacros(rec);
+    setForm((f) => ({
+      ...f,
+      ...Object.fromEntries(MACRO_KEYS.map((k) => [k, macros[k] ?? ''])),
+    }));
+    const label = nutritionSourceLabel(rec);
+    setSource({ source: label, source_code: rec.external_id || null });
+    const estimated = rec.estimated_nutrients?.length
+      ? ` ${rec.estimated_nutrients.join(', ')} ${rec.estimated_nutrients.length === 1 ? 'is' : 'are'} estimated by the source.`
+      : '';
+    setApplied(`Filled from ${rec.name} · ${label} (${rec.external_id}).${estimated} Every value is still editable.`);
+    setDbSearchOpen(false);
+  };
+
   const submit = () => {
     if (!form.name.trim()) return setError('Name is required');
     if (!form.product_group) return setError('Product Group is required');
@@ -153,6 +173,18 @@ export default function IngredientFormModal({ open, onClose, onSubmit, editing }
             />
           </Field>
           <WafctSuggestion name={form.name} onApplyWafct={applyWafct} onApplyEstimate={applyEstimate} />
+          {dbSearchOpen ? (
+            <NutritionDbSearch
+              initialQuery={form.name}
+              onPick={applyNutritionRecord}
+              onClose={() => setDbSearchOpen(false)}
+            />
+          ) : (
+            <button type="button" onClick={() => setDbSearchOpen(true)}
+              className="mt-2 cursor-pointer text-xs font-medium text-ocean-deep underline-offset-2 hover:underline">
+              Search the platform nutrition database (WAFCT + USDA)
+            </button>
+          )}
         </div>
 
         <Field label="Description" className="col-span-2 max-md:col-span-1">

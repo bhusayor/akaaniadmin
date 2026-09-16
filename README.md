@@ -20,6 +20,7 @@ npm run dev          # http://localhost:5173
 | `npm run preview` | Serve the built bundle |
 | `npm test` | Vitest — 109 tests |
 | `npm run estimate-server` | The AI nutrition proxy (see below) |
+| `npm run staging:login` | Prompt for email/password and print a platform-api token |
 
 ### Using VS Code Live Server
 
@@ -44,6 +45,43 @@ survives an edit. Live Server does a full page reload.
 
 If the root ever does get opened directly, the page now explains this instead of
 showing nothing.
+
+---
+
+## Platform API
+
+The admin signs in against **platform-api** and uses it in four places. Everything
+else still runs on local fixtures.
+
+| Where | Endpoint |
+|-------|----------|
+| Login screen (`#/login`); every admin route requires it | `POST /v1/auth/login` (the user login) |
+| Ingredients → **Platform** tab: list, search, page, create, edit, delete | `GET/POST /v1/ingredients`, `PATCH/DELETE /v1/ingredients/:id`, plus `/v1/units`, `/v1/product_groups`, `/v1/product_categories` for the dropdowns |
+| Ingredients → **Nutrition library** → ingredient form → *Search the platform nutrition database* | `GET /v1/nutrition/ingredients` |
+| Meal editor → Ingredients list → *Link nutrition data*, then Macronutrients → *Calculate* | `POST /v1/nutrition/calculate` |
+
+Setup: put `STAGING_API_URL=https://akaani-api-staging.herokuapp.com` in
+`.env.local` and restart `npm run dev`. In development the browser calls
+`/staging-api/*` and the Vite dev server forwards it, so CORS never applies. A
+production build calls `VITE_API_URL` (or `STAGING_API_URL`) directly, so that
+backend must allow the deployed origin.
+
+Things the backend decides, not this app:
+
+- **Creating, editing and deleting platform ingredients needs a staff or admin
+  account.** A plain user gets a 401 that says only "Authorization is
+  required"; the form translates it into a permission message and keeps you
+  signed in. Only "Failed to verify request token" (expired or invalid) signs
+  you out.
+- **Platform ingredients hold no nutrition.** Macros live in the Nutrition
+  library tab, which stays local until the backend has somewhere to store them.
+- **The calculator converts g, kg, oz and lb only.** Rows in cups, tbsp etc.
+  are listed as left out rather than silently dropped, and a nutrient no
+  ingredient has data for stays blank instead of becoming 0.
+- The session token lives in `sessionStorage` and is gone when the tab closes.
+
+`src/lib/api.js` is the only file that talks to the backend. `#/api-test` is
+a raw request/response screen for trying other endpoints.
 
 ---
 

@@ -11,6 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "estimate-server": "node server/estimate-server.js",
+    "staging:token": "node server/staging-token.js",
+    "staging:login": "node server/staging-token.js --prompt",
     "build:watch": "vite build --watch"
   },
   "dependencies": {

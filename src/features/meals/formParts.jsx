@@ -5,7 +5,8 @@ import { Input, cx } from '../../components/ui.jsx';
    EDIT-FORM BUILDING BLOCKS
    ═══════════════════════════════════════════════════════ */
 
-export const UNITS = ['g', 'kg', 'ml', 'l', 'cup', 'cups', 'tbsp', 'tsp',
+/* oz and lb sit with g and kg: the four units the nutrition calculator can convert. */
+export const UNITS = ['g', 'kg', 'oz', 'lb', 'ml', 'l', 'cup', 'cups', 'tbsp', 'tsp',
   'piece', 'pieces', 'clove', 'cloves', 'pinch', 'bunch', 'handful', 'pack', 'tin'];
 
 export const CATEGORIES = ['Soup', 'Stew', 'Rice Dish', 'Swallow', 'Grill',

@@ -27,6 +27,11 @@ it('blank and junk become null, never 0', () => {
   assert.strictEqual(toNum('12.5'), 12.5);
 });
 
+it('normalizeIngredient never reuses an id already given to a seeded row', () => {
+  normalizeIngredient({ name: 'Seeded' }, 5000);
+  assert.ok(normalizeIngredient({ name: 'New' }).id > 5000);
+});
+
 it('normalizeIngredient keeps missing macros null', () => {
   const r = normalizeIngredient({ name: 'Test Thing' });
   MACRO_KEYS.forEach((k) => assert.strictEqual(r[k], null, `${k} should be null, got ${r[k]}`));
