@@ -10,6 +10,7 @@ import { PRODUCT_GROUPS } from '../lib/taxonomy.js';
 import { Section, ChipSelect, StringRows, CATEGORIES } from '../features/meals/formParts.jsx';
 import IngredientRows from '../features/meals/IngredientRows.jsx';
 import CookingSteps from '../features/meals/CookingSteps.jsx';
+import MealNutritionCalc from '../features/meals/MealNutritionCalc.jsx';
 
 const TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
 const COUNTRIES = ['Nigeria', 'Ghana', 'Kenya', 'South Africa'];
@@ -335,6 +336,14 @@ export default function MealEdit() {
 
           {/* ── MACROS ── */}
           <Section title="Macronutrients" defaultOpen>
+            <MealNutritionCalc
+              rows={form.ingredients}
+              servings={form.servings}
+              onApply={(patch) => {
+                setForm((f) => ({ ...f, ...patch }));
+                toast('Nutrition applied from ingredients');
+              }}
+            />
             <div className="grid grid-cols-4 gap-4 max-md:grid-cols-2">
               <Field label="Fat" required hint="g">
                 <Input type="number" step="any" min="0" value={form.fat} onChange={(e) => set('fat', e.target.value)} />

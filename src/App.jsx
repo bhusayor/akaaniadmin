@@ -11,8 +11,10 @@ import { IngredientsProvider } from "./state/IngredientsProvider.jsx";
 import { MealTagsProvider } from "./state/MealTagsProvider.jsx";
 import { LuFactsProvider } from "./state/LuFactsProvider.jsx";
 import { SettingsProvider } from "./state/SettingsProvider.jsx";
+import { AuthProvider, RequireAuth } from "./state/AuthProvider.jsx";
 import { Spinner } from "./components/ui.jsx";
 import Splash from "./pages/Splash.jsx";
+import Login from "./pages/Login.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Customers from "./pages/Customers.jsx";
 import Finances from "./pages/Finances.jsx";
@@ -28,6 +30,9 @@ import MealTags from "./pages/MealTags.jsx";
 import LuFacts from "./pages/LuFacts.jsx";
 import BlogEditor from "./pages/BlogEditor.jsx";
 import Settings from "./pages/Settings.jsx";
+/* Temporary — the one screen that hits the real backend. Delete this
+   import and its route together with src/pages/ApiTest.jsx. */
+import ApiTest from "./pages/ApiTest.jsx";
 
 /* Split out on its own: this route pulls in the 960-food WAFCT dataset,
    which is most of the bundle and is useless to every other page. */
@@ -44,6 +49,7 @@ const PageLoading = () => (
    dashboard has always been used. */
 export default function App() {
   return (
+    <AuthProvider>
     <SettingsProvider>
       <ToastProvider>
       <MealsProvider>
@@ -57,7 +63,15 @@ export default function App() {
         <HashRouter>
           <Routes>
             <Route path="/" element={<Splash />} />
-            <Route element={<Layout />}>
+            <Route path="/login" element={<Login />} />
+            {/* Every admin screen needs a platform-api session. */}
+            <Route
+              element={
+                <RequireAuth>
+                  <Layout />
+                </RequireAuth>
+              }
+            >
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/customers" element={<Customers />} />
               {/* `edit` first — otherwise it matches :id */}
@@ -87,6 +101,9 @@ export default function App() {
               />
               <Route path="/settings" element={<Settings />} />
             </Route>
+            {/* Outside Layout on purpose: a throwaway test screen should not
+                depend on the topbar or any provider. Reach it at #/api-test. */}
+            <Route path="/api-test" element={<ApiTest />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </HashRouter>
@@ -100,5 +117,6 @@ export default function App() {
       </MealsProvider>
       </ToastProvider>
     </SettingsProvider>
+    </AuthProvider>
   );
 }

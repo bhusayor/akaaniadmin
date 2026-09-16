@@ -34,6 +34,8 @@ let nextId = 100;
  * Missing macros stay null — never coerced to 0.
  */
 export function normalizeIngredient(data, id) {
+  // Seeded rows arrive with their own ids (100+); never hand one out again.
+  if (typeof id === 'number' && id >= nextId) nextId = id + 1;
   return {
     id: id ?? nextId++,
     name: String(data.name || '').trim(),

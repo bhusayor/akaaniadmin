@@ -1,10 +1,11 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
   IconGrid, IconUsers, IconMenu, IconLeaf, IconList,
   IconTag, IconFile, IconGear, IconLogout, IconPin, IconChart, IconWallet,
 } from './icons.jsx';
 import { cx } from './ui.jsx';
 import { PLATFORM_TOTAL, formatCount } from '../lib/platform.js';
+import { useAuth, initialsOf, displayName } from '../state/AuthProvider.jsx';
 
 const SECTIONS = [
   {
@@ -44,6 +45,14 @@ const ACTIVE =
   'before:-translate-y-1/2 before:rounded-r-sm before:bg-accent';
 
 export default function Sidebar({ open, onClose }) {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const signOut = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
+
   return (
     <>
       {open && <div className="fixed inset-0 z-49 bg-black/50 md:hidden" onClick={onClose} />}
@@ -108,15 +117,23 @@ export default function Sidebar({ open, onClose }) {
         </div>
 
         <div className="mt-auto shrink-0 border-t border-white/7 px-3 py-3.5">
-          <div className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 transition hover:bg-white/6">
+          <div className="flex items-center gap-2.5 rounded-lg px-2.5 py-2">
             <div className="grid size-7.5 shrink-0 place-items-center rounded-full bg-accent text-xs font-semibold text-forest">
-              PO
+              {initialsOf(user)}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-[12.5px] font-medium text-white">Peter Omidiji</div>
-              <div className="text-[11px] text-white/35">Admin</div>
+              <div className="truncate text-[12.5px] font-medium text-white">{displayName(user)}</div>
+              {user?.email && displayName(user) !== user.email && (
+                <div className="truncate text-[11px] text-white/35">{user.email}</div>
+              )}
             </div>
-            <button className="grid size-6.5 shrink-0 cursor-pointer place-items-center rounded-md bg-white/6 text-white/35 transition hover:bg-white/12 hover:text-white/70">
+            <button
+              type="button"
+              onClick={signOut}
+              title="Log out"
+              aria-label="Log out"
+              className="grid size-6.5 shrink-0 cursor-pointer place-items-center rounded-md bg-white/6 text-white/35 transition hover:bg-white/12 hover:text-white/70"
+            >
               <IconLogout />
             </button>
           </div>
