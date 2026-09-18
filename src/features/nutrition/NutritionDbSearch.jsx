@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Badge, Input, Select, Spinner, cx } from '../../components/ui.jsx';
 import { IconSearch } from '../../components/icons.jsx';
-import { fmtMacro } from '../../lib/ingredients.js';
 import { isExpiredSession, nutritionToMacros, searchNutrition } from '../../lib/api.js';
+import { macroValue } from '../../lib/mealNutrition.js';
 
 const DEBOUNCE_MS = 400;
-const LIMIT = 8;
+/* Results are sorted by name, so a small page can be entirely one source.
+   The list scrolls, so a longer page costs nothing on screen. */
+const LIMIT = 25;
 
 export function SourceTag({ source }) {
   return source === 'wafct'
@@ -14,9 +16,9 @@ export function SourceTag({ source }) {
 }
 
 export function MacroLine({ macros, className }) {
-  const v = (x, suffix) => (x === null || x === undefined
+  const v = (x, suffix) => (macroValue(x) === null
     ? <span className="italic text-ink-3">—</span>
-    : <b className="font-semibold text-ink">{fmtMacro(x)}{suffix}</b>);
+    : <b className="font-semibold text-ink">{macroValue(x)}{suffix}</b>);
   return (
     <div className={cx('flex flex-wrap gap-x-3 gap-y-0.5 text-[11.5px] tabular-nums text-ink-2', className)}>
       <span>{v(macros.calories, ' kcal')}</span>
@@ -68,6 +70,15 @@ export default function NutritionDbSearch({ initialQuery = '', onPick, onClose, 
 
   const { status, docs, more, error } = state;
 
+  /* Which sources this page actually holds. Spelled out because the backend
+     sorts by name: a page can be all USDA simply because of the alphabet,
+     which is easy to mistake for "WAFCT has nothing for this". */
+  const counts = docs.reduce((acc, d) => ({ ...acc, [d.source]: (acc[d.source] || 0) + 1 }), {});
+  const present = Object.keys(counts);
+  const summary = docs.length
+    ? `${docs.length} result${docs.length === 1 ? '' : 's'} · ${present.map((k) => `${counts[k]} ${k.toUpperCase()}`).join(' · ')}`
+    : '';
+
   return (
     <div className="mt-2 animate-fade-up rounded-xl border border-ocean/40 bg-ocean-light/40 p-3">
       <div className="mb-2 flex items-center justify-between gap-2">
@@ -99,7 +110,20 @@ export default function NutritionDbSearch({ initialQuery = '', onPick, onClose, 
         </Select>
       </div>
 
-      <div className="mt-2 flex flex-col">
+      {summary && (
+        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-ink-3">
+          <span className="tabular-nums">{summary}</span>
+          {present.length === 1 && !source && (
+            <span className="text-amber-deep">
+              — every result on this page is {present[0].toUpperCase()} data
+              {more ? '; there may be more on the next page' : ''}
+            </span>
+          )}
+          {source && <span className="text-amber-deep">— filtered to {source.toUpperCase()} only</span>}
+        </div>
+      )}
+
+      <div className="scroll-thin mt-2 flex max-h-[19rem] flex-col overflow-y-auto">
         {status === 'idle' && (
           <div className="py-2 text-[11.5px] text-ink-3">Type at least two letters.</div>
         )}

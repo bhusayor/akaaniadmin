@@ -434,7 +434,7 @@ export default function Settings() {
           {tab === 'ai' && (
             <>
               <SectionHead title="AI & Integrations"
-                description="Nutrition estimates and blog drafting both run through the local proxy, which holds the API key so the browser never does." />
+                description="Blog drafting runs through the local proxy, which holds the API key so the browser never does. Meal Studio does not use this: it runs on the platform API." />
               <SettingsCard title="Provider" description="Where generated content comes from">
                 <FormRow cols={1}>
                   <Field label="Provider">
@@ -479,8 +479,7 @@ export default function Settings() {
                   <div className="mb-4 flex items-start gap-2.5 rounded-xl bg-surface-2 px-4 py-3 text-[12.5px] leading-relaxed text-ink-2">
                     <span className="mt-0.5 shrink-0 text-ink-3"><IconInfo /></span>
                     Mock mode returns deterministic placeholder content. Nothing is sent anywhere and no
-                    key is needed. Estimates are stamped <strong className="font-medium">AI estimate (mock)</strong>
-                    {' '}so they can never be mistaken for measured data.
+                    key is needed. Drafts are stamped as AI-generated and never publish themselves.
                   </div>
                 )}
 
@@ -493,9 +492,6 @@ export default function Settings() {
               </SettingsCard>
 
               <SettingsCard title="Features" description="Which parts of the app may call a model">
-                <ToggleRow label="Nutrition estimates"
-                  sub="Offer an AI estimate when no WAFCT match scores 70 or above"
-                  checked={ai.nutritionEnabled} onChange={(v) => set('ai', { nutritionEnabled: v })} />
                 <ToggleRow label="Blog drafting"
                   sub="Allow posts to be drafted from a description. Drafts never publish themselves."
                   checked={ai.blogEnabled} onChange={(v) => set('ai', { blogEnabled: v })} />

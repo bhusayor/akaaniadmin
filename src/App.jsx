@@ -7,7 +7,6 @@ import { BlogsProvider } from "./state/BlogsProvider.jsx";
 import { RecipeGroupsProvider } from "./state/RecipeGroupsProvider.jsx";
 import { FinanceProvider } from "./state/FinanceProvider.jsx";
 import { CustomersProvider } from "./state/CustomersProvider.jsx";
-import { IngredientsProvider } from "./state/IngredientsProvider.jsx";
 import { MealTagsProvider } from "./state/MealTagsProvider.jsx";
 import { LuFactsProvider } from "./state/LuFactsProvider.jsx";
 import { SettingsProvider } from "./state/SettingsProvider.jsx";
@@ -34,8 +33,8 @@ import Settings from "./pages/Settings.jsx";
    import and its route together with src/pages/ApiTest.jsx. */
 import ApiTest from "./pages/ApiTest.jsx";
 
-/* Split out on its own: this route pulls in the 960-food WAFCT dataset,
-   which is most of the bundle and is useless to every other page. */
+/* Split out on its own: two API-backed tables and their filters, which no
+   other route needs on first paint. */
 const Ingredients = lazy(() => import("./pages/Ingredients.jsx"));
 
 const PageLoading = () => (
@@ -57,7 +56,6 @@ export default function App() {
           <RecipeGroupsProvider>
             <FinanceProvider>
             <CustomersProvider>
-            <IngredientsProvider>
             <MealTagsProvider>
               <LuFactsProvider>
         <HashRouter>
@@ -109,7 +107,6 @@ export default function App() {
         </HashRouter>
       </LuFactsProvider>
             </MealTagsProvider>
-            </IngredientsProvider>
             </CustomersProvider>
             </FinanceProvider>
           </RecipeGroupsProvider>

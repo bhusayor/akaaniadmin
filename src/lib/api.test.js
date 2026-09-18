@@ -6,10 +6,9 @@ import { it, assert, beforeEach } from 'vitest';
 import {
   request, login, ApiError, buildQuery, isExpiredSession, isForbidden,
   getSession, setSession, clearSession, onSessionChange,
-  nutritionToMacros, nutritionSourceLabel, ingredientFromApi, ingredientToApi,
-  buildCalculateLines, USDA_SOURCE, escapeRegex, listIngredients,
+  nutritionToMacros, ingredientFromApi, ingredientToApi,
+  escapeRegex, listIngredients, COLD_START_RETRIES,
 } from './api.js';
-import { WAFCT_SOURCE } from './ingredients.js';
 
 /** A fetch stand-in that records the call and answers with `status` + `json`. */
 function fakeFetch(status, json, calls = []) {
@@ -21,6 +20,21 @@ function fakeFetch(status, json, calls = []) {
   impl.calls = calls;
   return impl;
 }
+
+/** Answers with each queued response in turn, so a retry can be observed. */
+function scriptedFetch(steps) {
+  const calls = [];
+  const impl = async (url, init) => {
+    calls.push({ url, init });
+    const [status, json] = steps[Math.min(calls.length - 1, steps.length - 1)];
+    const text = typeof json === 'string' ? json : JSON.stringify(json);
+    return { ok: status >= 200 && status < 300, status, statusText: 'X', text: async () => text };
+  };
+  impl.calls = calls;
+  return impl;
+}
+
+const noSleep = async () => {};
 
 const ok = (data) => ({ success: true, status_code: 200, message: 'ok', data, links: [] });
 const fail = (status, message, name = 'Err') => ({ success: false, status_code: status, message, name, data: {} });
@@ -116,6 +130,63 @@ it('session changes notify subscribers until unsubscribed', () => {
   assert.deepStrictEqual(seen, ['t1']);
 });
 
+// ─── cold starts ───
+
+it('a 503 from a sleeping dyno is retried, not shown as an error', async () => {
+  // Heroku answers from the router while the app boots, then serves the retry.
+  const f = scriptedFetch([[503, '<html>Application is starting</html>'], [200, ok({ a: 1 })]]);
+  const seen = [];
+  const data = await request('/v1/x', { fetchImpl: f, sleepImpl: noSleep, onRetry: (n, s) => seen.push([n, s]) });
+  assert.deepStrictEqual(data, { a: 1 });
+  assert.strictEqual(f.calls.length, 2);
+  assert.deepStrictEqual(seen, [[1, 503]]);
+});
+
+it('a network failure on a read is retried too', async () => {
+  let calls = 0;
+  const f = async () => {
+    calls += 1;
+    if (calls === 1) throw new TypeError('Failed to fetch');
+    return { ok: true, status: 200, statusText: 'OK', text: async () => JSON.stringify(ok({ b: 2 })) };
+  };
+  assert.deepStrictEqual(await request('/v1/x', { fetchImpl: f, sleepImpl: noSleep }), { b: 2 });
+  assert.strictEqual(calls, 2);
+});
+
+it('a dyno that never wakes still surfaces the error, after a bounded number of tries', async () => {
+  const f = scriptedFetch([[503, '<html>no</html>']]);
+  const err = await request('/v1/x', { fetchImpl: f, sleepImpl: noSleep }).catch((e) => e);
+  assert.strictEqual(err.status, 503);
+  assert.strictEqual(f.calls.length, COLD_START_RETRIES + 1);
+});
+
+it('a write is never replayed — it may already have reached the app', async () => {
+  const f = scriptedFetch([[503, '<html>starting</html>'], [200, ok({})]]);
+  const err = await request('/v1/ingredients', { method: 'POST', body: {}, fetchImpl: f, sleepImpl: noSleep }).catch((e) => e);
+  assert.strictEqual(err.status, 503);
+  assert.strictEqual(f.calls.length, 1, 'a POST must be sent exactly once');
+});
+
+it('login is retried through a cold start — it is the first request of a session', async () => {
+  const f = scriptedFetch([[503, '<html>starting</html>'], [200, ok({ token: 't', user: {} })]]);
+  const res = await login({ email: 'a@b.co', password: 'pw' }, { fetchImpl: f, sleepImpl: noSleep });
+  assert.strictEqual(res.token, 't');
+  assert.strictEqual(f.calls.length, 2);
+});
+
+it('a wrong password is not retried', async () => {
+  const f = scriptedFetch([[401, fail(401, 'Invalid email/password', 'UnauthorizedError')]]);
+  await login({ email: 'a@b.co', password: 'pw' }, { fetchImpl: f, sleepImpl: noSleep }).catch(() => {});
+  assert.strictEqual(f.calls.length, 1);
+});
+
+it('a real error status is not mistaken for a cold start', async () => {
+  const f = scriptedFetch([[404, fail(404, 'Not found', 'ResourceNotFoundError')], [200, ok({})]]);
+  const err = await request('/v1/x', { fetchImpl: f, sleepImpl: noSleep }).catch((e) => e);
+  assert.strictEqual(err.status, 404);
+  assert.strictEqual(f.calls.length, 1);
+});
+
 // ─── login ───
 
 it('login posts the user login without any stored token', async () => {
@@ -156,11 +227,6 @@ it('nutrition values map to macro keys and nulls stay null', () => {
   assert.deepStrictEqual(m, { calories: 229, protein_g: 7.35, carbs_g: 0, fat_g: null, fibre_g: null });
 });
 
-it('source labels keep the WAFCT badge working', () => {
-  assert.strictEqual(nutritionSourceLabel({ source: 'wafct' }), WAFCT_SOURCE);
-  assert.strictEqual(nutritionSourceLabel({ source: 'usda' }), USDA_SOURCE);
-});
-
 it('backend ingredients map with populated or bare references', () => {
   const row = ingredientFromApi({
     _id: 'i1', name: 'Mango', unit: { _id: 'u1', name: 'Bags' }, product_group: 'g1', created_at: 'T',
@@ -176,25 +242,4 @@ it('blank optional fields are left out of the request body', () => {
     name: ' Mango ', description: '', unit: 'u1', product_group: 'g1', product_category: 'c1', image: '  ', product_url: undefined,
   });
   assert.deepStrictEqual(body, { name: 'Mango', unit: 'u1', product_group: 'g1', product_category: 'c1' });
-});
-
-// ─── meal nutrition lines ───
-
-it('only linked rows with a convertible quantity are sent', () => {
-  const { lines, skipped } = buildCalculateLines([
-    { name: 'rice', nutritionId: 'n1', quantity: '300', unit: 'g' },
-    { name: 'palm oil', nutritionId: 'n2', quantity: '2', unit: 'tbsp' },
-    { name: 'onion', quantity: '1', unit: '' },
-    { name: 'beans', nutritionId: 'n3', quantity: 'some', unit: 'kg' },
-    { name: 'fish', nutritionId: 'n4', quantity: '0.5', unit: 'LB' },
-    { name: '', quantity: '', unit: '' },
-  ]);
-  assert.deepStrictEqual(lines, [
-    { ingredientId: 'n1', quantity: 300, unit: 'g' },
-    { ingredientId: 'n4', quantity: 0.5, unit: 'lb' },
-  ]);
-  assert.deepStrictEqual(skipped.map((s) => s.name), ['palm oil', 'onion', 'beans']);
-  assert.match(skipped[0].reason, /can't be converted/);
-  assert.match(skipped[1].reason, /not linked/);
-  assert.match(skipped[2].reason, /numeric quantity/);
 });

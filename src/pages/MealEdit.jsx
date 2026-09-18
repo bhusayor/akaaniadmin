@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import useTopbar from '../hooks/useTopbar.js';
 import { Button, Card, EmptyState, Field, Input, Select, cx } from '../components/ui.jsx';
-import { IconTrash, IconImage } from '../components/icons.jsx';
+import { IconTrash } from '../components/icons.jsx';
+import ImagePicker from '../components/ImagePicker.jsx';
 import { useToast } from '../components/Toast.jsx';
 import { useMeals } from '../state/MealsProvider.jsx';
 import { ALL_TAGS, BLANK_MEAL } from '../data/meals.js';
@@ -10,7 +11,10 @@ import { PRODUCT_GROUPS } from '../lib/taxonomy.js';
 import { Section, ChipSelect, StringRows, CATEGORIES } from '../features/meals/formParts.jsx';
 import IngredientRows from '../features/meals/IngredientRows.jsx';
 import CookingSteps from '../features/meals/CookingSteps.jsx';
-import MealNutritionCalc from '../features/meals/MealNutritionCalc.jsx';
+import MealNutritionTotal from '../features/meals/MealNutritionTotal.jsx';
+import MealStudioPanel from '../features/meals/MealStudioPanel.jsx';
+import { FIELD_LABELS } from '../lib/mealStudio.js';
+import { totalsToMealFields } from '../lib/mealNutrition.js';
 
 const TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
 const COUNTRIES = ['Nigeria', 'Ghana', 'Kenya', 'South Africa'];
@@ -40,11 +44,11 @@ function toForm(m) {
     countries: [...(m.countries ?? [])],
     prep: m.prep ?? '',
     servings: m.servings ?? '',
-    cal: m.cal ?? '',
-    calPerServing: m.servings ? Math.round(m.cal / m.servings) : '',
     healthConditions: [...(m.healthConditions ?? [])],
     nutrients: (m.nutrients ?? []).map((n) => ({ ...n })),
-    fat: m.fat ?? '', carb: m.carb ?? '', prot: m.prot ?? '', fiber: m.fiber ?? '',
+    /* Not edited any more — carried so a meal saved before any ingredient
+       was linked keeps its figures instead of being blanked. */
+    cal: m.cal ?? '', fat: m.fat ?? '', carb: m.carb ?? '', prot: m.prot ?? '', fiber: m.fiber ?? '',
     productGroup: m.productGroup ?? '',
     ingredients: (m.ingredients ?? []).map((i) => ({ ...i })),
     foodItems: [...(m.foodItems ?? [])],
@@ -66,22 +70,15 @@ export default function MealEdit() {
   const source = isNew ? BLANK_MEAL : meal;
 
   const [form, setForm] = useState(() => (source ? toForm(source) : null));
+  /* The calculated nutrition for this meal, straight from
+     POST /v1/nutrition/calculate. Null while nothing is linked, in which
+     case the meal keeps whatever was saved on it rather than being
+     blanked by an empty calculation. */
+  const [totals, setTotals] = useState(null);
   const [errors, setErrors] = useState([]);
   const initial = useRef(form ? JSON.stringify(form) : '');
 
   useTopbar(isNew ? 'New Meal' : 'Edit Meal');
-
-  /* Total ÷ servings drives per-serving, so the two cannot drift apart. */
-  useEffect(() => {
-    if (!form) return;
-    const total = num(form.cal);
-    const servings = num(form.servings);
-    const derived = total !== null && servings ? String(Math.round(total / servings)) : '';
-    if (String(form.calPerServing) !== derived) {
-      setForm((f) => ({ ...f, calPerServing: derived }));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form?.cal, form?.servings]);
 
   const dirty = useMemo(
     () => (form ? JSON.stringify(form) !== initial.current : false),
@@ -105,13 +102,6 @@ export default function MealEdit() {
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  const pickImage = (file) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => set('image', e.target.result);
-    reader.readAsDataURL(file);
-  };
-
   const save = () => {
     const problems = [];
     if (!form.name.trim()) problems.push('Name is required');
@@ -120,9 +110,6 @@ export default function MealEdit() {
     if (!form.tags.length) problems.push('At least one Tag is required');
     if (!form.countries.length) problems.push('At least one Country is required');
     if (num(form.prep) === null) problems.push('Cook Time is required');
-    if (num(form.fat) === null) problems.push('Fat is required');
-    if (num(form.carb) === null) problems.push('Carbohydrate is required');
-    if (num(form.prot) === null) problems.push('Protein is required');
     setErrors(problems);
     if (problems.length) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -145,10 +132,15 @@ export default function MealEdit() {
       countries: form.countries,
       prep: num(form.prep),
       servings: num(form.servings),
-      cal: num(form.cal),
       healthConditions: form.healthConditions.filter(Boolean),
       nutrients: form.nutrients.filter((n) => n.name?.trim()),
-      fat: num(form.fat), carb: num(form.carb), prot: num(form.prot), fiber: num(form.fiber),
+      /* Calculated, never typed. A nutrient the sources did not publish is
+         saved as null — unavailable — rather than as a measured 0. With
+         nothing linked there is nothing to calculate, so the meal keeps the
+         figures it already had. */
+      ...(totals
+        ? totalsToMealFields(totals)
+        : { cal: num(form.cal), fat: num(form.fat), carb: num(form.carb), prot: num(form.prot), fiber: num(form.fiber) }),
       productGroup: form.productGroup,
       ingredients: form.ingredients.filter((i) => i.name?.trim()),
       foodItems: form.foodItems.filter(Boolean),
@@ -201,32 +193,25 @@ export default function MealEdit() {
         )}
 
         <Card className="px-6 py-2 max-md:px-4">
+          {/* ── MEAL STUDIO ──
+              Above the form on purpose: it drafts what the fields below hold,
+              and applies only when asked. */}
+          <Section title="Meal Studio" defaultOpen={isNew}>
+            <MealStudioPanel
+              form={form}
+              onApply={(patch, changed) => {
+                setForm((f) => ({ ...f, ...patch }));
+                toast(changed.length === 1
+                  ? `${FIELD_LABELS[changed[0]] || changed[0]} updated from the draft`
+                  : `${changed.length} fields updated from the draft`);
+              }}
+            />
+          </Section>
+
           {/* ── DETAILS ── */}
           <Section title="Details" defaultOpen>
             <div className="flex flex-col gap-4">
-              <div>
-                <span className="text-xs font-medium text-ink-2">Meal image</span>
-                <div className="relative mt-1.5 overflow-hidden rounded-xl border border-dashed border-line bg-surface-2">
-                  {form.image ? (
-                    <>
-                      <img src={form.image} alt="" className="h-64 w-full object-cover" />
-                      <button type="button" onClick={() => set('image', null)} title="Remove image"
-                        className="absolute bottom-3 right-3 grid size-9 cursor-pointer place-items-center rounded-full bg-chili text-white shadow-mid transition hover:opacity-85">
-                        <IconTrash size={14} />
-                      </button>
-                    </>
-                  ) : (
-                    <label className="grid h-40 cursor-pointer place-items-center text-[13px] text-ink-3 transition hover:text-forest">
-                      <span className="flex flex-col items-center gap-1.5">
-                        <IconImage size={22} />
-                        Choose an image
-                      </span>
-                      <input type="file" accept="image/*" className="hidden"
-                        onChange={(e) => pickImage(e.target.files?.[0])} />
-                    </label>
-                  )}
-                </div>
-              </div>
+              <ImagePicker label="Meal image" value={form.image} onChange={(v) => set('image', v)} />
 
               <Field label="Name" required>
                 <Input value={form.name} onChange={(e) => set('name', e.target.value)} />
@@ -276,20 +261,10 @@ export default function MealEdit() {
                 <Input type="number" min="0" value={form.prep} onChange={(e) => set('prep', e.target.value)} />
               </Field>
 
-              <div className="grid grid-cols-3 gap-4 max-md:grid-cols-1">
-                <Field label="No. of servings">
-                  <Input type="number" min="1" value={form.servings}
-                    onChange={(e) => set('servings', e.target.value)} />
-                </Field>
-                <Field label="Total calories" hint="kcal">
-                  <Input type="number" min="0" value={form.cal}
-                    onChange={(e) => set('cal', e.target.value)} />
-                </Field>
-                <Field label="Calories per serving" hint="calculated">
-                  <Input value={form.calPerServing} readOnly tabIndex={-1}
-                    className="cursor-not-allowed bg-surface-2 text-ink-2" />
-                </Field>
-              </div>
+              <Field label="No. of servings" hint="drives the per-serving figures in the total below">
+                <Input type="number" min="1" value={form.servings}
+                  onChange={(e) => set('servings', e.target.value)} />
+              </Field>
 
               <Field label="Portion per serving">
                 <Input value={form.portion} placeholder="e.g. 1 bowl"
@@ -334,33 +309,6 @@ export default function MealEdit() {
             </div>
           </Section>
 
-          {/* ── MACROS ── */}
-          <Section title="Macronutrients" defaultOpen>
-            <MealNutritionCalc
-              rows={form.ingredients}
-              servings={form.servings}
-              onApply={(patch) => {
-                setForm((f) => ({ ...f, ...patch }));
-                toast('Nutrition applied from ingredients');
-              }}
-            />
-            <div className="grid grid-cols-4 gap-4 max-md:grid-cols-2">
-              <Field label="Fat" required hint="g">
-                <Input type="number" step="any" min="0" value={form.fat} onChange={(e) => set('fat', e.target.value)} />
-              </Field>
-              <Field label="Carbohydrate" required hint="g">
-                <Input type="number" step="any" min="0" value={form.carb} onChange={(e) => set('carb', e.target.value)} />
-              </Field>
-              <Field label="Protein" required hint="g">
-                <Input type="number" step="any" min="0" value={form.prot} onChange={(e) => set('prot', e.target.value)} />
-              </Field>
-              <Field label="Fibre" hint="g">
-                <Input type="number" step="any" min="0" placeholder="—" value={form.fiber}
-                  onChange={(e) => set('fiber', e.target.value)} />
-              </Field>
-            </div>
-          </Section>
-
           {/* ── PRODUCT GROUP ── */}
           <Section title="Product group">
             <Field label="Product group">
@@ -386,6 +334,17 @@ export default function MealEdit() {
             />
           </Section>
         </Card>
+
+        {/* Above the save action, so nobody commits a meal without seeing
+            what its nutrition adds up to — and what was left out of it. */}
+        <div className="mt-4">
+          <MealNutritionTotal
+            rows={form.ingredients}
+            servings={form.servings}
+            onTotals={setTotals}
+            savedFallback={!isNew && num(form.cal) !== null}
+          />
+        </div>
 
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="ghost" onClick={cancel}>Cancel</Button>

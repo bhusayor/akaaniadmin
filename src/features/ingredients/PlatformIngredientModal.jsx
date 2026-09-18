@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Modal, { ModalActions } from '../../components/Modal.jsx';
 import { Field, Input, ModalButton, Select, Spinner } from '../../components/ui.jsx';
 import { IconInfo } from '../../components/icons.jsx';
+import ImagePicker from '../../components/ImagePicker.jsx';
 import usePlatformLookups from './usePlatformLookups.js';
 import {
   createIngredient, updateIngredient, ingredientFromApi, ingredientToApi, isForbidden,
@@ -115,11 +116,18 @@ export default function PlatformIngredientModal({ open, editing, onClose, onSave
             placeholder="Select a product category…" disabled={loading} onChange={(v) => set('product_category', v)} />
         </Field>
 
-        <Field label="Image URL">
-          <Input value={form.image} onChange={(e) => set('image', e.target.value)} placeholder="https://…/mango.jpg" />
-        </Field>
+        <div className="col-span-2 max-md:col-span-1">
+          <ImagePicker
+            label="Ingredient image"
+            hint="optional"
+            value={form.image}
+            onChange={(v) => set('image', v || '')}
+            emptyHeight="h-28"
+            previewHeight="h-44"
+          />
+        </div>
 
-        <Field label="Product URL">
+        <Field label="Product URL" className="col-span-2 max-md:col-span-1">
           <Input value={form.product_url} onChange={(e) => set('product_url', e.target.value)} placeholder="https://…" />
         </Field>
       </div>
@@ -127,7 +135,8 @@ export default function PlatformIngredientModal({ open, editing, onClose, onSave
       <div className="mt-3.5 flex items-start gap-1.5 text-[11.5px] leading-relaxed text-ink-3">
         <span className="mt-0.5 shrink-0"><IconInfo /></span>
         <span>
-          Platform ingredients carry no nutrition values. Per-100g macros live in the Nutrition library tab.
+          Platform ingredients carry no nutrition values — per-100g figures live in the Nutrition data tab.
+          A picked image is stored inline on the record, since the API has no upload route yet.
           {editing && ' Clearing an optional field here leaves its saved value unchanged.'}
         </span>
       </div>

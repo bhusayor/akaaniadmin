@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 /* ═══════════════════════════════════════════════════════
-   AKAANI ADMIN — AI PROXY
+   AKAANI ADMIN — BLOG DRAFTING PROXY
 
    Holds the OpenAI API key so the browser never does.
 
-     POST /estimate        ingredient name  -> five per-100g macros
      POST /generate-blog   a description    -> a markdown blog draft
      GET  /health          mode and model
+
+   Ingredient nutrition estimates used to live here too. They are gone: the
+   admin no longer calls a model from the browser for nutrition, and meal
+   drafting goes to platform-api's POST /v1/meal-studio/chat instead.
 
    Node built-ins only — no npm, no build step, matching the rest of the
    repo.
@@ -23,7 +26,6 @@
 
 import http from 'node:http';
 import https from 'node:https';
-import { mockEstimate, sanitizeMacros } from '../src/lib/nutritionEstimate.js';
 import { mockDraft } from '../src/lib/blogGenerate.js';
 
 const PORT    = Number(process.env.PORT || 8787);
@@ -35,47 +37,6 @@ const MOCK    = process.env.MOCK === '1' || !API_KEY;
    default is chosen for being cheap and widely available, not because
    it is necessarily the best fit. */
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-
-/* ══════════════════════════════════════
-   PROMPT
-
-   Deliberately narrow: one food, per 100g, five numbers, and an explicit
-   licence to answer null. A model pushed to always produce a number will
-   always produce one, including for things it has never heard of.
-══════════════════════════════════════ */
-
-const SYSTEM = [
-  'You are a food composition assistant for a West African meal-planning platform.',
-  'Given one ingredient name, return its nutrition per 100 grams of the edible portion.',
-  '',
-  'Rules:',
-  '- All values are per 100g, never per serving.',
-  '- calories are kcal; protein_g, carbs_g, fat_g and fibre_g are grams.',
-  '- If you are not reasonably confident about a value, return null for it.',
-  '  A null is far more useful here than a guess: nulls are shown as gaps,',
-  '  but numbers are stored and used to plan real meals.',
-  '- If the name is not a food at all, return null for every field.',
-  '- Prefer the raw/unprepared form unless the name states a preparation',
-  '  (boiled, fried, roasted, dried, smoked).'
-].join('\n');
-
-const SCHEMA = {
-  name: 'nutrition_per_100g',
-  strict: true,
-  schema: {
-    type: 'object',
-    additionalProperties: false,
-    required: ['calories', 'protein_g', 'carbs_g', 'fat_g', 'fibre_g', 'note'],
-    properties: {
-      calories:  { type: ['number', 'null'] },
-      protein_g: { type: ['number', 'null'] },
-      carbs_g:   { type: ['number', 'null'] },
-      fat_g:     { type: ['number', 'null'] },
-      fibre_g:   { type: ['number', 'null'] },
-      note:      { type: 'string', description: 'One short sentence on what was assumed.' }
-    }
-  }
-};
 
 /* ══════════════════════════════════════
    OPENAI CALL
@@ -189,10 +150,8 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  const isEstimate = req.method === 'POST' && req.url === '/estimate';
-  const isBlog = req.method === 'POST' && req.url === '/generate-blog';
-  if (!isEstimate && !isBlog) {
-    send(res, 404, { error: 'POST /estimate, POST /generate-blog, or GET /health' });
+  if (!(req.method === 'POST' && req.url === '/generate-blog')) {
+    send(res, 404, { error: 'POST /generate-blog, or GET /health' });
     return;
   }
 
@@ -207,57 +166,24 @@ const server = http.createServer((req, res) => {
     try { parsedBody = JSON.parse(body); }
     catch (e) { send(res, 400, { error: 'Body must be JSON' }); return; }
 
-    if (isBlog) {
-      const prompt = String(parsedBody.prompt || '').trim().slice(0, 2000);
-      if (prompt.length < 10) {
-        send(res, 400, { error: 'A "prompt" of at least 10 characters is required' });
-        return;
-      }
-      if (MOCK) {
-        send(res, 200, { draft: mockDraft(prompt), model: 'mock' });
-        return;
-      }
-      // Warmer than the nutrition call: this is prose, not measurement.
-      callOpenAI(BLOG_SYSTEM, prompt, BLOG_SCHEMA, 0.7, (err, draft) => {
-        if (err) { send(res, 502, { error: err.message }); return; }
-        send(res, 200, { draft, model: MODEL });
-      });
+    const prompt = String(parsedBody.prompt || '').trim().slice(0, 2000);
+    if (prompt.length < 10) {
+      send(res, 400, { error: 'A "prompt" of at least 10 characters is required' });
       return;
     }
-
-    let name = parsedBody.name;
-
-    if (!name || !String(name).trim()) {
-      send(res, 400, { error: 'A non-empty "name" is required' });
-      return;
-    }
-    name = String(name).trim().slice(0, 200);
-
     if (MOCK) {
-      send(res, 200, {
-        macros: mockEstimate(name),
-        model: 'mock',
-        note: 'Mock mode — no model was called. Set OPENAI_API_KEY and restart for real estimates.'
-      });
+      send(res, 200, { draft: mockDraft(prompt), model: 'mock' });
       return;
     }
-
-    callOpenAI(SYSTEM, 'Ingredient: ' + name, SCHEMA, 0, (err, parsed) => {
+    callOpenAI(BLOG_SYSTEM, prompt, BLOG_SCHEMA, 0.7, (err, draft) => {
       if (err) { send(res, 502, { error: err.message }); return; }
-      send(res, 200, {
-        // Sanitised again server-side; the page sanitises too. Model output
-        // is untrusted at every hop.
-        macros: sanitizeMacros(parsed),
-        model: MODEL,
-        note: parsed.note || ''
-      });
+      send(res, 200, { draft, model: MODEL });
     });
   });
 });
 
 server.listen(PORT, () => {
-  console.log('Akaani AI proxy');
-  console.log('  POST http://localhost:' + PORT + '/estimate');
+  console.log('Akaani blog drafting proxy');
   console.log('  POST http://localhost:' + PORT + '/generate-blog');
   if (MOCK) {
     console.log('  mode: MOCK — no OPENAI_API_KEY set, returning deterministic fake values.');
