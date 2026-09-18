@@ -137,7 +137,6 @@ export const DEFAULTS = {
     provider: 'mock',
     baseUrl: 'http://localhost:8787',
     model: 'gpt-4o-mini',
-    nutritionEnabled: true,
     blogEnabled: true,
   },
   content: { factLimit: 220, autoPublish: false },

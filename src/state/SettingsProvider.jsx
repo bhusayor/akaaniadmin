@@ -1,6 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { loadSettings, saveSettings, endpointFor, mergeSettings, UNITS_BY_SYSTEM } from '../lib/settings.js';
-import * as nutritionEstimate from '../lib/nutritionEstimate.js';
 import * as blogGenerate from '../lib/blogGenerate.js';
 
 const SettingsContext = createContext(null);
@@ -9,11 +8,10 @@ export function SettingsProvider({ children }) {
   const [settings, setSettings] = useState(loadSettings);
 
   /* The whole point of this provider: the AI section actually reconfigures
-     the libraries. Before this, provider and endpoint could only be changed
+     blog drafting. Before this, provider and endpoint could only be changed
      by editing source. */
   useEffect(() => {
     const { provider, baseUrl } = settings.ai;
-    nutritionEstimate.configure({ provider, endpoint: endpointFor(baseUrl, '/estimate') });
     blogGenerate.configure({ provider, endpoint: endpointFor(baseUrl, '/generate-blog') });
   }, [settings.ai]);
 

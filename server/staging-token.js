@@ -138,7 +138,8 @@ function ask(question, hidden = false) {
   });
 }
 
-async function main(env, forcePrompt) {
+/** Resolves a token: env credentials when set, otherwise a terminal prompt. */
+export async function resolveToken(env, forcePrompt) {
   const account = testAccountFrom(env);
   if (forcePrompt) {
     account.email = '';
@@ -151,7 +152,11 @@ async function main(env, forcePrompt) {
   }
   const { token } = await stagingLogin(account);
   process.stderr.write(`ok: ${token.slice(0, 20)}... (${LOGIN_PATH})\n`);
-  process.stdout.write(`${token}\n`);
+  return token;
+}
+
+async function main(env, forcePrompt) {
+  process.stdout.write(`${await resolveToken(env, forcePrompt)}\n`);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

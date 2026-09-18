@@ -2,16 +2,17 @@ import { useSearchParams } from 'react-router-dom';
 import useTopbar from '../hooks/useTopbar.js';
 import { cx } from '../components/ui.jsx';
 import PlatformCatalogue from '../features/ingredients/PlatformCatalogue.jsx';
-import LocalLibrary from '../features/ingredients/LocalLibrary.jsx';
+import NutritionLibrary from '../features/ingredients/NutritionLibrary.jsx';
 
-/* Two collections, deliberately kept apart:
-   - Platform: platform-api's Ingredient catalogue, the one meals and
-     partners use. It stores no nutrition values.
-   - Library: this admin's own list with per-100g macros, WAFCT/USDA
-     matching and CSV import — data the backend has nowhere to hold yet. */
+/* Two collections on the platform, deliberately kept apart:
+   - Platform: the Ingredient catalogue meals and partners use. It carries
+     no nutrition values.
+   - Nutrition: the published food composition data (WAFCT + USDA) behind
+     GET /v1/nutrition/ingredients, which is what meals are calculated
+     against. Read-only: the API has no write route for it. */
 const TABS = [
   { key: 'platform', label: 'Platform' },
-  { key: 'library', label: 'Nutrition library' },
+  { key: 'library', label: 'Nutrition data' },
 ];
 
 export default function Ingredients() {
@@ -39,5 +40,5 @@ export default function Ingredients() {
     </div>
   );
 
-  return tab === 'platform' ? <PlatformCatalogue tabs={tabs} /> : <LocalLibrary tabs={tabs} />;
+  return tab === 'platform' ? <PlatformCatalogue tabs={tabs} /> : <NutritionLibrary tabs={tabs} />;
 }

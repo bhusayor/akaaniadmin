@@ -1,9 +1,9 @@
 /* ═══════════════════════════════════════════════════════
    AI BLOG DRAFTING
 
-   Same shape as nutritionEstimate.js: a mock provider so the whole flow
-   works offline with no key, and an 'openai' provider that posts to the
-   local proxy which holds the credentials.
+   A mock provider so the whole flow works offline with no key, and an
+   'openai' provider that posts to the local proxy which holds the
+   credentials. The browser never calls OpenAI itself.
 
    What comes back is a *draft*. It lands in the editor as an unsaved
    draft with aiGenerated stamped on it — never straight to published.

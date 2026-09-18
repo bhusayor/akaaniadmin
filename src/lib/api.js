@@ -15,8 +15,6 @@
    server's own message.
    ═══════════════════════════════════════════════════════ */
 
-import { WAFCT_SOURCE } from './ingredients.js';
-
 export const API_BASE = typeof __API_BASE__ === 'undefined' ? '' : __API_BASE__;
 
 /* ══════════════════════════════════════
@@ -93,6 +91,17 @@ export const isExpiredSession = (err) =>
 export const isForbidden = (err) =>
   err instanceof ApiError && (err.status === 403 || (err.status === 401 && !isExpiredSession(err)));
 
+/* A sleeping Heroku dyno answers the first request with 503 from the router,
+   before the app is running, then serves the retry normally. That is a cold
+   start, not a failure, so a read is retried rather than shown as an error.
+   Only GET and HEAD: a write that may have reached the app must never be
+   replayed on a guess. */
+const COLD_START_STATUSES = [502, 503, 504];
+export const COLD_START_RETRIES = 2;
+const COLD_START_BACKOFF_MS = [800, 2000];
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 /** Skips undefined, null and '' so optional filters never reach the URL. */
 export function buildQuery(params = {}) {
   const qs = new URLSearchParams();
@@ -110,7 +119,36 @@ export async function request(path, {
   token = session?.token,
   signal,
   fetchImpl = globalThis.fetch,
+  /** Called as (attempt, status) while a cold start is being waited out. */
+  onRetry,
+  retries = COLD_START_RETRIES,
+  sleepImpl = sleep,
+  /* Opt-in for a write that is safe to repeat. Only login sets it: it
+     creates nothing, and a sleeping dyno answers the very first request of
+     a session — which is usually the login — from the router. */
+  retryWrites = false,
 } = {}) {
+  const idempotent = method === 'GET' || method === 'HEAD' || retryWrites;
+
+  for (let attempt = 0; ; attempt++) {
+    const result = await attemptRequest(path, { method, query, body, token, signal, fetchImpl });
+
+    const retriable = idempotent
+      && attempt < retries
+      && (result.status === 0 || COLD_START_STATUSES.includes(result.status));
+
+    if (!result.error || !retriable) {
+      if (result.error) throw result.error;
+      return result.data;
+    }
+
+    onRetry?.(attempt + 1, result.status);
+    await sleepImpl(COLD_START_BACKOFF_MS[attempt] ?? COLD_START_BACKOFF_MS[COLD_START_BACKOFF_MS.length - 1]);
+  }
+}
+
+/** One attempt: returns `{ data }` or `{ error, status }` rather than throwing. */
+async function attemptRequest(path, { method, query, body, token, signal, fetchImpl }) {
   const headers = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -125,9 +163,12 @@ export async function request(path, {
     });
   } catch (err) {
     if (err?.name === 'AbortError') throw err;
-    throw new ApiError('Could not reach the platform API. Check your connection and try again.', {
-      name: 'NetworkError',
-    });
+    return {
+      status: 0,
+      error: new ApiError('Could not reach the platform API. Check your connection and try again.', {
+        name: 'NetworkError',
+      }),
+    };
   }
 
   const text = await res.text();
@@ -141,9 +182,9 @@ export async function request(path, {
       || (json ? res.statusText : `Unexpected response from the platform API (HTTP ${res.status})`);
     const err = new ApiError(message, { status: res.status, name: json?.name || 'ApiError', data: json?.data ?? null });
     if (token && isExpiredSession(err)) clearSession();
-    throw err;
+    return { status: res.status, error: err };
   }
-  return json.data;
+  return { status: res.status, data: json.data };
 }
 
 /* ══════════════════════════════════════
@@ -153,7 +194,7 @@ export async function request(path, {
 /** POST /v1/auth/login → { token, user }. The user login, not the staff one. */
 export async function login({ email, password }, opts) {
   const data = await request('/v1/auth/login', {
-    ...opts, method: 'POST', body: { email: email.trim(), password }, token: null,
+    ...opts, method: 'POST', body: { email: email.trim(), password }, token: null, retryWrites: true,
   });
   if (typeof data?.token !== 'string' || !data.token) {
     throw new ApiError('Login succeeded but the server sent no token.');
@@ -163,16 +204,61 @@ export async function login({ email, password }, opts) {
 
 export const NUTRITION_SOURCES = ['usda', 'wafct'];
 
-/** GET /v1/nutrition/ingredients → { docs, stats }. Any logged-in user. */
-export function searchNutrition({ search = '', source, page = 1, limit = 10 } = {}, opts) {
+/**
+ * GET /v1/nutrition/ingredients → { docs, stats }. Any logged-in user.
+ *
+ * The backend sorts by name, not by relevance or source, so a short page is
+ * easily all USDA or all WAFCT purely by alphabet. 25 is wide enough for both
+ * to show up on one page for a normal search (the endpoint's ceiling is 100).
+ *
+ * `source` is omitted entirely when falsy: "All sources" must send no source
+ * parameter at all, since `source=` fails the endpoint's valid("usda","wafct").
+ */
+export function searchNutrition({
+  search = '', source, product_group: productGroup, food_group_code: foodGroupCode,
+  page = 1, limit = 25,
+} = {}, opts) {
   return request('/v1/nutrition/ingredients', {
-    ...opts, query: { search: search.trim(), source, page, limit },
+    ...opts,
+    query: {
+      search: search.trim(),
+      // Every filter is omitted when unset. The endpoint tolerates "" now, but
+      // an empty filter is not a filter and has no business in the URL.
+      source: source || undefined,
+      product_group: productGroup || undefined,
+      food_group_code: foodGroupCode || undefined,
+      page,
+      limit,
+    },
   });
 }
 
 /** POST /v1/nutrition/calculate → { totals, breakdown, completeness, basis }. */
 export function calculateNutrition(ingredients, opts) {
   return request('/v1/nutrition/calculate', { ...opts, method: 'POST', body: { ingredients } });
+}
+
+/**
+ * POST /v1/meal-studio/chat → { assistantMessage, meal, validation, conversationId }.
+ *
+ * Staff/admin only, and the model call happens on the server — the key never
+ * comes near the browser. The endpoint writes nothing: a failed turn leaves
+ * the caller holding exactly the draft it sent.
+ *
+ * `conversationId` is omitted until the server has issued one; it validates
+ * as a uuid v4, so an empty string would be rejected outright.
+ */
+export function mealStudioChat({ message, currentMeal, conversationId, mealSchemaVersion }, opts) {
+  return request('/v1/meal-studio/chat', {
+    ...opts,
+    method: 'POST',
+    body: {
+      message,
+      currentMeal: currentMeal || {},
+      mealSchemaVersion,
+      ...(conversationId ? { conversationId } : {}),
+    },
+  });
 }
 
 /* The ingredient list feeds `search` straight into new RegExp() on the
@@ -209,8 +295,6 @@ export const listProductCategories = async (opts) =>
    MAPPING
 ══════════════════════════════════════ */
 
-export const USDA_SOURCE = 'USDA FoodData Central';
-
 const numOrNull = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
 /** A nutrition record's per-100g values in the admin's macro keys. Nulls stay null. */
@@ -223,13 +307,6 @@ export function nutritionToMacros(record) {
     fat_g: numOrNull(n.fat),
     fibre_g: numOrNull(n.fiber),
   };
-}
-
-/** The `source` string the admin stores, so the WAFCT badge keeps working. */
-export function nutritionSourceLabel(record) {
-  if (record?.source === 'wafct') return WAFCT_SOURCE;
-  if (record?.source === 'usda') return USDA_SOURCE;
-  return record?.source || null;
 }
 
 const ref = (v) => {
@@ -272,36 +349,4 @@ export function ingredientToApi(form) {
   put('image', form.image);
   put('product_url', form.product_url);
   return body;
-}
-
-/* ── Meal nutrition ── */
-
-/** Units POST /v1/nutrition/calculate converts (platform-api GRAMS_PER_UNIT). */
-export const CALC_UNITS = ['g', 'kg', 'oz', 'lb'];
-
-/**
- * Meal ingredient rows → calculate lines. A row is sent only if it is
- * linked to a nutrition record and has a positive quantity in a unit the
- * backend can convert; every other row is returned with the reason, so
- * the total is never quietly short.
- */
-export function buildCalculateLines(rows) {
-  const lines = [];
-  const skipped = [];
-  rows.forEach((row, index) => {
-    const name = String(row.name || '').trim() || `Row ${index + 1}`;
-    if (!String(row.name || '').trim() && !row.nutritionId) return; // blank row
-    const unit = String(row.unit || '').trim().toLowerCase();
-    const quantity = Number(String(row.quantity ?? '').trim());
-    let reason = null;
-    if (!row.nutritionId) reason = 'not linked to nutrition data';
-    else if (!String(row.quantity ?? '').trim() || !Number.isFinite(quantity) || quantity <= 0) {
-      reason = 'needs a numeric quantity';
-    } else if (!CALC_UNITS.includes(unit)) {
-      reason = unit ? `“${row.unit}” can't be converted to grams — use ${CALC_UNITS.join(', ')}` : 'needs a unit';
-    }
-    if (reason) skipped.push({ index, name, reason });
-    else lines.push({ ingredientId: row.nutritionId, quantity, unit });
-  });
-  return { lines, skipped };
 }

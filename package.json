@@ -13,6 +13,7 @@
     "estimate-server": "node server/estimate-server.js",
     "staging:token": "node server/staging-token.js",
     "staging:login": "node server/staging-token.js --prompt",
+    "staging:check": "node server/staging-check.js",
     "build:watch": "vite build --watch"
   },
   "dependencies": {

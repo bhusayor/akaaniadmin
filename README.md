@@ -18,8 +18,8 @@ npm run dev          # http://localhost:5173
 | `npm run build` | Production build into `dist/` |
 | `npm run build:watch` | Rebuilds `dist/` on every save — for the Live Server flow below |
 | `npm run preview` | Serve the built bundle |
-| `npm test` | Vitest — 109 tests |
-| `npm run estimate-server` | The AI nutrition proxy (see below) |
+| `npm test` | Vitest — 306 tests |
+| `npm run estimate-server` | The blog drafting proxy (see below) |
 | `npm run staging:login` | Prompt for email/password and print a platform-api token |
 
 ### Using VS Code Live Server
@@ -58,7 +58,8 @@ else still runs on local fixtures.
 | Login screen (`#/login`); every admin route requires it | `POST /v1/auth/login` (the user login) |
 | Ingredients → **Platform** tab: list, search, page, create, edit, delete | `GET/POST /v1/ingredients`, `PATCH/DELETE /v1/ingredients/:id`, plus `/v1/units`, `/v1/product_groups`, `/v1/product_categories` for the dropdowns |
 | Ingredients → **Nutrition library** → ingredient form → *Search the platform nutrition database* | `GET /v1/nutrition/ingredients` |
-| Meal editor → Ingredients list → *Link nutrition data*, then Macronutrients → *Calculate* | `POST /v1/nutrition/calculate` |
+| Meal editor → Ingredients list → *Link nutrition data*; the running total above Save | `POST /v1/nutrition/calculate` |
+| Meal editor → **Meal Studio** panel: AI meal drafting | `POST /v1/meal-studio/chat` |
 
 Setup: put `STAGING_API_URL=https://akaani-api-staging.herokuapp.com` in
 `.env.local` and restart `npm run dev`. In development the browser calls
@@ -78,6 +79,15 @@ Things the backend decides, not this app:
 - **The calculator converts g, kg, oz and lb only.** Rows in cups, tbsp etc.
   are listed as left out rather than silently dropped, and a nutrient no
   ingredient has data for stays blank instead of becoming 0.
+- **Meal Studio is staff/admin only, and drafts nothing today.** The endpoint
+  is live on staging, but the company OpenAI account has no credit, so it
+  answers `502 BadGatewayError`. The panel prints the status, the server's exact
+  message and the conversation id rather than hiding it. The endpoint never
+  writes: a failed turn leaves the form exactly as it was, and a draft reaches
+  the form only when someone clicks *Apply*.
+- **Meal Studio sends `mealSchemaVersion: "meal.v1"`** (`src/lib/mealStudio.js`).
+  If the server drafts against a different version it answers `409` and names
+  it; that is a signal to update the mapping in that file, not to retry.
 - The session token lives in `sessionStorage` and is gone when the tab closes.
 
 `src/lib/api.js` is the only file that talks to the backend. `#/api-test` is
@@ -100,7 +110,7 @@ a raw request/response screen for trying other endpoints.
 | LU Facts | `#/lu-facts` | Short facts Lu shows beside an ingredient |
 | Blogs | `#/blogs` | Post cards by status, filters, write or generate |
 | Blog editor | `#/blogs/new`, `#/blogs/edit/:id` | Markdown editor with live preview |
-| Ingredients | `#/ingredients` | Per-100g nutrition, WAFCT auto-calculate, AI fallback, batch CSV import |
+| Ingredients | `#/ingredients` | Two live tables: the platform ingredient catalogue, and the WAFCT + USDA nutrition data |
 | Settings | `#/settings` | Nine panels across Account, Platform, Notifications, Team and Data |
 
 `HashRouter` is used deliberately, so a built bundle still works when opened
@@ -120,7 +130,7 @@ akaani-admin/
 │   ├── components/             ← Layout, Sidebar, Topbar, NotificationDrawer,
 │   │                             Modal, Toast, icons, ui primitives
 │   ├── pages/                  ← one component per route
-│   ├── features/ingredients/   ← form modal, WAFCT suggestion, CSV import
+│   ├── features/ingredients/   ← catalogue table + form, nutrition data table
 │   ├── hooks/useTopbar.js      ← page ↔ shared topbar
 │   ├── data/                   ← customer, meal and notification fixtures
 │   └── lib/                    ← framework-free logic, with the tests beside it
@@ -131,19 +141,17 @@ akaani-admin/
 │       ├── markdown.js         ← markdown → token tree (no HTML, no injection)
 │       ├── blogs.js            ← post record, slug, excerpt, reading time
 │       ├── blogGenerate.js     ← AI drafting (mock + openai)
-│       ├── wafctMatch.js       ← ingredient → WAFCT matcher
 │       ├── taxonomy.js         ← product groups/categories/units, dataset-free
-│       ├── wafctData.js        ← 960 WAFCT foods, per 100g (generated)
-│       ├── nutritionEstimate.js← AI fallback
-│       ├── ingredients.js      ← the single record-normalisation path
+│       ├── api.js             ← the only file that calls platform-api
+│       ├── mealStudio.js      ← meal form ↔ Meal Studio draft shape
 │       ├── csv.js              ← parse / serialise / download
-│       └── csvImport.js        ← review classification + apply
+│       └── mealNutrition.js    ← calculate lines in, totals out
 └── server/estimate-server.js   ← zero-dependency proxy holding the API key
 ```
 
 Everything under `src/lib/` is plain JavaScript with no React import, which is
-why it can be tested directly and why the same matcher serves both the form and
-the CSV importer.
+why it can be tested directly and why the same request layer serves every screen
+that talks to the platform.
 
 ---
 
@@ -325,11 +333,9 @@ text rather than an injection — there is a test for exactly that.
 
 ### The generation endpoint
 
-Same proxy as the nutrition estimator, so the key still never reaches the
-browser:
+The key never reaches the browser:
 
 ```
-POST /estimate        ingredient name  -> five per-100g macros
 POST /generate-blog   a description    -> a markdown blog draft
 GET  /health          mode and model
 ```
@@ -366,7 +372,7 @@ local state plus a toast, so every control was decorative.
 |---------|--------|
 | Localization → Measurement system | Drives the unit list on the ingredient form (`g/kg/ml` ↔ `oz/lbs`) |
 | Localization → Primary currency | The currency a new recipe group starts in |
-| AI → Provider and proxy URL | Reconfigures `nutritionEstimate` and `blogGenerate` at runtime |
+| AI → Provider and proxy URL | Reconfigures `blogGenerate` at runtime |
 
 **Test connection** asks the proxy `/health` what it is actually running rather
 than assuming the settings and the server agree. The API key is deliberately
@@ -430,6 +436,26 @@ initials and the meal's emoji respectively — on a missing `src` and on a load
 error alike. A broken image in a customer table is a confusing empty box;
 initials still identify the person.
 
+### Choosing an image
+
+`ImagePicker` (`src/components/ImagePicker.jsx`) is the one control behind
+*Choose an image* on both the meal form and the platform ingredient form. A
+picked file is read as a **data URL**; anything over 300 KB is redrawn at
+1024px as JPEG first, and the control says so rather than resizing silently.
+
+That is fine for a meal, which never leaves the browser in this admin. **It is
+not a finished answer for a platform ingredient**, which is saved through
+`POST /v1/ingredients`: the data URL becomes the `image` field verbatim,
+because the API has no upload route — the multipart middleware in platform-api
+is wired to chat audio only, and the sole Cloudinary path serves a user's own
+profile photo. Other clients reading `image` will get a data URL rather than a
+CDN link, and the bytes live in the document.
+
+The fix belongs on the backend: a multipart `POST` that puts the file through
+the existing uploader into Cloudinary and returns its URL. When that exists,
+one call inside `ImagePicker.readFile` replaces the data URL with the returned
+link, and every form that uses the control picks the change up.
+
 **Two caveats worth knowing before this goes near production:**
 
 The portrait pool skews white/Western. For a customer base named Oyedele
@@ -482,8 +508,9 @@ gives a proper not-found state rather than a blank page.
 ### The edit form
 
 **Edit** goes to a full page at `#/meals/edit/:id`, built from collapsible
-sections: Details, Incompatible medical conditions, Nutrients, Macronutrients,
-Product group, Ingredients list, Cooking steps.
+sections: Meal Studio, Details, Incompatible medical conditions, Nutrients,
+Product group, Ingredients list, Cooking steps — with the meal's nutrition
+total above the save action.
 
 Ingredients and cooking steps are **structured, not strings**:
 
@@ -526,9 +553,38 @@ Two deliberate departures from the production page:
 - **Instructions are numbered.** The order is the information, so it should be
   visible.
 
-Calories are shown both per serving and total. The production page labels these
-`Calorie Per Serivng` and `Total Calories`; the first has a typo worth fixing
-there.
+#### Nutrition is calculated, never typed
+
+There are no calorie or macro inputs on the meal form. Each ingredient row
+carries the optional nutrition fields on `ingredients_list` —
+`ingredient_nutrition` (an id from `GET /v1/nutrition/ingredients`),
+`nutrition_quantity` and `nutrition_unit` — and every row holding all three is
+sent to `POST /v1/nutrition/calculate` as the rows change. The total sits above
+Save, per serving and in full.
+
+The recipe's own `quantity`/`unit` stay free text: a cook reads *2 cups*, the
+calculation needs grams, and making one field serve both would wreck one of
+them.
+
+Two rules hold the display honest:
+
+- **A row that cannot be counted is named, never counted as zero.** No link, no
+  quantity, or a unit outside g/kg/oz/lb, and the row is marked *Not counted*
+  with the reason, the total is labelled **partial**, and the number of
+  excluded rows is stated. A total assembled from 2 of 10 ingredients never
+  presents itself as the meal's nutrition.
+- **An incomplete nutrient is not a number.** When `completeness.complete` is
+  false the nutrient reads *Unavailable*, named against the ingredient
+  responsible — "Fibre unavailable for Pork, belly" — and saves as `null`. A
+  null total means nobody published that value; 0g would claim it was measured
+  as zero.
+
+While a recalculation is in flight the previous figure is hidden rather than
+shown beside a row count it no longer matches. A meal saved before anything was
+linked keeps the figures it already had, instead of being blanked by an empty
+calculation. Meal Studio can draft everything else about a meal, but it cannot
+write calories or macros — that would be a second source competing with the
+calculation.
 
 #### On the recipe content
 
@@ -540,93 +596,74 @@ ready for your nutritionists to fill.
 
 ---
 
-## Ingredients & WAFCT Nutrition
+## Ingredients
 
-Five optional macro fields — **Calories, Protein, Carbs, Fat, Fibre** — that are
-**always per 100g**, regardless of the `Unit` dropdown. `Unit` offers gram (g),
-ounce (oz) and pounds (lbs), and only describes how the ingredient is normally
-measured — picking pounds does not make the macros per-pound. A unit arriving
-from a CSV outside that list (`ml`, `bunch`) is stored as-is and preserved
-through an edit rather than being silently dropped.
+Two tabs, both served by the platform API. Neither holds a record in the
+browser.
 
-### Auto-calculate
+### Platform
 
-Typing a name runs a debounced (400ms) lookup against the FAO/INFOODS **West
-African Food Composition Table 2019** (960 atomic foods, per 100g). A match
-scoring ≥70 shows an inline card with the food, its macros, a confidence badge
-and up to three close candidates.
+`GET /v1/ingredients` — the catalogue meals and partners use, with server-side
+search and paging. Create, edit and delete go to the same routes and need a
+staff or admin account. Ingredients here carry **no nutrition values**: unit,
+product group and category are ids, resolved through `/v1/units`,
+`/v1/product_groups` and `/v1/product_categories`.
 
-Nothing is written automatically — **"Use this" is required even on a 100%
-match.** Applying fills the five fields (still editable), stamps
-`source: 'FAO/INFOODS WAFCT 2019'` plus the `source_code`, and auto-picks the
-product group and category into *empty* fields only.
+### Nutrition data
 
-The category is read off the matched food's **name**, not its WAFCT `category`
-field, because the name is far more specific. Rules are ordered so the traps
-stay correct: *Groundnut oil* is an oil rather than a nut, *Melon seed* is a
-seed while *Melon, cantaloupe* is a fruit, *eggplant* is never read as an egg,
-*locust bean* is a legume rather than an insect, and *Water yam* is a tuber
-while *Water, tap* is a drink. All 960 foods resolve to a category.
+`GET /v1/nutrition/ingredients` — the published food composition data the
+platform calculates meals against: 1,028 WAFCT and 363 USDA records. Read-only,
+because the API has no write route for it.
 
-### AI fallback
+Filters map one-to-one onto the endpoint: `search` (English name, French name
+and published category), `source`, `product_group`, `food_group_code`, `page`,
+`limit` (25 a page). **An unset filter is omitted from the URL entirely** — never
+`source=`, which is not the same thing as "all sources".
 
-WAFCT has no entry for *Suya Spice Blend* or most prepared items, so below 70
-the card offers **Estimate with AI**; the CSV importer offers the same in bulk.
+`stats.by_source` is shown above the table. The endpoint counts both sources for
+the same search regardless of the source filter, so the page can say how many
+matches it is *not* showing — without it, a search matching far more WAFCT rows
+than USDA ones looks like the USDA data is missing.
 
-**Estimated data is never allowed to look like measured data:**
+Records render as the API returns them: `name`, `name_fr`, `source` with its
+`external_id`, `source_category`, `food_group_code`, and the five per-100g
+nutrients under the API's own keys. **A nutrient the source never published is an
+em dash, not 0.** An asterisk marks a figure the source bracketed
+(`estimated_nutrients`) — a lower-confidence number, still not a measurement.
+*more* expands a row to the remaining identifiers (`food_variant_id`, `food_id`,
+`food_group_id`, `energy_basis`, `product_group`).
 
-| | WAFCT | AI estimate |
-|---|---|---|
-| Card | Green, `Matched · 100%` | Amber, `AI ESTIMATE · NOT MEASURED DATA` |
-| List badge | `WAFCT` | `AI est.` |
-| `source` | `FAO/INFOODS WAFCT 2019` | `AI estimate (<model>)` |
-| `source_code` | the WAFCT food id | `null` — no record to cite |
-| In CSV review | ≥88 pre-checked | **never pre-checked** |
+### Cold starts
 
-Model output is treated as untrusted and sanitised on the server *and* in the
-page. Anything that isn't a sane per-100g number becomes `null` rather than
-being stored — over 900 kcal (more than pure fat), any macro over 100g,
-negative, `NaN`, `Infinity`. An explicit `0` survives: palm oil really does
-have 0g carbs.
+The staging dyno sleeps. Its first request comes back `503` from the Heroku
+router, before the app is running, and the retry succeeds. `request()` retries
+those — plus `502`, `504` and outright connection failures — twice, backing off
+800ms then 2s, and the nutrition tab says "The staging server was asleep" while
+it waits.
 
-#### Running the estimator
+Only reads are retried automatically. A write may already have reached the app,
+and replaying it could create a second record. Login is the one exception, opted
+in explicitly: it creates nothing, and it is the request most likely to meet a
+sleeping dyno.
 
-It ships in **mock mode**, so the flow works with no key and no server —
-estimates are deterministic fakes stamped `AI estimate (mock)`. For real ones:
+#### Running the blog drafting proxy
+
+It ships in **mock mode**, so the flow works with no key and no server — drafts
+are deterministic fakes. For real ones:
 
 ```bash
 export OPENAI_API_KEY=sk-...
 npm run estimate-server        # http://localhost:8787
 ```
 
-then set `provider: 'openai'` in `src/lib/nutritionEstimate.js`.
+then set the provider to OpenAI in Settings → AI & Integrations.
 
 **The key never reaches the browser.** `server/estimate-server.js` holds it and
-is the only thing that talks to OpenAI; the page posts an ingredient name to
+is the only thing that talks to OpenAI; the blog editor posts a description to
 localhost. It uses Node built-ins only. Two things to check before real use:
 `OPENAI_MODEL` defaults to `gpt-4o-mini`, which may not match what your account
 exposes, and the request shape in `callOpenAI()` was written from memory rather
 than against OpenAI's current published docs.
-
-### Batch CSV import
-
-Takes `name, description, unit, product_group, product_category, calories,
-protein_g, carbs_g, fat_g, fibre_g` (plus optional `image_url`). Extra columns
-are ignored, missing ones stay blank, only `name` is required. `product_url` is
-still accepted and preserved on export but is no longer a managed field.
-
-| Row state | Behaviour |
-|-----------|-----------|
-| Macros supplied in the CSV | Source `CSV`, pre-checked |
-| WAFCT match ≥88 | Source `WAFCT`, pre-checked |
-| WAFCT match 70–87 | Shown **unchecked** |
-| Below 70 | Blank, no checkbox, until estimated |
-
-On confirm every checked row goes through `normalizeIngredient()` — the same
-path the manual form uses, so there is no separate bulk write path. The summary
-reports created / skipped / no-match and offers the untouched rows as a CSV.
-
----
 
 ## Tests
 
@@ -634,33 +671,23 @@ reports created / skipped / no-match and offers the untouched rows as a CSV.
 npm test
 ```
 
-109 tests across three suites, all against `src/lib/` — no DOM, no component
-rendering, so they are fast and stable:
+306 tests, all against `src/lib/` — no DOM, no component rendering, so they are
+fast and stable:
 
-- `wafctMatch.test.js` — normalize, aliases, processing state, category inference
-- `nutritionEstimate.test.js` — the sanity gate, null discipline, provenance
-- `csvImport.test.js` — parsing, review classification, the shared write path
+- `api.test.js` — envelope, auth errors, query building, response mapping
+- `mealStudio.test.js` — the meal form ↔ draft mapping, both directions
+- `mealNutrition.test.js` — which rows count, exclusion reasons, unavailable
+  nutrients never rendering as numbers
 
-Two rules are pinned by regression tests because both have bitten before: a
-missing nutrient stays `null` and is never defaulted to 0, and a named
-processing state is honoured exactly — *Boiled Yam* matches a **boiled** record,
-never a fried one, and never falls back to "some other cooked variant".
-
----
-
-## A note on the dataset
-
-`src/lib/wafctData.js` is generated from the upstream `wafct_dataset.json`. That
-file is **not valid JSON** — it carries 57 bare `NaN` tokens for `category`,
-which make `JSON.parse()` throw. They are normalised to `null` during
-generation.
-
-The shipped dataset carries 8 categories rather than WAFCT's 14, and they are
-noisy (`Vegetables` contains cassava and fufu; `Proteins` contains cashew nut
-and coconut). So `WAFCT_CATEGORY_MAP` maps only the **product group** from that
-field, and the category is inferred from the food's name instead via
-`CATEGORY_RULES`.
+One rule is pinned by regression tests throughout, because it has bitten
+before: a missing nutrient stays `null` and is never defaulted to 0 — not in a
+table cell, not in a meal total, not in what a meal saves.
 
 ---
 
-Built for **Akaani** · Designed by Peter Omidiji
+## A note on nutrition data
+
+Everything under Ingredients → Nutrition data, and every figure in a meal's
+total, comes from `GET /v1/nutrition/ingredients`. There is no bundled copy of a
+food table in this repo any more: a local snapshot drifts from the collection
+the platform actually calculates against, and the drift is invisible.
