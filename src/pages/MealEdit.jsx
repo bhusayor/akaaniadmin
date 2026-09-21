@@ -121,6 +121,8 @@ export default function MealEdit() {
     const payload = {
       image: form.image,
       name: form.name.trim(),
+      // Not editable on this form any more; carried so editing a meal that
+      // already has one does not drop it.
       videoUrl: form.videoUrl.trim(),
       notificationMessage: form.notificationMessage.trim(),
       description: form.description.trim(),
@@ -217,10 +219,6 @@ export default function MealEdit() {
                 <Input value={form.name} onChange={(e) => set('name', e.target.value)} />
               </Field>
 
-              <Field label="Video URL">
-                <Input value={form.videoUrl} placeholder="https://…"
-                  onChange={(e) => set('videoUrl', e.target.value)} />
-              </Field>
 
               <Field label="Notification message">
                 <textarea rows={3} className={textareaCls} value={form.notificationMessage}

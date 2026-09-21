@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Badge, Field, Input, Select, cx } from '../../components/ui.jsx';
 import { IconWarning } from '../../components/icons.jsx';
 import { RowButtons, UNITS } from './formParts.jsx';
-import NutritionDbSearch, { SourceTag } from '../nutrition/NutritionDbSearch.jsx';
+import NutritionPicker from '../nutrition/NutritionPicker.jsx';
+import { SourceTag } from '../nutrition/parts.jsx';
 import { MASS_UNITS } from '../../lib/mealNutrition.js';
 
 const BLANK = { name: '', description: '', quantity: '', unit: '' };
@@ -166,9 +167,8 @@ export default function IngredientRows({ items, onChange }) {
               ) : null}
 
               {linking === i && (
-                <NutritionDbSearch
+                <NutritionPicker
                   initialQuery={row.name}
-                  pickLabel="Link"
                   onPick={(rec) => link(i, rec)}
                   onClose={() => setLinking(null)}
                 />

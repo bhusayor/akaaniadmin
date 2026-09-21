@@ -3,6 +3,7 @@ import Modal, { ModalActions } from '../../components/Modal.jsx';
 import { Field, Input, ModalButton, Select, Spinner } from '../../components/ui.jsx';
 import { IconInfo } from '../../components/icons.jsx';
 import ImagePicker from '../../components/ImagePicker.jsx';
+import NameSuggest from './NameSuggest.jsx';
 import usePlatformLookups from './usePlatformLookups.js';
 import {
   createIngredient, updateIngredient, ingredientFromApi, ingredientToApi, isForbidden,
@@ -91,10 +92,13 @@ export default function PlatformIngredientModal({ open, editing, onClose, onSave
       )}
 
       <div className="grid grid-cols-2 gap-3.5 max-md:grid-cols-1">
-        <Field label="Name" required className="col-span-2 max-md:col-span-1">
-          <Input autoFocus value={form.name} onChange={(e) => set('name', e.target.value)}
-            placeholder="e.g. Dried Mango" autoComplete="off" />
-        </Field>
+        <div className="col-span-2 max-md:col-span-1">
+          <Field label="Name" required>
+            <Input autoFocus value={form.name} onChange={(e) => set('name', e.target.value)}
+              placeholder="e.g. Dried Mango" autoComplete="off" />
+          </Field>
+          <NameSuggest value={form.name} excludeId={editing?.id} onPick={(name) => set('name', name)} />
+        </div>
 
         <Field label="Description" className="col-span-2 max-md:col-span-1">
           <Input value={form.description} onChange={(e) => set('description', e.target.value)}
