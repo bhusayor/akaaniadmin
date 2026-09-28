@@ -10,7 +10,9 @@
    also lists each collection unfiltered, which is what separates "the
    search term matched nothing" from "this collection is empty on staging".
 
-   Read-only: every request here is a GET apart from the login.
+   Read-only: the only writes are the login and the Meal Studio turn, and
+   that endpoint persists nothing — the draft round trips through the
+   request, so a turn leaves the database exactly as it found it.
    ═══════════════════════════════════════════════════════ */
 
 import path from 'node:path';
@@ -46,6 +48,49 @@ async function show(label, pathAndQuery, token, pick) {
   process.stdout.write(`  names: ${names.length ? names.slice(0, 5).join(' | ') : '(none)'}\n`);
 }
 
+/** One Meal Studio turn, printed in full: this is the call the panel makes. */
+async function mealStudio(token, term) {
+  const path = '/v1/meal-studio/chat';
+  const body = { message: term, currentMeal: {}, mealSchemaVersion: 'meal.v1' };
+  process.stdout.write(`\n5. Meal Studio draft (the right-hand panel)\n  POST ${path}\n`);
+  process.stdout.write(`  body: ${JSON.stringify(body)}\n`);
+  let res;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(90000),
+    });
+  } catch (err) {
+    process.stdout.write(`  request failed: ${err.message}\n`);
+    return;
+  }
+  const text = await res.text();
+  let json = null;
+  try { json = JSON.parse(text); } catch { /* shown raw */ }
+  process.stdout.write(`  HTTP ${res.status}\n`);
+  if (!json) {
+    process.stdout.write(`  body: ${text.slice(0, 300)}\n`);
+    return;
+  }
+  if (json.success === false) {
+    process.stdout.write(`  ${json.name}: ${json.message}\n`);
+    if (res.status === 401) {
+      process.stdout.write('  → this account is not staff or admin. Meal Studio is isAdminOrStaff.\n');
+    } else if (res.status === 502) {
+      process.stdout.write('  → the endpoint works; the model call behind it failed (no OpenAI credit yet).\n');
+    } else if (res.status === 409) {
+      process.stdout.write(`  → schema mismatch. This admin sends "meal.v1"; the server wants "${json.data?.expected}".\n`);
+    }
+    return;
+  }
+  const meal = json.data?.meal || {};
+  process.stdout.write(`  assistantMessage: ${String(json.data?.assistantMessage || '').slice(0, 160)}\n`);
+  process.stdout.write(`  drafted name: ${meal.name || '(none)'}\n`);
+  process.stdout.write(`  ingredients: ${(meal.ingredients || []).length}   steps: ${(meal.instruction_steps || meal.instructions || []).length}\n`);
+}
+
 const nutrition = (data) => ({
   count: data?.docs?.length ?? 0,
   names: (data?.docs ?? []).map((d) => `${d.name} [${d.source}]`),
@@ -68,7 +113,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   await show('2. Nutrition data, unfiltered', '/v1/nutrition/ingredients?page=1&limit=5', token, nutrition);
   await show('3. Ingredient catalogue search (Platform tab)', `/v1/ingredients?search=${encodeURIComponent(term)}&page=1&limit=20`, token, catalogue);
   await show('4. Ingredient catalogue, unfiltered', '/v1/ingredients?page=1&limit=5', token, catalogue);
+  await mealStudio(token, term);
 
   process.stdout.write('\nIf 2 and 4 have rows but 1 and 3 do not, the search term is the problem.\n'
-    + 'If 2 or 4 is empty, that collection has no data on staging.\n');
+    + 'If 2 or 4 is empty, that collection has no data on staging.\n'
+    + 'Section 5 says why Meal Studio is not drafting: 401 is the account, 502 is the model.\n');
 }
