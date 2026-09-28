@@ -75,6 +75,9 @@ export default function MealEdit() {
      case the meal keeps whatever was saved on it rather than being
      blanked by an empty calculation. */
   const [totals, setTotals] = useState(null);
+  /* Bumped whenever a draft fills the form, so the sections it wrote into
+     open themselves rather than leaving someone to find the change. */
+  const [filledAt, setFilledAt] = useState(0);
   const [errors, setErrors] = useState([]);
   const initial = useRef(form ? JSON.stringify(form) : '');
 
@@ -200,7 +203,7 @@ export default function MealEdit() {
         <div className="flex items-start gap-5 max-lg:flex-col">
         <Card className="min-w-0 flex-1 px-6 py-2 max-lg:w-full max-md:px-4">
           {/* ── DETAILS ── */}
-          <Section title="Details" defaultOpen>
+          <Section title="Details" defaultOpen openSignal={filledAt}>
             <div className="flex flex-col gap-4">
               <ImagePicker label="Meal image" value={form.image} onChange={(v) => set('image', v)} />
 
@@ -307,12 +310,12 @@ export default function MealEdit() {
           </Section>
 
           {/* ── INGREDIENTS ── */}
-          <Section title="Ingredients list" count={form.ingredients.length}>
+          <Section title="Ingredients list" count={form.ingredients.length} openSignal={filledAt}>
             <IngredientRows items={form.ingredients} onChange={(v) => set('ingredients', v)} />
           </Section>
 
           {/* ── COOKING STEPS ── */}
-          <Section title="Cooking steps" count={form.instructions.length}>
+          <Section title="Cooking steps" count={form.instructions.length} openSignal={filledAt}>
             <CookingSteps
               foodItems={form.foodItems}
               instructions={form.instructions}
@@ -329,8 +332,10 @@ export default function MealEdit() {
             </div>
             <MealStudioPanel
               form={form}
+              autoApply={isNew}
               onApply={(patch, changed) => {
                 setForm((f) => ({ ...f, ...patch }));
+                setFilledAt((n) => n + 1);
                 toast(changed.length === 1
                   ? `${FIELD_LABELS[changed[0]] || changed[0]} updated`
                   : `${changed.length} fields updated`);

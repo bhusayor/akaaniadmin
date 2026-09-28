@@ -140,7 +140,13 @@ function StudioError({ error, onRetry }) {
  * in the form, and what comes back is only applied when someone clicks
  * Apply. Nothing here talks to a model directly.
  */
-export default function MealStudioPanel({ form, onApply }) {
+/**
+ * `autoApply` is on while a meal is being created: the form is empty, so
+ * a draft has nothing to overwrite and waiting for a second click just
+ * hides the result. Editing an existing meal keeps the Apply step, where
+ * a draft would be landing on someone's work.
+ */
+export default function MealStudioPanel({ form, onApply, autoApply = false }) {
   const [query, setQuery] = useState('');
   const [turns, setTurns] = useState([]);
   const [message, setMessage] = useState('');
@@ -167,7 +173,15 @@ export default function MealStudioPanel({ form, onApply }) {
       });
       conversationId.current = data.conversationId || conversationId.current;
       setTurns((t) => [...t, { role: 'assistant', text: data.assistantMessage || '(no message returned)' }]);
-      setDraft({ meal: data.meal || {}, validation: data.validation || {} });
+      const meal = data.meal || {};
+      const validation = data.validation || {};
+      if (autoApply) {
+        const next = fromStudioMeal(meal, form);
+        onApply(next, changedFields(next, form));
+        setDraft({ meal, validation, applied: true });
+      } else {
+        setDraft({ meal, validation });
+      }
     } catch (err) {
       setError(err);
     } finally {
@@ -251,8 +265,15 @@ export default function MealStudioPanel({ form, onApply }) {
 
       {draft && (
         <div className="mt-3 rounded-lg border border-line bg-surface p-3">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">Returned draft</div>
-          {changed.length ? (
+          <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+            {draft.applied ? 'Applied to the form' : 'Returned draft'}
+          </div>
+          {draft.applied ? (
+            <p className="mt-1 text-[12px] leading-relaxed text-ink-2">
+              The fields on the left now hold this draft. Edit them there — nothing is saved until
+              you create the meal.
+            </p>
+          ) : changed.length ? (
             <p className="mt-1 text-[12px] leading-relaxed text-ink-2">
               Would change: <b className="font-semibold">{changed.map((k) => FIELD_LABELS[k] || k).join(', ')}</b>.
             </p>
@@ -272,10 +293,12 @@ export default function MealStudioPanel({ form, onApply }) {
           )}
 
           <div className="mt-2.5 flex flex-wrap items-center gap-2">
-            <Button onClick={apply} disabled={!changed.length}>Apply to form</Button>
-            <Button variant="ghost" onClick={() => setDraft(null)}>Discard</Button>
+            {!draft.applied && <Button onClick={apply} disabled={!changed.length}>Apply to form</Button>}
+            <Button variant="ghost" onClick={() => setDraft(null)}>
+              {draft.applied ? 'Close' : 'Discard'}
+            </Button>
             <span className="flex items-center gap-1 text-[11px] text-ink-3">
-              <IconInfo /> Applying fills the form only — saving the meal is still a separate step.
+              <IconInfo /> The form is filled in, not saved — creating the meal is still a separate step.
             </span>
           </div>
         </div>

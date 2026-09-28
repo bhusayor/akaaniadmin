@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Input, cx } from '../../components/ui.jsx';
 
 /* ═══════════════════════════════════════════════════════
@@ -30,8 +30,20 @@ function Chevron({ open }) {
  * a real button, a rotating chevron, a Show/Hide label, and a count of what
  * is inside — collapsed sections stay legible without opening them.
  */
-export function Section({ title, count, defaultOpen = false, children, id }) {
+/**
+ * `openSignal` opens the section whenever its value changes — used when a
+ * draft fills fields inside a collapsed section, so nobody has to go
+ * hunting for what just changed.
+ */
+export function Section({ title, count, defaultOpen = false, children, id, openSignal }) {
   const [open, setOpen] = useState(defaultOpen);
+  const seen = useRef(openSignal);
+
+  useEffect(() => {
+    if (openSignal === undefined || openSignal === seen.current) return;
+    seen.current = openSignal;
+    setOpen(true);
+  }, [openSignal]);
   return (
     <section id={id} className="scroll-mt-32">
       <button
