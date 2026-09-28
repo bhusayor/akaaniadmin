@@ -270,6 +270,18 @@ export function listIngredients({ search = '', page = 1, limit = 20 } = {}, opts
   return request('/v1/ingredients', { ...opts, query: { search: escapeRegex(search.trim()), page, limit } });
 }
 
+/**
+ * GET /v1/meals → { meals, stats }. Any logged-in user.
+ *
+ * Same unescaped `new RegExp(search)` on the backend as the ingredient
+ * list, so the term is escaped here too and searched literally.
+ */
+export function listMeals({ search = '', page = 1, limit = 8 } = {}, opts) {
+  return request('/v1/meals', {
+    ...opts, query: { search: escapeRegex(search.trim()), page, limit },
+  });
+}
+
 /* Create, update and delete are isAdminOrStaff on the backend. */
 export const createIngredient = (body, opts) =>
   request('/v1/ingredients', { ...opts, method: 'POST', body });

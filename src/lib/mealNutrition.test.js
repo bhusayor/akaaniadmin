@@ -9,7 +9,7 @@
 import { it, assert } from 'vitest';
 import {
   buildCalculateLines, readNutrient, unavailableLabel, totalsToMealFields,
-  inclusionSummary, MASS_UNITS,
+  inclusionSummary, MASS_UNITS, macroField, NUTRIENTS,
 } from './mealNutrition.js';
 
 const rows = [
@@ -121,6 +121,37 @@ it('a complete response writes every nutrient', () => {
     completeness: { complete: true, incomplete_nutrients: [], missing_by_nutrient: {} },
   });
   assert.deepStrictEqual(fields, { cal: 100, prot: 1.3, carb: 2, fat: 3, fiber: 4 });
+});
+
+// ─── the macro fields on the form ───
+
+const FAT = NUTRIENTS.find((n) => n.key === 'fat');
+const FIBRE = NUTRIENTS.find((n) => n.key === 'fiber');
+const CALORIES = NUTRIENTS.find((n) => n.key === 'calories');
+
+it('a calculated macro shows its figure', () => {
+  assert.deepStrictEqual(macroField(response, {}, FAT), { state: 'calculated', text: '7.7g', missingFor: [] });
+  assert.strictEqual(macroField(response, {}, CALORIES).text, '1325 kcal');
+});
+
+it('an incomplete macro reads unavailable and names the ingredient — never 0', () => {
+  const field = macroField(response, { fiber: 12 }, FIBRE);
+  assert.strictEqual(field.state, 'unavailable');
+  assert.strictEqual(field.text, 'unavailable');
+  assert.deepStrictEqual(field.missingFor, ['Pork, belly']);
+});
+
+it('with nothing calculated the meal keeps showing what it has saved', () => {
+  assert.deepStrictEqual(macroField(null, { fat: 12.25 }, FAT), { state: 'saved', text: '12.3g', missingFor: [] });
+});
+
+it('nothing calculated and nothing saved is an em dash, not a zero', () => {
+  assert.strictEqual(macroField(null, { fat: '' }, FAT).text, '—');
+  assert.strictEqual(macroField(null, {}, FAT).state, 'empty');
+});
+
+it('a saved zero is still a zero — it was measured once', () => {
+  assert.deepStrictEqual(macroField(null, { fat: 0 }, FAT), { state: 'saved', text: '0g', missingFor: [] });
 });
 
 // ─── the inclusion line ───

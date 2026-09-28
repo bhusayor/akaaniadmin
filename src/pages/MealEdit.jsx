@@ -12,6 +12,7 @@ import { Section, ChipSelect, StringRows, CATEGORIES } from '../features/meals/f
 import IngredientRows from '../features/meals/IngredientRows.jsx';
 import CookingSteps from '../features/meals/CookingSteps.jsx';
 import MealNutritionTotal from '../features/meals/MealNutritionTotal.jsx';
+import MealMacroFields from '../features/meals/MealMacroFields.jsx';
 import MealStudioPanel from '../features/meals/MealStudioPanel.jsx';
 import { FIELD_LABELS } from '../lib/mealStudio.js';
 import { totalsToMealFields } from '../lib/mealNutrition.js';
@@ -75,6 +76,9 @@ export default function MealEdit() {
      case the meal keeps whatever was saved on it rather than being
      blanked by an empty calculation. */
   const [totals, setTotals] = useState(null);
+  /* Bumped whenever a draft fills the form, so the sections it wrote into
+     open themselves rather than leaving someone to find the change. */
+  const [filledAt, setFilledAt] = useState(0);
   const [errors, setErrors] = useState([]);
   const initial = useRef(form ? JSON.stringify(form) : '');
 
@@ -121,6 +125,8 @@ export default function MealEdit() {
     const payload = {
       image: form.image,
       name: form.name.trim(),
+      // Not editable on this form any more; carried so editing a meal that
+      // already has one does not drop it.
       videoUrl: form.videoUrl.trim(),
       notificationMessage: form.notificationMessage.trim(),
       description: form.description.trim(),
@@ -180,7 +186,7 @@ export default function MealEdit() {
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-[1100px] px-7 py-5 max-md:px-4">
+      <div className="mx-auto w-full max-w-[1500px] px-7 py-5 max-md:px-4">
         {errors.length > 0 && (
           <div className="mb-4 rounded-xl border border-chili/30 bg-chili-light px-4 py-3">
             <div className="text-[13px] font-semibold text-chili-deep">
@@ -192,24 +198,13 @@ export default function MealEdit() {
           </div>
         )}
 
-        <Card className="px-6 py-2 max-md:px-4">
-          {/* ── MEAL STUDIO ──
-              Above the form on purpose: it drafts what the fields below hold,
-              and applies only when asked. */}
-          <Section title="Meal Studio" defaultOpen={isNew}>
-            <MealStudioPanel
-              form={form}
-              onApply={(patch, changed) => {
-                setForm((f) => ({ ...f, ...patch }));
-                toast(changed.length === 1
-                  ? `${FIELD_LABELS[changed[0]] || changed[0]} updated from the draft`
-                  : `${changed.length} fields updated from the draft`);
-              }}
-            />
-          </Section>
-
+        {/* Form on the left, Meal Studio on the right: a new meal usually
+            starts from a search, and the draft it produces has to be read
+            against the fields it fills. */}
+        <div className="flex items-start gap-5 max-lg:flex-col">
+        <Card className="min-w-0 flex-1 px-6 py-2 max-lg:w-full max-md:px-4">
           {/* ── DETAILS ── */}
-          <Section title="Details" defaultOpen>
+          <Section title="Details" defaultOpen openSignal={filledAt}>
             <div className="flex flex-col gap-4">
               <ImagePicker label="Meal image" value={form.image} onChange={(v) => set('image', v)} />
 
@@ -217,10 +212,6 @@ export default function MealEdit() {
                 <Input value={form.name} onChange={(e) => set('name', e.target.value)} />
               </Field>
 
-              <Field label="Video URL">
-                <Input value={form.videoUrl} placeholder="https://…"
-                  onChange={(e) => set('videoUrl', e.target.value)} />
-              </Field>
 
               <Field label="Notification message">
                 <textarea rows={3} className={textareaCls} value={form.notificationMessage}
@@ -310,6 +301,19 @@ export default function MealEdit() {
           </Section>
 
           {/* ── PRODUCT GROUP ── */}
+          {/* ── MACRONUTRIENTS ──
+              Where the meal form has always carried them, but calculated:
+              the running total explains the figures, and the figures sit
+              right under it rather than a screen away. */}
+          <Section title="Macronutrients" defaultOpen>
+            <MealNutritionTotal
+              rows={form.ingredients}
+              onTotals={setTotals}
+              savedFallback={!isNew && num(form.cal) !== null}
+            />
+            <MealMacroFields totals={totals} form={form} servings={form.servings} />
+          </Section>
+
           <Section title="Product group">
             <Field label="Product group">
               <Select value={form.productGroup} onChange={(e) => set('productGroup', e.target.value)}>
@@ -320,12 +324,12 @@ export default function MealEdit() {
           </Section>
 
           {/* ── INGREDIENTS ── */}
-          <Section title="Ingredients list" count={form.ingredients.length}>
+          <Section title="Ingredients list" count={form.ingredients.length} openSignal={filledAt}>
             <IngredientRows items={form.ingredients} onChange={(v) => set('ingredients', v)} />
           </Section>
 
           {/* ── COOKING STEPS ── */}
-          <Section title="Cooking steps" count={form.instructions.length}>
+          <Section title="Cooking steps" count={form.instructions.length} openSignal={filledAt}>
             <CookingSteps
               foodItems={form.foodItems}
               instructions={form.instructions}
@@ -335,15 +339,24 @@ export default function MealEdit() {
           </Section>
         </Card>
 
-        {/* Above the save action, so nobody commits a meal without seeing
-            what its nutrition adds up to — and what was left out of it. */}
-        <div className="mt-4">
-          <MealNutritionTotal
-            rows={form.ingredients}
-            servings={form.servings}
-            onTotals={setTotals}
-            savedFallback={!isNew && num(form.cal) !== null}
-          />
+        <aside className="w-[380px] shrink-0 max-lg:order-first max-lg:w-full">
+          <div className="sticky top-[132px] max-lg:static">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-[15px] font-semibold text-ink">Meal Studio</span>
+            </div>
+            <MealStudioPanel
+              form={form}
+              autoApply={isNew}
+              onApply={(patch, changed) => {
+                setForm((f) => ({ ...f, ...patch }));
+                setFilledAt((n) => n + 1);
+                toast(changed.length === 1
+                  ? `${FIELD_LABELS[changed[0]] || changed[0]} updated`
+                  : `${changed.length} fields updated`);
+              }}
+            />
+          </div>
+        </aside>
         </div>
 
         <div className="mt-4 flex justify-end gap-2">
