@@ -4,7 +4,7 @@ import {
   Button, Card, CountBadge, EmptyState, FilterSelect, Input, PageToolbar, Spinner, cx,
 } from '../../components/ui.jsx';
 import { IconRefresh } from '../../components/icons.jsx';
-import { NUTRITION_SOURCES, searchNutrition } from '../../lib/api.js';
+import { NUTRITION_SOURCES, listNutritionFoodGroups, searchNutrition } from '../../lib/api.js';
 import { groupByFood, preparationName, preparationsLabel } from '../../lib/nutritionGroups.js';
 import { MacroChips, SourceTag } from '../nutrition/parts.jsx';
 import usePlatformLookups from './usePlatformLookups.js';
@@ -27,6 +27,26 @@ const DETAIL_FIELDS = [
   ['energy_basis', (d) => d.energy_basis],
   ['estimated_nutrients', (d) => (d.estimated_nutrients || []).join(', ')],
 ];
+
+/** "STARCHY_ROOTS_TUBERS" → "Starchy roots tubers". */
+const foodGroupLabel = (code) => {
+  const words = String(code).toLowerCase().split('_').filter(Boolean).join(' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
+
+/* Fetched once per page load; a failed load is not cached, so the next
+   visit to the tab tries again. */
+let foodGroupsCache = null;
+
+function loadFoodGroups() {
+  if (!foodGroupsCache) {
+    foodGroupsCache = listNutritionFoodGroups().catch((err) => {
+      foodGroupsCache = null;
+      throw err;
+    });
+  }
+  return foodGroupsCache;
+}
 
 /**
  * "Acha; acca; findi; hungry rice" → "Acha, acca, findi, hungry rice".
@@ -61,6 +81,7 @@ export default function NutritionLibrary({ tabs }) {
   const [source, setSource] = useState('');
   const [productGroup, setProductGroup] = useState('');
   const [foodGroupCode, setFoodGroupCode] = useState('');
+  const [foodGroups, setFoodGroups] = useState({ status: 'loading', list: [] });
   const [page, setPage] = useState(1);
   const [reloadKey, setReloadKey] = useState(0);
   const [details, setDetails] = useState(null);
@@ -76,6 +97,15 @@ export default function NutritionLibrary({ tabs }) {
   }, [search]);
 
   useEffect(() => { setPage(1); }, [source, productGroup, foodGroupCode]);
+
+  useEffect(() => {
+    let live = true;
+    loadFoodGroups().then(
+      (list) => live && setFoodGroups({ status: 'ready', list }),
+      () => live && setFoodGroups({ status: 'error', list: [] }),
+    );
+    return () => { live = false; };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -134,15 +164,29 @@ export default function NutritionLibrary({ tabs }) {
               <option value="">All product groups</option>
               {lookups.groups.map((g) => <option key={g._id} value={String(g._id)}>{g.name}</option>)}
             </FilterSelect>
-            {/* Input is w-full by design, so the width lives on a wrapper. */}
-            <div className="w-40">
-              <Input
-                value={foodGroupCode}
-                onChange={(e) => setFoodGroupCode(e.target.value)}
-                placeholder="Food group code"
-                className="py-1.5 text-[12.5px] uppercase"
-              />
-            </div>
+            {foodGroups.status === 'error' ? (
+              /* The list failed to load (or the API predates GET
+                 /v1/nutrition/food_groups): the code can still be typed.
+                 Input is w-full by design, so the width lives on a wrapper. */
+              <div className="w-40">
+                <Input
+                  value={foodGroupCode}
+                  onChange={(e) => setFoodGroupCode(e.target.value)}
+                  placeholder="Food group code"
+                  className="py-1.5 text-[12.5px] uppercase"
+                />
+              </div>
+            ) : (
+              <FilterSelect value={foodGroupCode} onChange={(e) => setFoodGroupCode(e.target.value)}
+                disabled={foodGroups.status !== 'ready'}>
+                <option value="">All food groups</option>
+                {foodGroups.list.map((g) => (
+                  <option key={g.code} value={g.code}>
+                    {foodGroupLabel(g.code)} ({g.count.toLocaleString()})
+                  </option>
+                ))}
+              </FilterSelect>
+            )}
             <CountBadge>
               {status === 'loading' && !groups.length
                 ? '…'
