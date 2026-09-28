@@ -182,7 +182,7 @@ export default function MealEdit() {
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-[1100px] px-7 py-5 max-md:px-4">
+      <div className="mx-auto w-full max-w-[1500px] px-7 py-5 max-md:px-4">
         {errors.length > 0 && (
           <div className="mb-4 rounded-xl border border-chili/30 bg-chili-light px-4 py-3">
             <div className="text-[13px] font-semibold text-chili-deep">
@@ -194,22 +194,11 @@ export default function MealEdit() {
           </div>
         )}
 
-        <Card className="px-6 py-2 max-md:px-4">
-          {/* ── MEAL STUDIO ──
-              Above the form on purpose: it drafts what the fields below hold,
-              and applies only when asked. */}
-          <Section title="Meal Studio" defaultOpen={isNew}>
-            <MealStudioPanel
-              form={form}
-              onApply={(patch, changed) => {
-                setForm((f) => ({ ...f, ...patch }));
-                toast(changed.length === 1
-                  ? `${FIELD_LABELS[changed[0]] || changed[0]} updated from the draft`
-                  : `${changed.length} fields updated from the draft`);
-              }}
-            />
-          </Section>
-
+        {/* Form on the left, Meal Studio on the right: a new meal usually
+            starts from a search, and the draft it produces has to be read
+            against the fields it fills. */}
+        <div className="flex items-start gap-5 max-lg:flex-col">
+        <Card className="min-w-0 flex-1 px-6 py-2 max-lg:w-full max-md:px-4">
           {/* ── DETAILS ── */}
           <Section title="Details" defaultOpen>
             <div className="flex flex-col gap-4">
@@ -332,6 +321,24 @@ export default function MealEdit() {
             />
           </Section>
         </Card>
+
+        <aside className="w-[380px] shrink-0 max-lg:order-first max-lg:w-full">
+          <div className="sticky top-[132px] max-lg:static">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-[15px] font-semibold text-ink">Meal Studio</span>
+            </div>
+            <MealStudioPanel
+              form={form}
+              onApply={(patch, changed) => {
+                setForm((f) => ({ ...f, ...patch }));
+                toast(changed.length === 1
+                  ? `${FIELD_LABELS[changed[0]] || changed[0]} updated`
+                  : `${changed.length} fields updated`);
+              }}
+            />
+          </div>
+        </aside>
+        </div>
 
         {/* Above the save action, so nobody commits a meal without seeing
             what its nutrition adds up to — and what was left out of it. */}

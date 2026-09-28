@@ -1,16 +1,85 @@
-import { useRef, useState } from 'react';
-import { Badge, Button, Spinner, cx } from '../../components/ui.jsx';
-import { IconInfo, IconSparkles, IconWarning } from '../../components/icons.jsx';
-import { isExpiredSession, isForbidden, mealStudioChat } from '../../lib/api.js';
+import { useEffect, useRef, useState } from 'react';
+import { Badge, Button, Input, Spinner, cx } from '../../components/ui.jsx';
+import { IconInfo, IconPlus, IconSearch, IconSparkles, IconWarning } from '../../components/icons.jsx';
+import { isExpiredSession, isForbidden, listMeals, mealStudioChat } from '../../lib/api.js';
 import {
   changedFields, FIELD_LABELS, fromStudioMeal, MEAL_SCHEMA_VERSION, toStudioMeal,
 } from '../../lib/mealStudio.js';
 
 const EXAMPLES = [
-  'Draft a Nigerian breakfast built around oats and groundnut',
+  'A Nigerian breakfast built around oats and groundnut',
   'Add cooking steps for this meal',
-  'Make it lower carb and adjust the macros',
+  'Make it lower carb',
 ];
+
+const SEARCH_DEBOUNCE_MS = 350;
+
+/**
+ * Meals already on the platform, matching what is being typed.
+ *
+ * Two things can happen with one search box: an existing meal can be
+ * opened as the starting point, or the same words can be handed to the
+ * assistant to draft something new. The first works today; the second
+ * needs the model, which is why they are kept visibly apart.
+ */
+function ExistingMeals({ query, onUse }) {
+  const [state, setState] = useState({ status: 'idle', meals: [], total: 0 });
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) {
+      setState({ status: 'idle', meals: [], total: 0 });
+      return undefined;
+    }
+    const controller = new AbortController();
+    setState((s) => ({ ...s, status: 'searching' }));
+    const timer = setTimeout(() => {
+      listMeals({ search: q, limit: 6 }, { signal: controller.signal }).then(
+        (data) => setState({ status: 'done', meals: data?.meals ?? [], total: data?.stats?.docs ?? 0 }),
+        (error) => {
+          if (error.name !== 'AbortError') setState({ status: 'error', meals: [], total: 0, error });
+        },
+      );
+    }, SEARCH_DEBOUNCE_MS);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [query]);
+
+  const { status, meals, total, error } = state;
+  if (status === 'idle') return null;
+
+  return (
+    <div className="mt-2 rounded-lg border border-line bg-surface p-2.5">
+      <div className="text-[10.5px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+        On the platform {status === 'done' && `· ${total}`}
+      </div>
+      {status === 'searching' && !meals.length && (
+        <div className="mt-1.5 flex items-center gap-2 text-[11.5px] text-ink-3"><Spinner /> Searching meals…</div>
+      )}
+      {status === 'error' && (
+        <div role="alert" className="mt-1.5 text-[11.5px] text-chili">{error.message}</div>
+      )}
+      {status === 'done' && !meals.length && (
+        <div className="mt-1.5 text-[11.5px] text-ink-3">No meal on the platform matches that yet.</div>
+      )}
+      <ul className="mt-1 flex flex-col">
+        {meals.map((meal) => (
+          <li key={meal._id} className="flex items-start justify-between gap-2 border-t border-line/60 py-1.5 first:border-t-0">
+            <div className="min-w-0">
+              <div className="truncate text-[12.5px] font-medium text-ink">{meal.name}</div>
+              <div className="truncate text-[11px] text-ink-3">
+                {[(meal.types || []).join(', '), (meal.countries || []).join(', ')].filter(Boolean).join(' · ') || '—'}
+              </div>
+            </div>
+            <button type="button" onClick={() => onUse(meal)} title={`Start from ${meal.name}`}
+              className="grid size-6.5 shrink-0 cursor-pointer place-items-center rounded-full border border-line text-forest transition hover:border-forest hover:bg-forest hover:text-white">
+              <IconPlus size={13} />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 /**
  * Shows an API failure in full: the server's own message, plus what that
@@ -72,6 +141,7 @@ function StudioError({ error, onRetry }) {
  * Apply. Nothing here talks to a model directly.
  */
 export default function MealStudioPanel({ form, onApply }) {
+  const [query, setQuery] = useState('');
   const [turns, setTurns] = useState([]);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -113,22 +183,53 @@ export default function MealStudioPanel({ form, onApply }) {
     setDraft(null);
   };
 
+  /* Starting from an existing meal is the same write path as applying a
+     draft — the mapping, and what it refuses to carry over, is shared.
+     The image comes too: unlike the model, a saved meal may own one. */
+  const useExisting = (meal) => {
+    const base = fromStudioMeal(meal, form);
+    const next = meal.image ? { ...base, image: meal.image } : base;
+    onApply(next, changedFields(next, form));
+  };
+
   return (
     <div className="mb-4 rounded-xl border border-grape/30 bg-grape-light/40 p-3.5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         {/* No title: the collapsible Section around this panel already carries it. */}
         <div className="flex items-center gap-2">
           <span className="text-grape"><IconSparkles /></span>
-          <Badge tone="grape">POST /v1/meal-studio/chat</Badge>
+          {/* The panel now spans two endpoints — the meal list it searches
+              and the assistant it drafts with — so it names neither. */}
+          <Badge tone="grape">platform API</Badge>
         </div>
         {conversationId.current && (
           <span className="font-mono text-[10.5px] text-ink-3">conv {conversationId.current.slice(0, 8)}…</span>
         )}
       </div>
       <p className="mt-1 text-[11.5px] leading-relaxed text-ink-3">
-        Drafts this meal through the platform API, which holds the model credentials — the browser
-        never calls a model. Nothing is saved: a draft only reaches the form when you apply it.
+        Search any meal: start from one already on the platform, or have the assistant draft it.
+        Nothing is saved until you apply it to the form.
       </p>
+
+      <div className="relative mt-2.5">
+        <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3"><IconSearch /></span>
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); send(query); } }}
+          placeholder="Search for any meal, e.g. jollof rice"
+          className="py-2 pl-8 text-[12.5px]"
+        />
+      </div>
+
+      <ExistingMeals query={query} onUse={useExisting} />
+
+      {query.trim().length >= 2 && (
+        <Button type="button" variant="ghost" className="mt-2 w-full justify-center"
+          disabled={busy} onClick={() => send(query)}>
+          {busy ? <><Spinner /> Drafting…</> : <>Draft “{query.trim()}” with the assistant</>}
+        </Button>
+      )}
 
       {turns.length > 0 && (
         <div className="scroll-thin mt-3 flex max-h-72 flex-col gap-2 overflow-y-auto">
@@ -191,7 +292,7 @@ export default function MealStudioPanel({ form, onApply }) {
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(message); }
           }}
           rows={2}
-          placeholder="Ask for a change, e.g. “add cooking steps and estimate the macros”"
+          placeholder="Or ask for a change, e.g. “add cooking steps”"
           className="min-w-0 flex-1 resize-y rounded-lg border border-line bg-surface px-3 py-2 text-[12.5px] text-ink outline-none transition placeholder:text-ink-3 focus:border-mint focus:ring-3 focus:ring-mint/8"
         />
         <Button type="submit" disabled={busy || !message.trim()}>
