@@ -1,52 +1,57 @@
-import { Fragment, useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSearch } from '../../hooks/useTopbar.js';
 import {
-  Badge, Button, Card, CountBadge, EmptyState, FilterSelect, Input, PageToolbar, Spinner, Th, Td, cx,
+  Button, Card, CountBadge, EmptyState, FilterSelect, Input, PageToolbar, Spinner, cx,
 } from '../../components/ui.jsx';
-import { IconRefresh, IconWarning } from '../../components/icons.jsx';
+import { IconRefresh } from '../../components/icons.jsx';
 import { NUTRITION_SOURCES, searchNutrition } from '../../lib/api.js';
-import { macroValue } from '../../lib/mealNutrition.js';
+import { groupByFood, preparationName, preparationsLabel } from '../../lib/nutritionGroups.js';
+import { MacroChips, SourceTag } from '../nutrition/parts.jsx';
 import usePlatformLookups from './usePlatformLookups.js';
 
 const PAGE_SIZE = 25;
 const SEARCH_DEBOUNCE_MS = 350;
 
-/* The five per-100g nutrients the collection publishes, under the API's own
-   keys. Nothing is renamed on the way through. */
-const NUTRIENTS = [
-  ['calories', 'kcal'],
-  ['protein', 'g'],
-  ['carbohydrate', 'g'],
-  ['fat', 'g'],
-  ['fiber', 'g'],
+/* Identifiers a record carries beyond its figures. Shown on demand rather
+   than in the heading: useful when reconciling with the source tables,
+   noise the rest of the time. */
+const DETAIL_FIELDS = [
+  ['_id', (d) => d._id],
+  ['external_id', (d) => d.external_id],
+  ['food_variant_id', (d) => d.food_variant_id],
+  ['food_id', (d) => d.food_id],
+  ['food_group_id', (d) => d.food_group_id],
+  ['food_group_code', (d) => d.food_group_code],
+  ['source_category', (d) => d.source_category],
+  ['product_group', (d) => d.product_group],
+  ['energy_basis', (d) => d.energy_basis],
+  ['estimated_nutrients', (d) => (d.estimated_nutrients || []).join(', ')],
 ];
 
-function SourceBadge({ source }) {
-  if (source === 'wafct') return <Badge tone="mint">WAFCT</Badge>;
-  if (source === 'usda') return <Badge tone="ocean">USDA</Badge>;
-  return <Badge>{source || 'unknown'}</Badge>;
-}
-
-/** One nutrient cell: a number, or an em dash where the source published none. */
-function Nutrient({ value, suffix, estimated }) {
-  const n = macroValue(value);
-  if (n === null) {
-    return <span className="italic text-ink-3" title="Not published by the source">—</span>;
-  }
-  return (
-    <span className={cx('tabular-nums', estimated && 'text-amber-deep')} title={estimated ? 'Bracketed in the source — a lower-confidence figure' : undefined}>
-      {n}{suffix}{estimated ? '*' : ''}
-    </span>
-  );
+/**
+ * "Acha; acca; findi; hungry rice" → "Acha, acca, findi, hungry rice".
+ *
+ * The nutrition data model carries these under `local_names`, but the
+ * import does not write them yet (see README), so this renders whenever
+ * the API starts sending them and stays quiet until then.
+ */
+function aliasesOf(docs) {
+  const raw = docs.map((d) => d.local_names ?? d.aliases).find(Boolean);
+  if (!raw) return '';
+  const list = Array.isArray(raw) ? raw : String(raw).split(/[;,]/);
+  return list.map((s) => String(s).trim()).filter(Boolean).join(', ');
 }
 
 /**
  * The platform's food composition data: 1,028 WAFCT and 363 USDA records,
  * served by GET /v1/nutrition/ingredients.
  *
- * Read-only on purpose — the API publishes this collection, there is no
- * write route for it, and nothing here is held in the browser. Records are
- * rendered in the shape the API returns them.
+ * Presented the way the collection is shaped — one entry per food, its
+ * preparations underneath — because a food like fonio holds eight rows
+ * that differ only in their tail, and a flat list of those is unreadable.
+ *
+ * Read-only: the API publishes this collection and has no write route for
+ * it, and nothing here is held in the browser.
  */
 export default function NutritionLibrary({ tabs }) {
   const [search] = useSearch();
@@ -58,9 +63,9 @@ export default function NutritionLibrary({ tabs }) {
   const [foodGroupCode, setFoodGroupCode] = useState('');
   const [page, setPage] = useState(1);
   const [reloadKey, setReloadKey] = useState(0);
-  const [expanded, setExpanded] = useState(null);
+  const [details, setDetails] = useState(null);
   const [waking, setWaking] = useState(false);
-  const [state, setState] = useState({ status: 'loading', docs: [], stats: null, error: null });
+  const [state, setState] = useState({ status: 'loading', groups: [], docs: 0, stats: null, error: null });
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -79,7 +84,7 @@ export default function NutritionLibrary({ tabs }) {
     searchNutrition(
       {
         search: query,
-        // Omitted entirely when unset — never `source=`.
+        // Every filter is omitted when unset — never `source=`.
         source: source || undefined,
         product_group: productGroup || undefined,
         food_group_code: foodGroupCode.trim().toUpperCase() || undefined,
@@ -90,7 +95,8 @@ export default function NutritionLibrary({ tabs }) {
     ).then(
       (data) => {
         setWaking(false);
-        setState({ status: 'ready', docs: data?.docs ?? [], stats: data?.stats ?? null, error: null });
+        const docs = data?.docs ?? [];
+        setState({ status: 'ready', groups: groupByFood(docs), docs: docs.length, stats: data?.stats ?? null, error: null });
       },
       (error) => {
         if (error.name === 'AbortError') return;
@@ -103,7 +109,7 @@ export default function NutritionLibrary({ tabs }) {
 
   const reload = useCallback(() => setReloadKey((n) => n + 1), []);
 
-  const { status, docs, stats, error } = state;
+  const { status, groups, docs, stats, error } = state;
   const total = stats?.docs ?? 0;
   const bySource = stats?.by_source || {};
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -138,9 +144,11 @@ export default function NutritionLibrary({ tabs }) {
               />
             </div>
             <CountBadge>
-              {status === 'loading' && !docs.length ? '…' : `${total.toLocaleString()} record${total === 1 ? '' : 's'}`}
+              {status === 'loading' && !groups.length
+                ? '…'
+                : `${groups.length} ingredient${groups.length === 1 ? '' : 's'} · ${total.toLocaleString()} record${total === 1 ? '' : 's'}`}
             </CountBadge>
-            {status === 'loading' && docs.length > 0 && <Spinner />}
+            {status === 'loading' && groups.length > 0 && <Spinner />}
           </>
         }
         right={
@@ -151,14 +159,12 @@ export default function NutritionLibrary({ tabs }) {
       />
 
       <div className="px-7 py-5 max-md:px-4">
-        {/* by_source, so a page dominated by one source says so rather than
-            looking like the other one has no data. */}
         {stats && (
           <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12.5px] text-ink-2">
             <span className="font-medium">Matches by source:</span>
             {NUTRITION_SOURCES.map((s) => (
               <span key={s} className="inline-flex items-center gap-1.5">
-                <SourceBadge source={s} />
+                <SourceTag source={s} />
                 <span className="tabular-nums">{(bySource[s] ?? 0).toLocaleString()}</span>
               </span>
             ))}
@@ -188,109 +194,101 @@ export default function NutritionLibrary({ tabs }) {
           </div>
         )}
 
-        <Card>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse max-md:min-w-[860px]">
-              <thead>
-                <tr>
-                  <Th>Food</Th>
-                  <Th>Source</Th>
-                  <Th>Published category</Th>
-                  {NUTRIENTS.map(([key]) => <Th key={key} className="text-right">{key}</Th>)}
-                  <Th />
-                </tr>
-              </thead>
-              <tbody className={cx(status === 'loading' && 'opacity-60')}>
-                {docs.map((rec) => {
-                  const estimated = rec.estimated_nutrients || [];
-                  const open = expanded === rec._id;
-                  return (
-                    <tr key={rec._id} className="group align-top transition hover:bg-[#FAFBFD]">
-                      <Td>
-                        <div className="font-medium">{rec.name}</div>
-                        {rec.name_fr && <div className="text-[11.5px] italic text-ink-3">{rec.name_fr}</div>}
-                        {open && (
-                          <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[11.5px] text-ink-2">
-                            {[
-                              ['_id', rec._id],
-                              ['external_id', rec.external_id],
-                              ['food_variant_id', rec.food_variant_id],
-                              ['food_id', rec.food_id],
-                              ['food_group_id', rec.food_group_id],
-                              ['food_group_code', rec.food_group_code],
-                              ['product_group', rec.product_group],
-                              ['energy_basis', rec.energy_basis],
-                              ['estimated_nutrients', estimated.length ? estimated.join(', ') : null],
-                            ].map(([k, v]) => (
-                              <Fragment key={k}>
-                                <dt className="text-ink-3">{k}</dt>
-                                <dd className="font-mono break-all">{v === null || v === undefined || v === '' ? '—' : String(v)}</dd>
-                              </Fragment>
-                            ))}
-                          </dl>
-                        )}
-                      </Td>
-                      <Td>
-                        <SourceBadge source={rec.source} />
-                        <div className="mt-1 font-mono text-[11px] text-ink-3">{rec.external_id}</div>
-                      </Td>
-                      <Td className="text-[12.5px]">
-                        {rec.source_category || <span className="italic text-ink-3">—</span>}
-                        {rec.food_group_code && (
-                          <div className="mt-0.5 font-mono text-[11px] text-ink-3">{rec.food_group_code}</div>
-                        )}
-                      </Td>
-                      {NUTRIENTS.map(([key, suffix]) => (
-                        <Td key={key} className="text-right text-[12.5px]">
-                          <Nutrient value={rec.nutrients_per_100g?.[key]} suffix={suffix}
-                            estimated={estimated.includes(key)} />
-                        </Td>
-                      ))}
-                      <Td>
-                        <button type="button"
-                          onClick={() => setExpanded(open ? null : rec._id)}
-                          className="cursor-pointer text-[11.5px] text-ink-3 underline-offset-2 hover:text-forest hover:underline">
-                          {open ? 'less' : 'more'}
-                        </button>
-                      </Td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+        {status === 'loading' && !groups.length && (
+          <Card><div className="grid place-items-center py-16"><Spinner className="size-6" /></div></Card>
+        )}
 
-          {status === 'loading' && !docs.length && (
-            <div className="grid place-items-center py-16"><Spinner className="size-6" /></div>
-          )}
-          {status === 'ready' && !docs.length && (
+        {status === 'ready' && !groups.length && (
+          <Card>
             <EmptyState
               icon="🔍"
               title={query ? `No records match “${query}”` : 'No records match these filters'}
               sub="Values are per 100g of edible portion, from the published tables."
             />
-          )}
+          </Card>
+        )}
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3 text-[12.5px] text-ink-3">
-            <span className="flex flex-wrap items-center gap-2">
-              <span className="tabular-nums">{first.toLocaleString()}–{last.toLocaleString()} of {total.toLocaleString()}</span>
-              <span className="inline-flex items-center gap-1 text-[11.5px]">
-                <IconWarning size={11} /> per 100g · an asterisk marks a figure bracketed by the source
-              </span>
+        <div className={cx('flex flex-col gap-4', status === 'loading' && 'opacity-60')}>
+          {groups.map((group) => {
+            const aliases = aliasesOf(group.docs);
+            return (
+              <Card key={group.key} className="px-5 py-4 max-md:px-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <h2 className="text-[19px] font-semibold tracking-[-0.01em] text-ink">{group.label}</h2>
+                    {aliases && <p className="mt-0.5 text-[12.5px] text-ink-3">also called {aliases}</p>}
+                  </div>
+                  <SourceTag source={group.source} />
+                </div>
+
+                <div className="mt-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-3">
+                  {preparationsLabel(group, { shown: docs, total })}
+                </div>
+
+                <ul className="mt-1 flex flex-col">
+                  {group.docs.map((doc) => {
+                    const open = details === doc._id;
+                    return (
+                      <li key={doc._id} className="border-t border-line-light py-3 first:border-t-0">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-[13.5px] font-semibold leading-snug text-ink">
+                              {preparationName(doc, group)}
+                            </div>
+                            {doc.name_fr && (
+                              <div className="mt-0.5 text-[12px] text-ink-3">{doc.name_fr}</div>
+                            )}
+                            <MacroChips record={doc} className="mt-1.5" />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setDetails(open ? null : doc._id)}
+                            className="shrink-0 cursor-pointer text-[11.5px] text-ink-3 underline-offset-2 hover:text-forest hover:underline"
+                          >
+                            {open ? 'less' : 'details'}
+                          </button>
+                        </div>
+
+                        {open && (
+                          <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 rounded-lg bg-surface-2 p-2.5 text-[11.5px] text-ink-2">
+                            {DETAIL_FIELDS.map(([label, read]) => {
+                              const value = read(doc);
+                              return (
+                                <div key={label} className="contents">
+                                  <dt className="text-ink-3">{label}</dt>
+                                  <dd className="font-mono break-all">
+                                    {value === null || value === undefined || value === '' ? '—' : String(value)}
+                                  </dd>
+                                </div>
+                              );
+                            })}
+                          </dl>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </Card>
+            );
+          })}
+        </div>
+
+        {total > PAGE_SIZE && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-[12.5px] text-ink-3">
+            <span className="tabular-nums">
+              records {first.toLocaleString()}–{last.toLocaleString()} of {total.toLocaleString()}
             </span>
-            {total > PAGE_SIZE && (
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" disabled={page <= 1 || status === 'loading'} onClick={() => setPage(page - 1)}>
-                  Previous
-                </Button>
-                <span className="tabular-nums">Page {page} of {pages}</span>
-                <Button variant="ghost" disabled={page >= pages || status === 'loading'} onClick={() => setPage(page + 1)}>
-                  Next
-                </Button>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" disabled={page <= 1 || status === 'loading'} onClick={() => setPage(page - 1)}>
+                Previous
+              </Button>
+              <span className="tabular-nums">Page {page} of {pages}</span>
+              <Button variant="ghost" disabled={page >= pages || status === 'loading'} onClick={() => setPage(page + 1)}>
+                Next
+              </Button>
+            </div>
           </div>
-        </Card>
+        )}
       </div>
     </>
   );
