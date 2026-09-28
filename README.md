@@ -553,6 +553,20 @@ Two deliberate departures from the production page:
 - **Instructions are numbered.** The order is the information, so it should be
   visible.
 
+#### Meal Studio
+
+The panel beside the form searches `GET /v1/meals`. Picking a result **opens
+the meal** — its macros with per-serving figures, its nutrients and its
+ingredients — rather than dropping it into the form: a meal is worth reading
+before it becomes the thing you are editing. *Use this meal* then fills the
+form, carrying everything except calories and macros, which come from the
+calculation.
+
+A macro the meal never recorded reads "not recorded". Nothing is drafted by
+searching; `POST /v1/meal-studio/chat` is a separate, deliberate action behind
+"Not on the platform? Draft … with the assistant", and on a new meal its result
+fills the form directly.
+
 #### Nutrition is calculated, never typed
 
 The meal form has a **Macronutrients** section in the place it always did — Calories,

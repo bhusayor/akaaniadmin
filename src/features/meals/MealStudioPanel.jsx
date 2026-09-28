@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Badge, Button, Input, Spinner, cx } from '../../components/ui.jsx';
-import { IconInfo, IconPlus, IconSearch, IconSparkles, IconWarning } from '../../components/icons.jsx';
+import { IconInfo, IconSearch, IconSparkles, IconWarning } from '../../components/icons.jsx';
+import MealPreview from './MealPreview.jsx';
 import { isExpiredSession, isForbidden, listMeals, mealStudioChat } from '../../lib/api.js';
 import {
   changedFields, FIELD_LABELS, fromStudioMeal, MEAL_SCHEMA_VERSION, toStudioMeal,
@@ -17,12 +18,12 @@ const SEARCH_DEBOUNCE_MS = 350;
 /**
  * Meals already on the platform, matching what is being typed.
  *
- * Two things can happen with one search box: an existing meal can be
- * opened as the starting point, or the same words can be handed to the
- * assistant to draft something new. The first works today; the second
- * needs the model, which is why they are kept visibly apart.
+ * Picking one opens it — its figures, nutrients and ingredients — rather
+ * than dropping it into the form on the spot. A meal is worth reading
+ * before it becomes the thing you are editing.
  */
 function ExistingMeals({ query, onUse }) {
+  const [opened, setOpened] = useState(null);
   const [state, setState] = useState({ status: 'idle', meals: [], total: 0 });
 
   useEffect(() => {
@@ -33,6 +34,7 @@ function ExistingMeals({ query, onUse }) {
     }
     const controller = new AbortController();
     setState((s) => ({ ...s, status: 'searching' }));
+    setOpened(null);
     const timer = setTimeout(() => {
       listMeals({ search: q, limit: 6 }, { signal: controller.signal }).then(
         (data) => setState({ status: 'done', meals: data?.meals ?? [], total: data?.stats?.docs ?? 0 }),
@@ -46,6 +48,10 @@ function ExistingMeals({ query, onUse }) {
 
   const { status, meals, total, error } = state;
   if (status === 'idle') return null;
+
+  if (opened) {
+    return <MealPreview meal={opened} onUse={onUse} onBack={() => setOpened(null)} />;
+  }
 
   return (
     <div className="mt-2 rounded-lg border border-line bg-surface p-2.5">
@@ -63,16 +69,20 @@ function ExistingMeals({ query, onUse }) {
       )}
       <ul className="mt-1 flex flex-col">
         {meals.map((meal) => (
-          <li key={meal._id} className="flex items-start justify-between gap-2 border-t border-line/60 py-1.5 first:border-t-0">
-            <div className="min-w-0">
-              <div className="truncate text-[12.5px] font-medium text-ink">{meal.name}</div>
-              <div className="truncate text-[11px] text-ink-3">
-                {[(meal.types || []).join(', '), (meal.countries || []).join(', ')].filter(Boolean).join(' · ') || '—'}
-              </div>
-            </div>
-            <button type="button" onClick={() => onUse(meal)} title={`Start from ${meal.name}`}
-              className="grid size-6.5 shrink-0 cursor-pointer place-items-center rounded-full border border-line text-forest transition hover:border-forest hover:bg-forest hover:text-white">
-              <IconPlus size={13} />
+          <li key={meal._id} className="border-t border-line/60 first:border-t-0">
+            <button
+              type="button"
+              onClick={() => setOpened(meal)}
+              title={`Open ${meal.name}`}
+              className="flex w-full cursor-pointer items-center justify-between gap-2 py-1.5 text-left transition hover:text-forest"
+            >
+              <span className="min-w-0">
+                <span className="block truncate text-[12.5px] font-medium text-ink">{meal.name}</span>
+                <span className="block truncate text-[11px] text-ink-3">
+                  {[(meal.types || []).join(', '), (meal.countries || []).join(', ')].filter(Boolean).join(' · ') || '—'}
+                </span>
+              </span>
+              <span className="shrink-0 text-[11px] text-ink-3">view</span>
             </button>
           </li>
         ))}
@@ -239,10 +249,15 @@ export default function MealStudioPanel({ form, onApply, autoApply = false }) {
       <ExistingMeals query={query} onUse={useExisting} />
 
       {query.trim().length >= 2 && (
-        <Button type="button" variant="ghost" className="mt-2 w-full justify-center"
-          disabled={busy} onClick={() => send(query)}>
-          {busy ? <><Spinner /> Drafting…</> : <>Draft “{query.trim()}” with the assistant</>}
-        </Button>
+        <details className="mt-2">
+          <summary className="cursor-pointer list-none text-[11.5px] text-ink-3 underline-offset-2 hover:text-grape hover:underline">
+            Not on the platform? Draft “{query.trim()}” with the assistant
+          </summary>
+          <Button type="button" variant="ghost" className="mt-1.5 w-full justify-center"
+            disabled={busy} onClick={() => send(query)}>
+            {busy ? <><Spinner /> Drafting…</> : 'Draft it'}
+          </Button>
+        </details>
       )}
 
       {turns.length > 0 && (
