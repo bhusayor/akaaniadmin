@@ -12,9 +12,9 @@
    that key. USDA rows have none — the model covers WAFCT only — so each
    stands alone.
 
-   The group's display name is derived from the rows, because the API
-   does not expose the model's `food_name_en` (or its `local_names`
-   aliases). See the note in README.
+   The group's display name is the model's `food_name_en` (`food_name`
+   on WAFCT records). Rows without one fall back to a name derived from
+   the rows themselves.
    ═══════════════════════════════════════════════════════ */
 
 const clean = (v) => String(v ?? '').trim();
@@ -60,7 +60,7 @@ export function groupByFood(docs = []) {
   });
 
   groups.forEach((group) => {
-    group.label = groupLabel(group.docs);
+    group.label = clean(group.docs[0].food_name) || groupLabel(group.docs);
     // A group is single-source in practice; if it ever is not, say so plainly.
     if (!group.docs.every((d) => d.source === group.source)) group.source = 'mixed';
   });

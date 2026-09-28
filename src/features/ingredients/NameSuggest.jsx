@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Spinner, cx } from '../../components/ui.jsx';
 import { IconInfo, IconWarning } from '../../components/icons.jsx';
+/* API switched off — local catalogue and nutrition data stand in for it.
 import { listIngredients, searchNutrition } from '../../lib/api.js';
+*/
+import { listIngredients } from '../../lib/platformCatalogue.js';
+import { searchNutrition } from '../../lib/nutritionData.js';
 import { groupByFood } from '../../lib/nutritionGroups.js';
 import { SourceTag } from '../nutrition/parts.jsx';
 
@@ -32,14 +36,14 @@ export default function NameSuggest({ value, onPick, excludeId }) {
       setState({ status: 'idle', existing: [], foods: [], error: null });
       return undefined;
     }
-    const controller = new AbortController();
-    const opts = { signal: controller.signal };
+    let live = true;
     setState((s) => ({ ...s, status: 'searching', error: null }));
     const timer = setTimeout(() => {
       Promise.all([
-        listIngredients({ search: query, page: 1, limit: 5 }, opts).catch(() => null),
-        searchNutrition({ search: query, page: 1, limit: 20 }, opts).catch(() => null),
+        listIngredients({ search: query, page: 1, limit: 5 }).catch(() => null),
+        searchNutrition({ search: query, page: 1, limit: 20, order: 'relevance' }).catch(() => null),
       ]).then(([catalogue, nutrition]) => {
+        if (!live) return;
         setState({
           status: 'done',
           existing: (catalogue?.ingredients ?? [])
@@ -49,10 +53,10 @@ export default function NameSuggest({ value, onPick, excludeId }) {
           error: null,
         });
       }, (error) => {
-        if (error.name !== 'AbortError') setState((s) => ({ ...s, status: 'error', error }));
+        if (live) setState((s) => ({ ...s, status: 'error', error }));
       });
     }, DEBOUNCE_MS);
-    return () => { clearTimeout(timer); controller.abort(); };
+    return () => { live = false; clearTimeout(timer); };
   }, [query, excludeId]);
 
   const { status, existing, foods } = state;

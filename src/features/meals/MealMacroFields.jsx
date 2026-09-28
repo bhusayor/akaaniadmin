@@ -1,6 +1,8 @@
 import { Field, cx } from '../../components/ui.jsx';
 import { IconInfo, IconWarning } from '../../components/icons.jsx';
-import { macroField, NUTRIENTS, readNutrient, round1, unavailableLabel } from '../../lib/mealNutrition.js';
+import {
+  macroField, NUTRIENTS, readNutrient, round1, scaleToServings, servingCount, unavailableLabel,
+} from '../../lib/mealNutrition.js';
 
 /* Calories heads the section; the four macros sit in the grid below it,
    which is the layout the meal form has always used. */
@@ -15,7 +17,7 @@ const CALORIES = NUTRIENTS.find((n) => n.key === 'calories');
  * from the linked ingredients, and a box someone can type into would put
  * a second, quieter source of truth back on the form.
  */
-function Macro({ label, state, perServing }) {
+function Macro({ label, state, perServing, basis }) {
   const tone = {
     calculated: 'text-ink',
     unavailable: 'text-amber-deep',
@@ -26,7 +28,7 @@ function Macro({ label, state, perServing }) {
   return (
     <Field
       label={label}
-      hint={state.state === 'saved' ? 'saved value' : state.state === 'calculated' ? 'calculated' : undefined}
+      hint={state.state === 'saved' ? 'saved value' : state.state === 'calculated' ? basis : undefined}
     >
       <div
         className={cx(
@@ -47,21 +49,24 @@ function Macro({ label, state, perServing }) {
 /**
  * The meal's macronutrients, calculated rather than typed.
  *
- * `totals` is the calculate response, or null when nothing is linked — in
- * which case the meal's saved figures are shown, labelled as saved, so an
- * older meal does not look empty just because its ingredients have not
- * been linked yet.
+ * `totals` is the calculation for ONE serving (the ingredients are one
+ * serving), or null when nothing is linked — in which case the meal's
+ * saved figures are shown, labelled as saved, so an older meal does not
+ * look empty just because its ingredients have not been linked yet.
+ *
+ * The big figure is for the number of servings; the line under it is one
+ * serving, so raising the servings raises the figures.
  */
 export default function MealMacroFields({ totals, form, servings }) {
-  const count = Number(servings) > 0 ? Number(servings) : 0;
-  const anyUnavailable = NUTRIENTS.some((n) => macroField(totals, form, n).state === 'unavailable');
+  const count = servingCount(servings);
+  const scaled = scaleToServings(totals, count);
+  const anyUnavailable = NUTRIENTS.some((n) => macroField(scaled, form, n).state === 'unavailable');
+  const basis = count === 1 ? 'per serving' : `for ${count} servings`;
 
-  /* Per serving is only shown for a calculated figure: dividing a saved
-     total by today's serving count would invent a number nobody stored. */
   const perServing = (nutrient, state) => {
-    if (!count || state.state !== 'calculated' || !totals) return null;
+    if (count === 1 || state.state !== 'calculated' || !totals) return null;
     const { value } = readNutrient(totals, nutrient.key);
-    const each = nutrient.key === 'calories' ? Math.round(value / count) : round1(value / count);
+    const each = nutrient.key === 'calories' ? Math.round(value) : round1(value);
     return `${each}${nutrient.suffix}`;
   };
 
@@ -69,9 +74,9 @@ export default function MealMacroFields({ totals, form, servings }) {
     <div className="mt-4">
       <div className="grid grid-cols-5 gap-4 max-lg:grid-cols-3 max-md:grid-cols-2">
         {[CALORIES, ...GRID].map((n) => {
-          const state = macroField(totals, form, n);
+          const state = macroField(scaled, form, n);
           return (
-            <Macro key={n.key} label={n.label} state={state} perServing={perServing(n, state)} />
+            <Macro key={n.key} label={n.label} state={state} perServing={perServing(n, state)} basis={basis} />
           );
         })}
       </div>
@@ -79,7 +84,8 @@ export default function MealMacroFields({ totals, form, servings }) {
       <p className="mt-2.5 flex items-start gap-1.5 text-[11.5px] leading-relaxed text-ink-3">
         <span className="mt-0.5 shrink-0"><IconInfo size={11} /></span>
         <span>
-          Calculated from the linked ingredients above — these are not typed in.
+          Calculated from the ingredients above, which are one serving — these are not typed in.
+          The meal saves the per-serving figures.
           {anyUnavailable && ' “Unavailable” means no ingredient published that nutrient; it is saved as blank, not as 0.'}
         </span>
       </p>

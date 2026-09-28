@@ -10,21 +10,22 @@ import { it, assert } from 'vitest';
 import {
   buildCalculateLines, readNutrient, unavailableLabel, totalsToMealFields,
   inclusionSummary, MASS_UNITS, macroField, NUTRIENTS,
+  normaliseUnit, parseQuantity, scaleToServings, servingCount,
 } from './mealNutrition.js';
 
 const rows = [
-  { name: 'rice', quantity: '3', unit: 'cups', ingredient_nutrition: 'n1', nutrition_quantity: '300', nutrition_unit: 'g' },
-  { name: 'pork belly', quantity: '1', unit: 'slab', ingredient_nutrition: 'n2', nutrition_quantity: '0.5', nutrition_unit: 'LB' },
+  { name: 'rice', quantity: '300', unit: 'g', ingredient_nutrition: 'n1' },
+  { name: 'pork belly', quantity: '1/2', unit: 'LB', ingredient_nutrition: 'n2' },
   { name: 'palm oil', quantity: '2', unit: 'tbsp' },
-  { name: 'onion', quantity: '1', unit: '', ingredient_nutrition: 'n3', nutrition_unit: 'g' },
-  { name: 'stock', ingredient_nutrition: 'n4', nutrition_quantity: 'some', nutrition_unit: 'g' },
-  { name: 'water', ingredient_nutrition: 'n5', nutrition_quantity: '2', nutrition_unit: 'cups' },
+  { name: 'onion', quantity: '', unit: 'g', ingredient_nutrition: 'n3' },
+  { name: 'stock', quantity: 'some', unit: 'g', ingredient_nutrition: 'n4' },
+  { name: 'water', quantity: '2', unit: 'cups', ingredient_nutrition: 'n5' },
   { name: '', description: '', quantity: '', unit: '' },
 ];
 
 // ─── lines ───
 
-it('only rows with a link, a quantity and a mass unit are sent', () => {
+it('rows from the database with a quantity in a mass unit are calculated, from the recipe Qty and Unit', () => {
   const { lines } = buildCalculateLines(rows);
   assert.deepStrictEqual(lines, [
     { ingredientId: 'n1', quantity: 300, unit: 'g' },
@@ -35,10 +36,10 @@ it('only rows with a link, a quantity and a mass unit are sent', () => {
 it('every excluded row is named with a reason, never counted as zero', () => {
   const { skipped } = buildCalculateLines(rows);
   assert.deepStrictEqual(skipped.map((s) => s.name), ['palm oil', 'onion', 'stock', 'water']);
-  assert.match(skipped[0].reason, /no nutrition link/);
+  assert.match(skipped[0].reason, /not from the ingredient database/);
   assert.match(skipped[1].reason, /no quantity/);
   assert.match(skipped[2].reason, /not a number above zero/);
-  assert.match(skipped[3].reason, /not a mass unit/);
+  assert.match(skipped[3].reason, /cannot be weighed/);
 });
 
 it('a blank editor row is not reported as skipped', () => {
@@ -49,22 +50,36 @@ it('a blank editor row is not reported as skipped', () => {
 
 it('a zero or negative quantity is excluded rather than sent', () => {
   const { lines, skipped } = buildCalculateLines([
-    { name: 'a', ingredient_nutrition: 'n1', nutrition_quantity: '0', nutrition_unit: 'g' },
-    { name: 'b', ingredient_nutrition: 'n2', nutrition_quantity: '-5', nutrition_unit: 'g' },
+    { name: 'a', ingredient_nutrition: 'n1', quantity: '0', unit: 'g' },
+    { name: 'b', ingredient_nutrition: 'n2', quantity: '-5', unit: 'g' },
   ]);
   assert.strictEqual(lines.length, 0);
   assert.strictEqual(skipped.length, 2);
 });
 
-it('the recipe quantity and unit never reach the calculation', () => {
-  // "3 cups" stays on the row for the cook; only nutrition_* is calculated.
-  const { lines } = buildCalculateLines([rows[0]]);
-  assert.strictEqual(lines[0].quantity, 300);
-  assert.strictEqual(lines[0].unit, 'g');
+it('reads recipe quantities as a cook writes them', () => {
+  assert.strictEqual(parseQuantity('200'), 200);
+  assert.strictEqual(parseQuantity('1 1/2'), 1.5);
+  assert.strictEqual(parseQuantity('1½'), 1.5);
+  assert.strictEqual(parseQuantity('0,5'), 0.5);
+  assert.strictEqual(parseQuantity('a thumb'), null);
+  assert.strictEqual(parseQuantity('2-3'), null);
+  assert.strictEqual(normaliseUnit('LBS'), 'lb');
 });
 
-it('only the four mass units the endpoint converts are accepted', () => {
+it('only the four mass units the calculation converts are accepted', () => {
   assert.deepStrictEqual(MASS_UNITS, ['g', 'kg', 'oz', 'lb']);
+});
+
+// ─── servings ───
+
+it('ingredients are one serving; more servings multiply the figures', () => {
+  const perServing = { totals: { calories: 400, protein: 20, fiber: null } };
+  assert.deepStrictEqual(scaleToServings(perServing, 3).totals, { calories: 1200, protein: 60, fiber: null });
+  assert.deepStrictEqual(scaleToServings(perServing, '').totals, perServing.totals);
+  assert.strictEqual(servingCount('0'), 1);
+  assert.strictEqual(servingCount('4'), 4);
+  assert.strictEqual(scaleToServings(null, 2), null);
 });
 
 // ─── reading the response ───
@@ -162,26 +177,26 @@ it('the summary states how many rows made it in', () => {
   assert.strictEqual(inclusionSummary([], []), 'No ingredients added yet');
 });
 
-it('a linked row with no amount is not described as unlinked', () => {
+it('a linked row with no quantity is not described as unlinked', () => {
   const { lines, skipped } = buildCalculateLines([
-    { name: 'rice', ingredient_nutrition: 'n1', nutrition_unit: 'g' },
+    { name: 'rice', ingredient_nutrition: 'n1', unit: 'g' },
   ]);
   assert.strictEqual(inclusionSummary(lines, skipped),
-    '0 of 1 ingredients included — the linked ingredient needs an amount');
+    '0 of 1 ingredients included — the ingredient needs a quantity in g, kg, oz or lb');
 });
 
-it('several linked rows missing amounts read as such', () => {
+it('several linked rows missing quantities read as such', () => {
   const { lines, skipped } = buildCalculateLines([
-    { name: 'rice', ingredient_nutrition: 'n1', nutrition_unit: 'g' },
-    { name: 'beans', ingredient_nutrition: 'n2', nutrition_unit: 'g' },
+    { name: 'rice', ingredient_nutrition: 'n1', unit: 'g' },
+    { name: 'beans', ingredient_nutrition: 'n2', unit: 'g' },
   ]);
   assert.strictEqual(inclusionSummary(lines, skipped),
-    '0 of 2 ingredients included — all 2 linked ingredients need an amount');
+    '0 of 2 ingredients included — all 2 ingredients need a quantity in g, kg, oz or lb');
 });
 
 it('a mix of unlinked and half-linked rows counts both', () => {
   const { lines, skipped } = buildCalculateLines([
-    { name: 'rice', ingredient_nutrition: 'n1', nutrition_unit: 'g' },
+    { name: 'rice', ingredient_nutrition: 'n1', unit: 'g' },
     { name: 'onion' },
   ]);
   assert.strictEqual(inclusionSummary(lines, skipped),
@@ -191,5 +206,5 @@ it('a mix of unlinked and half-linked rows counts both', () => {
 it('nothing linked at all still says exactly that', () => {
   const { lines, skipped } = buildCalculateLines([{ name: 'onion' }, { name: 'rice' }]);
   assert.strictEqual(inclusionSummary(lines, skipped),
-    '0 of 2 ingredients included — none are linked to nutrition data');
+    '0 of 2 ingredients included — none come from the ingredient database');
 });

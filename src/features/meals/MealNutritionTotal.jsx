@@ -1,18 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Spinner, cx } from '../../components/ui.jsx';
 import { IconInfo, IconWarning } from '../../components/icons.jsx';
+/* API switched off — calculated locally from the WAFCT + USDA data.
 import { calculateNutrition, isExpiredSession, isForbidden } from '../../lib/api.js';
+*/
+import { calculateNutrition } from '../../lib/nutritionData.js';
 import {
-  buildCalculateLines, inclusionSummary, NUTRIENTS, readNutrient, unavailableLabel,
+  buildCalculateLines, inclusionSummary, NUTRIENTS, readNutrient, servingCount, unavailableLabel,
 } from '../../lib/mealNutrition.js';
 
-/* Rows are edited a keystroke at a time; wait for a pause before asking
-   the server to add them up again. */
-const DEBOUNCE_MS = 500;
+/* Rows are edited a keystroke at a time; wait for a pause before adding
+   them up again. */
+const DEBOUNCE_MS = 250;
 
 /**
- * The meal's running nutrition total, recalculated by the platform API as
- * ingredient rows change.
+ * The meal's running nutrition total, recalculated from the WAFCT + USDA
+ * data as ingredient rows change.
  *
  * It reports what it could not count as loudly as what it could: a row
  * without a nutrition link, or measured in cups, is listed by name and the
@@ -23,7 +26,8 @@ const DEBOUNCE_MS = 500;
  * is nothing to calculate), which is what the meal saves — there are no
  * hand-typed macros any more.
  */
-export default function MealNutritionTotal({ rows, onTotals, savedFallback }) {
+export default function MealNutritionTotal({ rows, onTotals, savedFallback, servings }) {
+  const count = servingCount(servings);
   const { lines, skipped } = useMemo(() => buildCalculateLines(rows), [rows]);
   const linesKey = JSON.stringify(lines);
   const [state, setState] = useState({ status: 'idle', data: null, error: null });
@@ -37,23 +41,24 @@ export default function MealNutritionTotal({ rows, onTotals, savedFallback }) {
       onTotalsRef.current(null);
       return undefined;
     }
-    const controller = new AbortController();
+    let live = true;
     setState((s) => ({ ...s, status: 'loading', error: null }));
     const timer = setTimeout(() => {
-      calculateNutrition(current, { signal: controller.signal }).then(
+      calculateNutrition(current).then(
         (data) => {
+          if (!live) return;
           setState({ status: 'done', data, error: null });
           onTotalsRef.current(data);
         },
         (error) => {
-          if (error.name === 'AbortError') return;
+          if (!live) return;
           setState({ status: 'error', data: null, error });
           // A failed calculation must not leave a stale total attached to the meal.
           onTotalsRef.current(null);
         },
       );
     }, DEBOUNCE_MS);
-    return () => { clearTimeout(timer); controller.abort(); };
+    return () => { live = false; clearTimeout(timer); };
   }, [linesKey]);
 
   const { status, data, error } = state;
@@ -74,7 +79,7 @@ export default function MealNutritionTotal({ rows, onTotals, savedFallback }) {
       : !lines.length
         ? '0 cal'
         : calories?.available
-          ? `${Math.round(calories.value)} cal`
+          ? `${Math.round(calories.value)} cal per serving${count > 1 ? ` · ${Math.round(calories.value * count)} cal for ${count} servings` : ''}`
           : 'cal unavailable';
 
   return (
@@ -129,10 +134,8 @@ export default function MealNutritionTotal({ rows, onTotals, savedFallback }) {
 
       {status === 'error' && (
         <div role="alert" className="mt-2.5 rounded-lg bg-chili-light px-3 py-2 text-[11.5px] text-chili-deep">
-          <b className="font-semibold">Could not calculate{error.status ? ` — HTTP ${error.status}` : ''}:</b>{' '}
+          <b className="font-semibold">Could not calculate:</b>{' '}
           <span className="font-mono">{error.message}</span>
-          {isExpiredSession(error) && <> Sign in again.</>}
-          {isForbidden(error) && <> This account is not allowed to use the nutrition endpoint.</>}
           <div className="mt-1 text-ink-2">No total is attached to this meal until it calculates.</div>
         </div>
       )}
@@ -141,8 +144,8 @@ export default function MealNutritionTotal({ rows, onTotals, savedFallback }) {
         <p className="mt-2 flex items-start gap-1.5 text-[11.5px] leading-relaxed text-ink-3">
           <span className="mt-0.5 shrink-0"><IconInfo size={11} /></span>
           <span>
-            Nutrition comes from linked ingredients only. Link a row, give it a quantity in g, kg,
-            oz or lb, and the total appears here.
+            Pick ingredients from the database and give each a quantity for one serving in g, kg,
+            oz or lb — the calories and macros appear here.
             {savedFallback && ' Until then this meal keeps the figures already saved on it.'}
           </span>
         </p>

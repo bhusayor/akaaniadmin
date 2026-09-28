@@ -4,13 +4,14 @@
    Turns a meal's ingredient rows into POST /v1/nutrition/calculate lines
    and reads the response back.
 
-   Row shape — the optional nutrition fields on `ingredients_list`:
-     ingredient_nutrition   an IngredientNutrition _id from the search
-     nutrition_quantity     a number, in
-     nutrition_unit         g | kg | oz | lb
+   Row shape — on `ingredients_list`:
+     ingredient_nutrition   a nutrition record _id from the search
+     quantity               the recipe quantity: "200", "1/2", "1 ½"
+     unit                   g | kg | oz | lb are counted; cups, pieces
+                            etc. are kept for the cook but not counted
 
-   They sit alongside the recipe's own `quantity`/`unit`, which stay free
-   text ("2 cups", "a thumb") because that is what a cook reads.
+   The ingredients describe ONE serving. The calculation is per serving,
+   and scaleToServings() multiplies it by the meal's number of servings.
 
    Two rules run through everything here:
 
@@ -22,8 +23,45 @@
      must never be rendered as a number.
    ═══════════════════════════════════════════════════════ */
 
-/** The only units POST /v1/nutrition/calculate converts (its GRAMS_PER_UNIT). */
+/** The only units the calculation converts (GRAMS_PER_UNIT). */
 export const MASS_UNITS = ['g', 'kg', 'oz', 'lb'];
+
+const UNIT_ALIASES = { lbs: 'lb', gram: 'g', grams: 'g', kilogram: 'kg', kilograms: 'kg', ounce: 'oz', ounces: 'oz' };
+
+/** "LBS" → "lb", "grams" → "g"; anything else lowercased as-is. */
+export const normaliseUnit = (unit) => {
+  const u = String(unit ?? '').trim().toLowerCase();
+  return UNIT_ALIASES[u] || u;
+};
+
+const FRACTIONS = { '½': 0.5, '⅓': 1 / 3, '⅔': 2 / 3, '¼': 0.25, '¾': 0.75, '⅛': 0.125 };
+
+/**
+ * A recipe quantity as a number: "200", "1.5", "1/3", "1 1/2", "1½".
+ * Null for anything else ("a thumb", "2-3", "") — never a guess.
+ */
+export function parseQuantity(text) {
+  let s = String(text ?? '').trim().replace(',', '.');
+  if (!s) return null;
+  s = s.replace(/([0-9])?\s*([½⅓⅔¼¾⅛])/g, (_, whole, f) => ` ${whole || 0} ${FRACTIONS[f]}`).trim();
+  const parts = s.split(/\s+/);
+  if (parts.length > 3) return null;
+  let total = 0;
+  for (const part of parts) {
+    let n;
+    if (/^\d+\/\d+$/.test(part)) {
+      const [a, b] = part.split('/').map(Number);
+      n = b ? a / b : NaN;
+    } else if (/^\d*\.?\d+$/.test(part)) {
+      n = Number(part);
+    } else {
+      return null;
+    }
+    if (!Number.isFinite(n)) return null;
+    total += n;
+  }
+  return total;
+}
 
 /** Backend nutrient key → the label the meal form uses. */
 export const NUTRIENTS = [
@@ -53,9 +91,9 @@ export function buildCalculateLines(rows = []) {
     // A row with neither a name nor a link is an empty editor row, not an omission.
     if (!name && !id) return;
 
-    const unit = trimmed(row.nutrition_unit).toLowerCase();
-    const rawQuantity = trimmed(row.nutrition_quantity);
-    const quantity = Number(rawQuantity);
+    const rawQuantity = trimmed(row.quantity);
+    const quantity = parseQuantity(rawQuantity);
+    const unit = normaliseUnit(row.unit);
     const label = name || 'Unnamed ingredient';
 
     /* `kind` separates "nothing was chosen" from "something was chosen but is
@@ -63,15 +101,15 @@ export function buildCalculateLines(rows = []) {
        in: one is work not started, the other is work half done. */
     let reason = null;
     let kind = null;
-    if (!id) { kind = 'unlinked'; reason = 'no nutrition link'; }
+    if (!id) { kind = 'unlinked'; reason = 'not from the ingredient database'; }
     else if (!rawQuantity) { kind = 'incomplete'; reason = 'no quantity'; }
-    else if (!Number.isFinite(quantity) || quantity <= 0) {
+    else if (quantity === null || quantity <= 0) {
       kind = 'incomplete';
       reason = `quantity "${rawQuantity}" is not a number above zero`;
     } else if (!unit) { kind = 'incomplete'; reason = 'no unit'; }
     else if (!MASS_UNITS.includes(unit)) {
       kind = 'incomplete';
-      reason = `"${row.nutrition_unit}" is not a mass unit (${MASS_UNITS.join(', ')})`;
+      reason = `"${row.unit}" cannot be weighed — use ${MASS_UNITS.join(', ')}`;
     }
 
     if (reason) skipped.push({ index, name: label, reason, kind });
@@ -152,6 +190,26 @@ export function macroField(data, form, { key, field, suffix }) {
   return { state: 'empty', text: '—', missingFor: [] };
 }
 
+/** The number of servings, or 1 when it is blank or not a positive number. */
+export function servingCount(servings) {
+  const n = Number(String(servings ?? '').trim());
+  return Number.isFinite(n) && n > 0 ? n : 1;
+}
+
+/**
+ * A per-serving calculation multiplied up to `servings`. Unavailable
+ * nutrients stay null — twice an unknown is still unknown.
+ */
+export function scaleToServings(data, servings) {
+  if (!data) return data;
+  const n = servingCount(servings);
+  const totals = {};
+  Object.entries(data.totals || {}).forEach(([k, v]) => {
+    totals[k] = typeof v === 'number' && Number.isFinite(v) ? v * n : v;
+  });
+  return { ...data, totals };
+}
+
 /**
  * The meal fields a calculated total writes: a number where the nutrient is
  * available, null where it is not. Null means unavailable and is stored as
@@ -182,7 +240,7 @@ export function inclusionSummary(lines, skipped) {
   const why = incomplete && unlinked
     ? `${incomplete} linked but missing an amount, ${unlinked} not linked`
     : incomplete
-      ? `${incomplete === 1 ? 'the linked ingredient needs' : `all ${incomplete} linked ingredients need`} an amount`
-      : 'none are linked to nutrition data';
+      ? `${incomplete === 1 ? 'the ingredient needs' : `all ${incomplete} ingredients need`} a quantity in g, kg, oz or lb`
+      : 'none come from the ingredient database';
   return `0 of ${total} ingredients included — ${why}`;
 }

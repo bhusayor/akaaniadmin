@@ -6,11 +6,15 @@ import {
 } from '../../components/ui.jsx';
 import { IconEdit, IconPlus, IconRefresh, IconTrash } from '../../components/icons.jsx';
 import { useToast } from '../../components/Toast.jsx';
-import PlatformIngredientModal, { NOT_ALLOWED } from './PlatformIngredientModal.jsx';
+import PlatformIngredientModal from './PlatformIngredientModal.jsx';
+/* API switched off — the local catalogue stands in for it.
 import { deleteIngredient, ingredientFromApi, isForbidden, listIngredients } from '../../lib/api.js';
+*/
+import { ingredientFromApi } from '../../lib/api.js';
+import { deleteIngredient, listIngredients } from '../../lib/platformCatalogue.js';
 
 const PAGE_SIZE = 20;
-const SEARCH_DEBOUNCE_MS = 350;
+const SEARCH_DEBOUNCE_MS = 200;
 
 const fmtDate = (iso) => {
   const d = iso ? new Date(iso) : null;
@@ -19,7 +23,7 @@ const fmtDate = (iso) => {
     : '—';
 };
 
-/** platform-api's ingredient catalogue: server-side search and paging. */
+/** The platform ingredient catalogue — local while the API is switched off. A → Z. */
 export default function PlatformCatalogue({ tabs }) {
   const [search] = useSearch();
   const toast = useToast();
@@ -45,20 +49,18 @@ export default function PlatformCatalogue({ tabs }) {
   }, [search]);
 
   useEffect(() => {
-    const controller = new AbortController();
+    let live = true;
     setState((s) => ({ ...s, status: 'loading', error: null }));
-    listIngredients({ search: query, page, limit: PAGE_SIZE }, { signal: controller.signal }).then(
-      (data) => setState({
+    listIngredients({ search: query, page, limit: PAGE_SIZE }).then(
+      (data) => live && setState({
         status: 'ready',
         rows: (data?.ingredients ?? []).map(ingredientFromApi),
         total: Number(data?.docs) || 0,
         error: null,
       }),
-      (error) => {
-        if (error.name !== 'AbortError') setState((s) => ({ ...s, status: 'error', error }));
-      },
+      (error) => live && setState((s) => ({ ...s, status: 'error', error })),
     );
-    return () => controller.abort();
+    return () => { live = false; };
   }, [query, page, reloadKey]);
 
   const reload = useCallback(() => setReloadKey((n) => n + 1), []);
@@ -67,12 +69,8 @@ export default function PlatformCatalogue({ tabs }) {
     setFormOpen(false);
     setEditing(null);
     toast(`Ingredient ${verb}`);
-    if (verb === 'created') {
-      // Newest first on the backend, so page 1 is where it will be.
-      if (page === 1) reload(); else setPage(1);
-    } else {
-      setState((s) => ({ ...s, rows: s.rows.map((r) => (r.id === row.id ? row : r)) }));
-    }
+    // A → Z, so a new or renamed row can land on any page; reload this one.
+    reload();
   };
 
   const confirmDelete = async () => {
@@ -85,7 +83,7 @@ export default function PlatformCatalogue({ tabs }) {
       // Stepping back keeps us off an empty trailing page.
       if (state.rows.length === 1 && page > 1) setPage(page - 1); else reload();
     } catch (err) {
-      setDeleteError(isForbidden(err) ? NOT_ALLOWED : err.message);
+      setDeleteError(err.message);
     } finally {
       setDeleting(false);
     }
