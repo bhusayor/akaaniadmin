@@ -555,7 +555,9 @@ Two deliberate departures from the production page:
 
 #### Nutrition is calculated, never typed
 
-There are no calorie or macro inputs on the meal form. Each ingredient row
+The meal form has a **Macronutrients** section in the place it always did — Calories,
+Protein, Carbs, Fat and Fibre, with the running total above them — but the five
+figures are read-only. Each ingredient row
 carries the optional nutrition fields on `ingredients_list` —
 `ingredient_nutrition` (an id from `GET /v1/nutrition/ingredients`),
 `nutrition_quantity` and `nutrition_unit` — and every row holding all three is

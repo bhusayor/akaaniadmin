@@ -12,6 +12,7 @@ import { Section, ChipSelect, StringRows, CATEGORIES } from '../features/meals/f
 import IngredientRows from '../features/meals/IngredientRows.jsx';
 import CookingSteps from '../features/meals/CookingSteps.jsx';
 import MealNutritionTotal from '../features/meals/MealNutritionTotal.jsx';
+import MealMacroFields from '../features/meals/MealMacroFields.jsx';
 import MealStudioPanel from '../features/meals/MealStudioPanel.jsx';
 import { FIELD_LABELS } from '../lib/mealStudio.js';
 import { totalsToMealFields } from '../lib/mealNutrition.js';
@@ -300,6 +301,19 @@ export default function MealEdit() {
           </Section>
 
           {/* ── PRODUCT GROUP ── */}
+          {/* ── MACRONUTRIENTS ──
+              Where the meal form has always carried them, but calculated:
+              the running total explains the figures, and the figures sit
+              right under it rather than a screen away. */}
+          <Section title="Macronutrients" defaultOpen>
+            <MealNutritionTotal
+              rows={form.ingredients}
+              onTotals={setTotals}
+              savedFallback={!isNew && num(form.cal) !== null}
+            />
+            <MealMacroFields totals={totals} form={form} servings={form.servings} />
+          </Section>
+
           <Section title="Product group">
             <Field label="Product group">
               <Select value={form.productGroup} onChange={(e) => set('productGroup', e.target.value)}>
@@ -343,17 +357,6 @@ export default function MealEdit() {
             />
           </div>
         </aside>
-        </div>
-
-        {/* Above the save action, so nobody commits a meal without seeing
-            what its nutrition adds up to — and what was left out of it. */}
-        <div className="mt-4">
-          <MealNutritionTotal
-            rows={form.ingredients}
-            servings={form.servings}
-            onTotals={setTotals}
-            savedFallback={!isNew && num(form.cal) !== null}
-          />
         </div>
 
         <div className="mt-4 flex justify-end gap-2">

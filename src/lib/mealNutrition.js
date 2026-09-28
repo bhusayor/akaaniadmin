@@ -124,6 +124,35 @@ export const round1 = (v) => Math.round(v * 10) / 10;
 export const macroValue = (v) => (typeof v === 'number' && Number.isFinite(v) ? round1(v) : null);
 
 /**
+ * What one macro field on the meal form shows.
+ *
+ * The figures are calculated, never typed, so the field reports which of
+ * four things it is looking at rather than printing a number and leaving
+ * the reader to guess where it came from:
+ *
+ *   calculated   this run of the calculation produced it
+ *   unavailable  no ingredient published it — NOT 0
+ *   saved        nothing is linked yet, so the meal's stored value stands
+ *   empty        no calculation and nothing stored
+ */
+export function macroField(data, form, { key, field, suffix }) {
+  if (data) {
+    const { available, value, missingFor } = readNutrient(data, key);
+    if (available) {
+      const rounded = key === 'calories' ? Math.round(value) : round1(value);
+      return { state: 'calculated', text: `${rounded}${suffix}`, missingFor: [] };
+    }
+    return { state: 'unavailable', text: 'unavailable', missingFor };
+  }
+  const saved = form?.[field];
+  const number = saved === '' || saved === null || saved === undefined ? null : Number(saved);
+  if (number !== null && Number.isFinite(number)) {
+    return { state: 'saved', text: `${round1(number)}${suffix}`, missingFor: [] };
+  }
+  return { state: 'empty', text: '—', missingFor: [] };
+}
+
+/**
  * The meal fields a calculated total writes: a number where the nutrient is
  * available, null where it is not. Null means unavailable and is stored as
  * such — never coerced to 0, which would read as a measured zero.

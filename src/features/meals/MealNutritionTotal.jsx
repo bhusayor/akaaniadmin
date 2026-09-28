@@ -3,39 +3,12 @@ import { Spinner, cx } from '../../components/ui.jsx';
 import { IconInfo, IconWarning } from '../../components/icons.jsx';
 import { calculateNutrition, isExpiredSession, isForbidden } from '../../lib/api.js';
 import {
-  buildCalculateLines, inclusionSummary, NUTRIENTS, readNutrient, round1, unavailableLabel,
+  buildCalculateLines, inclusionSummary, NUTRIENTS, readNutrient, unavailableLabel,
 } from '../../lib/mealNutrition.js';
 
 /* Rows are edited a keystroke at a time; wait for a pause before asking
    the server to add them up again. */
 const DEBOUNCE_MS = 500;
-
-function Nutrient({ label, suffix, state, servings }) {
-  if (!state.available) {
-    return (
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="text-[11px] text-ink-3">{label}</span>
-        <span className="inline-flex items-center gap-1 text-[12.5px] font-medium text-amber-deep">
-          <IconWarning size={11} /> Unavailable
-        </span>
-      </div>
-    );
-  }
-  const perServing = servings > 0 ? round1(state.value / servings) : null;
-  return (
-    <div className="flex min-w-0 flex-col gap-0.5">
-      <span className="text-[11px] text-ink-3">{label}</span>
-      <span className="text-[13.5px] font-semibold tabular-nums text-ink">
-        {label === 'Calories' ? Math.round(state.value) : round1(state.value)}{suffix}
-      </span>
-      {perServing !== null && (
-        <span className="text-[10.5px] tabular-nums text-ink-3">
-          {label === 'Calories' ? Math.round(perServing) : perServing}{suffix} / serving
-        </span>
-      )}
-    </div>
-  );
-}
 
 /**
  * The meal's running nutrition total, recalculated by the platform API as
@@ -50,7 +23,7 @@ function Nutrient({ label, suffix, state, servings }) {
  * is nothing to calculate), which is what the meal saves — there are no
  * hand-typed macros any more.
  */
-export default function MealNutritionTotal({ rows, servings, onTotals, savedFallback }) {
+export default function MealNutritionTotal({ rows, onTotals, savedFallback }) {
   const { lines, skipped } = useMemo(() => buildCalculateLines(rows), [rows]);
   const linesKey = JSON.stringify(lines);
   const [state, setState] = useState({ status: 'idle', data: null, error: null });
@@ -84,20 +57,25 @@ export default function MealNutritionTotal({ rows, servings, onTotals, savedFall
   }, [linesKey]);
 
   const { status, data, error } = state;
-  const servingCount = Number(servings) > 0 ? Number(servings) : 0;
   const calories = data ? readNutrient(data, 'calories') : null;
   const partial = skipped.length > 0;
 
   /* While a recalculation is in flight the row count has already moved on,
      so the previous figure belongs to a different set of rows. Showing it
-     next to the new count would state a total this meal never had. */
+     next to the new count would state a total this meal never had.
+
+     A failed call is not an answer about the food: "unavailable" is what
+     the data says when no source published a nutrient, and a request that
+     never completed must not borrow that word. */
   const headline = status === 'loading'
     ? '…'
-    : !lines.length
-      ? '0 cal'
-      : calories?.available
-        ? `${Math.round(calories.value)} cal`
-        : 'cal unavailable';
+    : status === 'error'
+      ? 'not calculated'
+      : !lines.length
+        ? '0 cal'
+        : calories?.available
+          ? `${Math.round(calories.value)} cal`
+          : 'cal unavailable';
 
   return (
     <div className={cx('rounded-xl border p-3.5',
@@ -117,15 +95,6 @@ export default function MealNutritionTotal({ rows, servings, onTotals, savedFall
           </span>
         )}
       </div>
-
-      {status === 'done' && data && (
-        <div className="mt-3 grid grid-cols-5 gap-3 max-sm:grid-cols-3">
-          {NUTRIENTS.map(({ key, label, suffix }) => (
-            <Nutrient key={key} label={label} suffix={suffix}
-              state={readNutrient(data, key)} servings={servingCount} />
-          ))}
-        </div>
-      )}
 
       {status === 'done' && data?.completeness?.complete === false && (
         <ul className="mt-2.5 flex flex-col gap-0.5">
