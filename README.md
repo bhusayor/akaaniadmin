@@ -625,13 +625,28 @@ the same search regardless of the source filter, so the page can say how many
 matches it is *not* showing — without it, a search matching far more WAFCT rows
 than USDA ones looks like the USDA data is missing.
 
-Records render as the API returns them: `name`, `name_fr`, `source` with its
-`external_id`, `source_category`, `food_group_code`, and the five per-100g
+Records are grouped the way the collection is shaped: **one card per food**, with its
+preparations underneath. Fonio alone holds eight rows that differ only in their
+tail, and a flat list of those is unreadable. The grouping key is `food_id` from
+the nutrition data model; USDA rows have none, so each stands alone. The same
+grouping backs the picker in the meal editor and the name suggestions on the
+ingredient form, from `src/lib/nutritionGroups.js`.
+
+Each preparation shows its English and French names and the five per-100g
 nutrients under the API's own keys. **A nutrient the source never published is an
 em dash, not 0.** An asterisk marks a figure the source bracketed
 (`estimated_nutrients`) — a lower-confidence number, still not a measurement.
-*more* expands a row to the remaining identifiers (`food_variant_id`, `food_id`,
+*details* expands a preparation to its identifiers (`food_variant_id`, `food_id`,
 `food_group_id`, `energy_basis`, `product_group`).
+
+**Two fields the design needs that the API does not send yet.** `App_Import.csv`
+carries `food_name_en` and `local_names` ("Acha; acca; findi; hungry rice"), but
+`backfill-data-model.js` writes only `food_variant_id`, `food_id`,
+`food_group_id` and `food_group_code`. So the food heading is derived from the
+variant names rather than taken from the model, the "also called" line stays
+hidden until the API sends aliases — the UI renders them the moment it does — and
+**searching "acha" finds nothing**, because the search matches English name,
+French name and published category only.
 
 ### Cold starts
 
