@@ -233,6 +233,15 @@ export function searchNutrition({
   });
 }
 
+/**
+ * GET /v1/nutrition/food_groups → [{ code, count }], sorted by code.
+ *
+ * The codes actually present in the nutrition data, each a valid
+ * `food_group_code` for searchNutrition. USDA records have no food group.
+ */
+export const listNutritionFoodGroups = async (opts) =>
+  (await request('/v1/nutrition/food_groups', opts))?.groups ?? [];
+
 /** POST /v1/nutrition/calculate → { totals, breakdown, completeness, basis }. */
 export function calculateNutrition(ingredients, opts) {
   return request('/v1/nutrition/calculate', { ...opts, method: 'POST', body: { ingredients } });

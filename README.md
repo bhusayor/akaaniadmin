@@ -636,6 +636,12 @@ and published category), `source`, `product_group`, `food_group_code`, `page`,
 `limit` (25 a page). **An unset filter is omitted from the URL entirely** — never
 `source=`, which is not the same thing as "all sources".
 
+The food group dropdown is filled from `GET /v1/nutrition/food_groups`, which
+lists the codes actually present in the data with a record count each, so it never
+offers a group that matches nothing. USDA records carry no food group, so picking
+one narrows the search to WAFCT. If that endpoint fails — or the API is older than
+it — the dropdown falls back to a box for typing the code.
+
 `stats.by_source` is shown above the table. The endpoint counts both sources for
 the same search regardless of the source filter, so the page can say how many
 matches it is *not* showing — without it, a search matching far more WAFCT rows
