@@ -12,7 +12,7 @@ import NutritionLibrary from '../features/ingredients/NutritionLibrary.jsx';
      against. Read-only: the API has no write route for it. */
 const TABS = [
   { key: 'platform', label: 'Platform' },
-  { key: 'library', label: 'Nutrition data' },
+  { key: 'library', label: 'Nutrition data · WAFCT & USDA' },
 ];
 
 export default function Ingredients() {

@@ -13,9 +13,9 @@ import IngredientRows from '../features/meals/IngredientRows.jsx';
 import CookingSteps from '../features/meals/CookingSteps.jsx';
 import MealNutritionTotal from '../features/meals/MealNutritionTotal.jsx';
 import MealMacroFields from '../features/meals/MealMacroFields.jsx';
-import MealStudioPanel from '../features/meals/MealStudioPanel.jsx';
-import { FIELD_LABELS } from '../lib/mealStudio.js';
-import { totalsToMealFields } from '../lib/mealNutrition.js';
+// import MealStudioPanel from '../features/meals/MealStudioPanel.jsx'; // API switched off
+// import { FIELD_LABELS } from '../lib/mealStudio.js'; // Meal Studio only
+import { servingCount, totalsToMealFields } from '../lib/mealNutrition.js';
 
 const TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
 const COUNTRIES = ['Nigeria', 'Ghana', 'Kenya', 'South Africa'];
@@ -56,6 +56,43 @@ function toForm(m) {
     instructions: (m.instructions ?? []).map((s) => ({ ...s })),
     portion: m.portion ?? '',
   };
+}
+
+/**
+ * − / + for the number of servings, bound to the same field as Details.
+ * Blank counts as 1: the ingredients are one serving.
+ */
+function ServingsStepper({ value, onChange }) {
+  const count = servingCount(value);
+  const btn = 'grid size-8 cursor-pointer place-items-center rounded-md border border-line bg-surface text-[15px] '
+    + 'font-semibold text-ink-2 transition hover:border-forest hover:text-forest disabled:cursor-not-allowed disabled:opacity-40';
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-3">
+      <span className="text-[13px] font-medium text-ink">Servings</span>
+      <div className="flex items-center gap-1.5">
+        <button type="button" className={btn} aria-label="One serving fewer"
+          disabled={count <= 1} onClick={() => onChange(String(Math.max(1, count - 1)))}>−</button>
+        <input
+          type="number" min="1" value={value ?? ''} placeholder="1" aria-label="Number of servings"
+          onChange={(e) => onChange(e.target.value)}
+          className="h-8 w-14 rounded-md border border-line bg-surface text-center text-[13px] tabular-nums text-ink outline-none focus:border-mint"
+        />
+        <button type="button" className={btn} aria-label="One serving more"
+          onClick={() => onChange(String(count + 1))}>+</button>
+      </div>
+      <span className="text-[11.5px] text-ink-3">The ingredients are one serving; figures below are multiplied by this.</span>
+    </div>
+  );
+}
+
+/** A labelled run of fields inside the Details section. */
+function DetailGroup({ title, children }) {
+  return (
+    <div>
+      <div className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-3">{title}</div>
+      {children}
+    </div>
+  );
 }
 
 export default function MealEdit() {
@@ -198,70 +235,113 @@ export default function MealEdit() {
           </div>
         )}
 
-        {/* Form on the left, Meal Studio on the right: a new meal usually
-            starts from a search, and the draft it produces has to be read
-            against the fields it fills. */}
+        {/* Form on the left, Meal Studio on the right (hidden while the API
+            is switched off). */}
         <div className="flex items-start gap-5 max-lg:flex-col">
         <Card className="min-w-0 flex-1 px-6 py-2 max-lg:w-full max-md:px-4">
-          {/* ── DETAILS ── */}
+          {/* ── DETAILS ──
+              Read in the order a meal is written: what it is, how it is
+              classified, how it is cooked and served, then what Lu says
+              about it. */}
           <Section title="Details" defaultOpen openSignal={filledAt}>
-            <div className="flex flex-col gap-4">
-              <ImagePicker label="Meal image" value={form.image} onChange={(v) => set('image', v)} />
-
-              <Field label="Name" required>
-                <Input value={form.name} onChange={(e) => set('name', e.target.value)} />
-              </Field>
-
-
-              <Field label="Notification message">
-                <textarea rows={3} className={textareaCls} value={form.notificationMessage}
-                  onChange={(e) => set('notificationMessage', e.target.value)} />
-              </Field>
-
-              <Field label="Description" required>
-                <textarea rows={4} className={textareaCls} value={form.description}
-                  onChange={(e) => set('description', e.target.value)} />
-              </Field>
-
-              <Field label="Lu tips">
-                <textarea rows={4} className={textareaCls} value={form.luTips} placeholder="Lu Tips"
-                  onChange={(e) => set('luTips', e.target.value)} />
-              </Field>
-
-              <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
-                <Field label="Type" required>
-                  <ChipSelect options={TYPES} value={form.types} onChange={(v) => set('types', v)} />
-                </Field>
-                <Field label="Category">
-                  <Select value={form.category} onChange={(e) => set('category', e.target.value)}>
-                    <option value="">Select…</option>
-                    {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-                  </Select>
-                </Field>
-                <Field label="Tags" required>
-                  <ChipSelect options={ALL_TAGS.map((t) => t.name)} value={form.tags}
-                    onChange={(v) => set('tags', v)} />
-                </Field>
-                <Field label="Countries" required>
-                  <ChipSelect options={COUNTRIES} value={form.countries}
-                    onChange={(v) => set('countries', v)} />
-                </Field>
+            <div className="flex flex-col gap-6">
+              <div className="grid grid-cols-[240px_1fr] gap-5 max-md:grid-cols-1">
+                <ImagePicker label="Meal image" value={form.image} onChange={(v) => set('image', v)}
+                  emptyHeight="h-[212px]" previewHeight="h-[212px]" />
+                <div className="flex min-w-0 flex-col gap-4">
+                  <Field label="Name" required>
+                    <Input value={form.name} placeholder="e.g. Jollof rice with fried plantain"
+                      onChange={(e) => set('name', e.target.value)} />
+                  </Field>
+                  <Field label="Description" required>
+                    <textarea rows={5} className={textareaCls} value={form.description}
+                      onChange={(e) => set('description', e.target.value)} />
+                  </Field>
+                </div>
               </div>
 
-              <Field label="Cook time" required hint="minutes">
-                <Input type="number" min="0" value={form.prep} onChange={(e) => set('prep', e.target.value)} />
-              </Field>
+              <DetailGroup title="Classification">
+                <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
+                  <Field label="Type" required>
+                    <ChipSelect options={TYPES} value={form.types} onChange={(v) => set('types', v)} />
+                  </Field>
+                  <Field label="Category">
+                    <Select value={form.category} onChange={(e) => set('category', e.target.value)}>
+                      <option value="">Select…</option>
+                      {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+                    </Select>
+                  </Field>
+                  <Field label="Tags" required>
+                    <ChipSelect options={ALL_TAGS.map((t) => t.name)} value={form.tags}
+                      onChange={(v) => set('tags', v)} />
+                  </Field>
+                  <Field label="Countries" required>
+                    <ChipSelect options={COUNTRIES} value={form.countries}
+                      onChange={(v) => set('countries', v)} />
+                  </Field>
+                </div>
+              </DetailGroup>
 
-              <Field label="No. of servings" hint="drives the per-serving figures in the total below">
-                <Input type="number" min="1" value={form.servings}
-                  onChange={(e) => set('servings', e.target.value)} />
-              </Field>
+              <DetailGroup title="Cooking & serving">
+                <div className="grid grid-cols-3 gap-4 max-md:grid-cols-1">
+                  <Field label="Cook time" required hint="minutes">
+                    <Input type="number" min="0" value={form.prep} onChange={(e) => set('prep', e.target.value)} />
+                  </Field>
+                  <Field label="No. of servings" hint="multiplies the macros">
+                    <Input type="number" min="1" value={form.servings}
+                      onChange={(e) => set('servings', e.target.value)} />
+                  </Field>
+                  <Field label="Portion per serving">
+                    <Input value={form.portion} placeholder="e.g. 1 bowl"
+                      onChange={(e) => set('portion', e.target.value)} />
+                  </Field>
+                </div>
+              </DetailGroup>
 
-              <Field label="Portion per serving">
-                <Input value={form.portion} placeholder="e.g. 1 bowl"
-                  onChange={(e) => set('portion', e.target.value)} />
-              </Field>
+              <DetailGroup title="Lu & notifications">
+                <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
+                  <Field label="Lu tips">
+                    <textarea rows={4} className={textareaCls} value={form.luTips} placeholder="Lu Tips"
+                      onChange={(e) => set('luTips', e.target.value)} />
+                  </Field>
+                  <Field label="Notification message">
+                    <textarea rows={4} className={textareaCls} value={form.notificationMessage}
+                      onChange={(e) => set('notificationMessage', e.target.value)} />
+                  </Field>
+                </div>
+              </DetailGroup>
             </div>
+          </Section>
+
+          {/* ── INGREDIENTS ──
+              Straight after the details: the macros below are calculated
+              from these rows. */}
+          <Section title="Ingredients list" count={form.ingredients.length} defaultOpen openSignal={filledAt}>
+            <IngredientRows items={form.ingredients} onChange={(v) => set('ingredients', v)} />
+          </Section>
+
+          {/* ── MACRONUTRIENTS ──
+              Calculated, never typed. The ingredients are one serving; the
+              stepper multiplies the figures by the number of servings. */}
+          <Section title="Macronutrients" defaultOpen>
+            <ServingsStepper value={form.servings} onChange={(v) => set('servings', v)} />
+            <MealNutritionTotal
+              rows={form.ingredients}
+              onTotals={setTotals}
+              servings={form.servings}
+              savedFallback={!isNew && num(form.cal) !== null}
+            />
+            <MealMacroFields totals={totals} form={form} servings={form.servings} />
+          </Section>
+
+          {/* ── COOKING STEPS ── */}
+          <Section title="Cooking steps" count={form.instructions.length} openSignal={filledAt}>
+            <CookingSteps
+              foodItems={form.foodItems}
+              instructions={form.instructions}
+              onFoodItems={(v) => set('foodItems', v)}
+              onInstructions={(v) => set('instructions', v)}
+            />
           </Section>
 
           {/* ── HEALTH ── */}
@@ -301,19 +381,6 @@ export default function MealEdit() {
           </Section>
 
           {/* ── PRODUCT GROUP ── */}
-          {/* ── MACRONUTRIENTS ──
-              Where the meal form has always carried them, but calculated:
-              the running total explains the figures, and the figures sit
-              right under it rather than a screen away. */}
-          <Section title="Macronutrients" defaultOpen>
-            <MealNutritionTotal
-              rows={form.ingredients}
-              onTotals={setTotals}
-              savedFallback={!isNew && num(form.cal) !== null}
-            />
-            <MealMacroFields totals={totals} form={form} servings={form.servings} />
-          </Section>
-
           <Section title="Product group">
             <Field label="Product group">
               <Select value={form.productGroup} onChange={(e) => set('productGroup', e.target.value)}>
@@ -322,23 +389,10 @@ export default function MealEdit() {
               </Select>
             </Field>
           </Section>
-
-          {/* ── INGREDIENTS ── */}
-          <Section title="Ingredients list" count={form.ingredients.length} openSignal={filledAt}>
-            <IngredientRows items={form.ingredients} onChange={(v) => set('ingredients', v)} />
-          </Section>
-
-          {/* ── COOKING STEPS ── */}
-          <Section title="Cooking steps" count={form.instructions.length} openSignal={filledAt}>
-            <CookingSteps
-              foodItems={form.foodItems}
-              instructions={form.instructions}
-              onFoodItems={(v) => set('foodItems', v)}
-              onInstructions={(v) => set('instructions', v)}
-            />
-          </Section>
         </Card>
 
+        {/* API switched off: Meal Studio drafts through POST /v1/meal-studio/chat
+            and searches GET /v1/meals, so its rail is hidden until the API is back.
         <aside className="w-[380px] shrink-0 max-lg:order-first max-lg:w-full">
           <div className="sticky top-[132px] max-lg:static">
             <div className="mb-2 flex items-center gap-2">
@@ -357,6 +411,7 @@ export default function MealEdit() {
             />
           </div>
         </aside>
+        */}
         </div>
 
         <div className="mt-4 flex justify-end gap-2">

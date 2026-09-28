@@ -4,31 +4,27 @@ import { IconWarning } from '../../components/icons.jsx';
 import { RowButtons, UNITS } from './formParts.jsx';
 import NutritionPicker from '../nutrition/NutritionPicker.jsx';
 import { SourceTag } from '../nutrition/parts.jsx';
-import { MASS_UNITS } from '../../lib/mealNutrition.js';
+import { buildCalculateLines, MASS_UNITS, normaliseUnit } from '../../lib/mealNutrition.js';
+import { preparationName } from '../../lib/nutritionGroups.js';
 
 const BLANK = { name: '', description: '', quantity: '', unit: '' };
 
-/* The optional nutrition fields on ingredients_list. `nutrition_name` and
+/* The nutrition link on ingredients_list. `nutrition_name` and
    `nutrition_source` are display-only: the row stores the id, and these
    just save a lookup to show what it points at. */
 const clearedLink = {
   ingredient_nutrition: undefined,
-  nutrition_quantity: undefined,
-  nutrition_unit: undefined,
   nutrition_name: undefined,
   nutrition_source: undefined,
 };
 
-/** Why this row cannot be counted, or null when it can. */
+/* Weighable units first: those are the ones the calculation can count. */
+const OTHER_UNITS = UNITS.filter((u) => !MASS_UNITS.includes(u));
+
+/** Why this row cannot be counted, or null when it can — the same rule the total uses. */
 function exclusionReason(row) {
-  if (!String(row.ingredient_nutrition || '').trim()) return 'Not counted — no nutrition link';
-  const q = String(row.nutrition_quantity ?? '').trim();
-  const unit = String(row.nutrition_unit || '').trim().toLowerCase();
-  if (!q) return 'Not counted — no quantity';
-  if (!Number.isFinite(Number(q)) || Number(q) <= 0) return 'Not counted — quantity must be a number above zero';
-  if (!unit) return 'Not counted — no unit';
-  if (!MASS_UNITS.includes(unit)) return `Not counted — ${row.nutrition_unit} is not a mass unit`;
-  return null;
+  const { skipped } = buildCalculateLines([row]);
+  return skipped.length ? `Not counted — ${skipped[0].reason}` : null;
 }
 
 /**
@@ -37,11 +33,15 @@ function exclusionReason(row) {
  * Keeping the prep note in its own field is what stops "1 medium-sized
  * onion, sliced" being torn into two ingredients further down the line.
  *
- * Each row can also carry an optional nutrition link — a record from the
- * platform's food composition data, with its own mass quantity. That pair
- * is deliberately separate from the recipe's `quantity`/`unit`: a cook
- * reads "2 cups", while the calculation needs grams, and forcing one to
- * serve both would either wreck the recipe text or the arithmetic.
+ * Each row picked from the ingredient database (WAFCT + USDA) is linked to
+ * its record, and its Qty and Unit are what the calculation counts. The
+ * rows describe ONE serving; the meal's servings multiply the total.
+ * Only g, kg, oz and lb can be weighed — a row in cups is kept for the
+ * cook but marked as not counted.
+ *
+ * New ingredients start from a search of that data (WAFCT + USDA): picking
+ * a preparation adds a row already named and linked. A row with no data
+ * behind it can still be added by hand, and is marked as not counted.
  */
 export default function IngredientRows({ items, onChange }) {
   /* Index of the row whose nutrition search is open. Closed whenever rows
@@ -58,26 +58,57 @@ export default function IngredientRows({ items, onChange }) {
     onChange(items.filter((_, n) => n !== i));
   };
 
+  /* The food's name for the cook ("Fonio"), the preparation as the note
+     ("white, whole grains, raw"), and the record itself as the link. */
+  const fromRecord = (rec, group) => {
+    const prep = preparationName(rec, group);
+    return {
+      ...BLANK,
+      name: group?.label || rec.name,
+      description: prep === rec.name ? '' : prep,
+      ingredient_nutrition: String(rec._id),
+      nutrition_name: rec.name,
+      nutrition_source: rec.source,
+      unit: 'g',
+    };
+  };
+  const addFromSearch = (rec, group) => {
+    setLinking(null);
+    onChange([...items.filter((x) => String(x.name || '').trim() || x.ingredient_nutrition), fromRecord(rec, group)]);
+  };
+  const addBlank = () => {
+    setLinking(null);
+    onChange([...items, { ...BLANK }]);
+  };
+
   const link = (i, rec) => {
     setAt(i, {
       ingredient_nutrition: String(rec._id),
       nutrition_name: rec.name,
       nutrition_source: rec.source,
-      // Default the unit but never the amount: a quantity nobody typed
+      // Default the unit but never the quantity: a quantity nobody typed
       // would be a number this meal was not measured with.
-      nutrition_unit: items[i].nutrition_unit || 'g',
+      unit: items[i].unit || 'g',
     });
     setLinking(null);
   };
 
-  if (!items.length) {
-    return (
-      <button type="button" onClick={() => onChange([{ ...BLANK }])}
-        className="w-full cursor-pointer rounded-xl border border-dashed border-line py-5 text-[13px] text-ink-3 transition hover:border-mint hover:text-forest">
-        + Add the first ingredient
+  const addPanel = (
+    <div>
+      <NutritionPicker
+        title={items.length ? 'Add another ingredient · WAFCT & USDA' : 'Add the first ingredient · WAFCT & USDA'}
+        autoFocus={false}
+        onPick={addFromSearch}
+        className="mt-0"
+      />
+      <button type="button" onClick={addBlank}
+        className="mt-1.5 cursor-pointer text-[11.5px] text-ink-3 underline-offset-2 hover:text-forest hover:underline">
+        Not in the database? Add it by hand
       </button>
-    );
-  }
+    </div>
+  );
+
+  if (!items.length) return addPanel;
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -98,14 +129,27 @@ export default function IngredientRows({ items, onChange }) {
                 <Input value={row.description} placeholder="soaked and skins removed"
                   onChange={(e) => setAt(i, { description: e.target.value })} />
               </Field>
-              <Field label={i === 0 ? 'Qty' : undefined}>
-                <Input value={row.quantity} placeholder="2"
+              <Field label={i === 0 ? 'Qty' : undefined} hint={i === 0 ? 'per serving' : undefined}>
+                <Input value={row.quantity} placeholder={linked ? '100' : '2'} inputMode="decimal"
                   onChange={(e) => setAt(i, { quantity: e.target.value })} />
               </Field>
               <Field label={i === 0 ? 'Unit' : undefined}>
                 <Select value={row.unit} onChange={(e) => setAt(i, { unit: e.target.value })}>
                   <option value="">Select unit</option>
-                  {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                  <optgroup label="Counted in nutrition">
+                    {MASS_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                  </optgroup>
+                  <optgroup label="Not counted">
+                    {OTHER_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                    {/* A unit from older data stays visible rather than being
+                        silently swapped for one that would change the sum. */}
+                    {row.unit && !UNITS.includes(row.unit) && !MASS_UNITS.includes(normaliseUnit(row.unit)) && (
+                      <option value={row.unit}>{row.unit}</option>
+                    )}
+                  </optgroup>
+                  {row.unit && !UNITS.includes(row.unit) && MASS_UNITS.includes(normaliseUnit(row.unit)) && (
+                    <option value={row.unit}>{row.unit}</option>
+                  )}
                 </Select>
               </Field>
             </div>
@@ -133,36 +177,11 @@ export default function IngredientRows({ items, onChange }) {
                       </button>
                     </div>
                   </div>
-                  <div className="flex items-end gap-2">
-                    <Field label="Amount" hint="counted">
-                      <Input
-                        type="number" step="any" min="0" placeholder="300"
-                        className="w-28 px-2.5 py-2 text-[12.5px]"
-                        value={row.nutrition_quantity ?? ''}
-                        onChange={(e) => setAt(i, { nutrition_quantity: e.target.value })}
-                      />
-                    </Field>
-                    <Field label="Unit">
-                      <Select
-                        className="w-24 px-2.5 py-2 text-[12.5px]"
-                        value={String(row.nutrition_unit || '').toLowerCase()}
-                        onChange={(e) => setAt(i, { nutrition_unit: e.target.value })}
-                      >
-                        <option value="">—</option>
-                        {MASS_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-                        {/* A unit from data outside the four stays visible rather than
-                            being silently swapped for one that would change the sum. */}
-                        {row.nutrition_unit && !MASS_UNITS.includes(String(row.nutrition_unit).toLowerCase()) && (
-                          <option value={row.nutrition_unit}>{row.nutrition_unit} (not counted)</option>
-                        )}
-                      </Select>
-                    </Field>
-                  </div>
                 </div>
               ) : linking !== i ? (
                 <button type="button" onClick={() => setLinking(i)}
                   className="cursor-pointer text-[12px] font-medium text-ocean-deep underline-offset-2 hover:underline">
-                  + Link nutrition data
+                  + Find in the ingredient database
                 </button>
               ) : null}
 
@@ -185,6 +204,7 @@ export default function IngredientRows({ items, onChange }) {
           </div>
         );
       })}
+      {addPanel}
     </div>
   );
 }

@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Input, Select, Spinner, cx } from '../../components/ui.jsx';
 import { IconPlus, IconSearch } from '../../components/icons.jsx';
+/* API switched off — the local WAFCT + USDA data stands in for it.
 import { isExpiredSession, NUTRITION_SOURCES, searchNutrition } from '../../lib/api.js';
+*/
+import { NUTRITION_SOURCES, searchNutrition } from '../../lib/nutritionData.js';
 import { groupByFood, preparationName, preparationsLabel } from '../../lib/nutritionGroups.js';
 import { MacroChips, SourceTag } from './parts.jsx';
 
-const DEBOUNCE_MS = 350;
+const DEBOUNCE_MS = 200;
 /* Wide enough that a food's preparations land on one page: fonio alone
    has eight, and a group split across pages would understate itself. */
 const LIMIT = 50;
@@ -15,10 +18,14 @@ const LIMIT = 50;
  * the data is actually shaped: one entry per *food*, with its
  * preparations underneath.
  *
- * Nothing is chosen until someone clicks +. `onPick(record)` receives the
- * preparation — the row the calculation will use — never the group.
+ * Nothing is chosen until someone clicks +. `onPick(record, group)` receives
+ * the preparation — the row the calculation will use — and the food it
+ * belongs to, for naming it.
  */
-export default function NutritionPicker({ initialQuery = '', onPick, onClose, autoFocus = true }) {
+export default function NutritionPicker({
+  initialQuery = '', onPick, onClose, autoFocus = true,
+  title = 'Add ingredient · nutrition data', className,
+}) {
   const [query, setQuery] = useState(initialQuery);
   const [source, setSource] = useState('');
   const [open, setOpen] = useState(null);
@@ -30,12 +37,13 @@ export default function NutritionPicker({ initialQuery = '', onPick, onClose, au
       setState({ status: 'idle', groups: [], shown: 0, total: 0, error: null });
       return undefined;
     }
-    const controller = new AbortController();
+    let live = true;
     setState((s) => ({ ...s, status: 'searching', error: null }));
     const timer = setTimeout(() => {
-      searchNutrition({ search: q, source: source || undefined, page: 1, limit: LIMIT }, { signal: controller.signal })
+      searchNutrition({ search: q, source: source || undefined, page: 1, limit: LIMIT, order: 'relevance' })
         .then(
           (data) => {
+            if (!live) return;
             const docs = data?.docs ?? [];
             const groups = groupByFood(docs);
             setState({
@@ -49,21 +57,20 @@ export default function NutritionPicker({ initialQuery = '', onPick, onClose, au
             setOpen(groups.length === 1 ? groups[0].key : null);
           },
           (error) => {
-            if (error.name === 'AbortError') return;
-            setState({ status: 'error', groups: [], shown: 0, total: 0, error });
+            if (live) setState({ status: 'error', groups: [], shown: 0, total: 0, error });
           },
         );
     }, DEBOUNCE_MS);
-    return () => { clearTimeout(timer); controller.abort(); };
+    return () => { live = false; clearTimeout(timer); };
   }, [query, source]);
 
   const { status, groups, shown, total, error } = state;
 
   return (
-    <div className="mt-2 animate-fade-up rounded-xl border border-ocean/40 bg-ocean-light/40 p-3">
+    <div className={cx('mt-2 animate-fade-up rounded-xl border border-ocean/40 bg-ocean-light/40 p-3', className)}>
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="text-[10.5px] font-semibold uppercase tracking-[0.06em] text-ocean-deep">
-          Add ingredient · nutrition data
+          {title}
         </span>
         {onClose && (
           <button type="button" onClick={onClose} className="cursor-pointer text-[11px] text-ink-3 hover:text-ink">
@@ -103,7 +110,7 @@ export default function NutritionPicker({ initialQuery = '', onPick, onClose, au
         )}
         {status === 'error' && (
           <div role="alert" className="py-2 text-[11.5px] text-chili">
-            {isExpiredSession(error) ? 'Your session has expired — sign in again.' : error.message}
+            {error.message}
           </div>
         )}
         {status === 'done' && !groups.length && (
@@ -146,7 +153,7 @@ export default function NutritionPicker({ initialQuery = '', onPick, onClose, au
                       </div>
                       <button
                         type="button"
-                        onClick={() => onPick(doc)}
+                        onClick={() => onPick(doc, group)}
                         title={`Use ${doc.name}`}
                         className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-full border border-line bg-surface text-rust transition hover:border-rust hover:bg-rust hover:text-white"
                       >

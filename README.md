@@ -18,7 +18,7 @@ npm run dev          # http://localhost:5173
 | `npm run build` | Production build into `dist/` |
 | `npm run build:watch` | Rebuilds `dist/` on every save — for the Live Server flow below |
 | `npm run preview` | Serve the built bundle |
-| `npm test` | Vitest — 306 tests |
+| `npm test` | Vitest — 342 tests |
 | `npm run estimate-server` | The blog drafting proxy (see below) |
 | `npm run staging:login` | Prompt for email/password and print a platform-api token |
 
@@ -48,7 +48,47 @@ showing nothing.
 
 ---
 
-## Platform API
+## Platform API — currently switched off
+
+**The API is commented out.** Every screen below runs on local data instead:
+
+| Was | Now |
+|-----|-----|
+| Login (`RequireAuth` in `src/App.jsx`) | Commented out — every page opens without signing in |
+| Ingredients → Platform | `src/lib/platformCatalogue.js`: seeded from the meal fixtures' ingredients, saved in this browser's localStorage |
+| Ingredients → Nutrition data, meal ingredient search, meal totals | `src/lib/nutritionData.js`, over `src/data/nutritionData.js` (WAFCT + USDA) |
+| Meal Studio rail on the meal editor | Commented out in `src/pages/MealEdit.jsx` |
+
+Each call site keeps its original `api.js` import in a comment, so switching
+back is a matter of restoring those lines. `src/lib/api.js` itself is unchanged.
+The table below describes the API wiring as it was.
+
+### Local nutrition data
+
+```bash
+python3 -m pip install openpyxl
+python3 scripts/build_nutrition_data.py   # rerun when either source file changes
+```
+
+reads, from the repo root:
+
+- `Akaani_West_African_Nutrition_Data_Model.xlsm` — WAFCT 2019 via the Akaani
+  data model: 1,028 variants, each with its food (`food_name`), food group (shown as
+  the product group), local names and per-100g figures from the Nutrition sheet. A
+  figure WAFCT printed in brackets is listed in `estimated_nutrients`.
+- `FoodData_Central_foundation_food_json_*.json` — USDA Foundation Foods: 363
+  foods, with their FDC category as the product group. Energy is nutrient 208
+  (kcal) where published, else Atwater specific (958), else general (957); fibre is
+  291, else 293.
+
+and writes `src/data/nutritionData.js`: 1,391 records in the shape
+`GET /v1/nutrition/ingredients` returned. A nutrient the source did not publish is
+`null`, never 0. The file is loaded on first use (a separate ~62 KB gzipped chunk).
+Meal totals are calculated in the browser (`calculateFrom`) with the API's rules:
+g, kg, oz and lb only, and a nutrient any ingredient lacks is unavailable, not a
+short total.
+
+### As it was
 
 The admin signs in against **platform-api** and uses it in four places. Everything
 else still runs on local fixtures.
@@ -110,7 +150,7 @@ a raw request/response screen for trying other endpoints.
 | LU Facts | `#/lu-facts` | Short facts Lu shows beside an ingredient |
 | Blogs | `#/blogs` | Post cards by status, filters, write or generate |
 | Blog editor | `#/blogs/new`, `#/blogs/edit/:id` | Markdown editor with live preview |
-| Ingredients | `#/ingredients` | Two live tables: the platform ingredient catalogue, and the WAFCT + USDA nutrition data |
+| Ingredients | `#/ingredients` | Two tabs: the platform ingredient catalogue, and the WAFCT + USDA nutrition data, A → Z |
 | Settings | `#/settings` | Nine panels across Account, Platform, Notifications, Team and Data |
 
 `HashRouter` is used deliberately, so a built bundle still works when opened
@@ -569,18 +609,20 @@ fills the form directly.
 
 #### Nutrition is calculated, never typed
 
-The meal form has a **Macronutrients** section in the place it always did — Calories,
-Protein, Carbs, Fat and Fibre, with the running total above them — but the five
-figures are read-only. Each ingredient row
-carries the optional nutrition fields on `ingredients_list` —
-`ingredient_nutrition` (an id from `GET /v1/nutrition/ingredients`),
-`nutrition_quantity` and `nutrition_unit` — and every row holding all three is
-sent to `POST /v1/nutrition/calculate` as the rows change. The total sits above
-Save, per serving and in full.
+The meal form has a **Macronutrients** section under the ingredient list —
+Calories, Protein, Carbs, Fat and Fibre — and the figures are read-only.
 
-The recipe's own `quantity`/`unit` stay free text: a cook reads *2 cups*, the
-calculation needs grams, and making one field serve both would wreck one of
-them.
+**The ingredients are one serving.** Each row picked from the ingredient
+database is linked to its record (`ingredient_nutrition`), and its recipe **Qty**
+and **Unit** are what gets counted — there is no second amount to type. Quantities
+may be written as a cook writes them (`200`, `1/2`, `1 ½`); units g, kg, oz and lb
+are weighed, and anything else (cups, pieces) is kept for the cook but marked
+*Not counted*.
+
+The **Servings** stepper at the top of the section (the same field as *No. of
+servings* in Details) multiplies the figures: 2 servings shows twice the calories
+and macros, with the per-serving figure under each. The meal saves the
+**per-serving** figures.
 
 Two rules hold the display honest:
 
@@ -627,48 +669,23 @@ product group and category are ids, resolved through `/v1/units`,
 
 ### Nutrition data
 
-`GET /v1/nutrition/ingredients` — the published food composition data the
-platform calculates meals against: 1,028 WAFCT and 363 USDA records. Read-only,
-because the API has no write route for it.
+The food composition data meals are calculated against: 1,028 WAFCT variants and
+363 USDA Foundation Foods, from `src/data/nutritionData.js` while the API is
+switched off (see *Platform API* above). Read-only. Filters: search (English and
+French name, food name, product group — every word must match), source and product
+group. The line above the table counts matches per source for the same search,
+so a source filter says how many matches it hides.
 
-Filters map one-to-one onto the endpoint: `search` (English name, French name
-and published category), `source`, `product_group`, `food_group_code`, `page`,
-`limit` (25 a page). **An unset filter is omitted from the URL entirely** — never
-`source=`, which is not the same thing as "all sources".
-
-The food group dropdown is filled from `GET /v1/nutrition/food_groups`, which
-lists the codes actually present in the data with a record count each, so it never
-offers a group that matches nothing. USDA records carry no food group, so picking
-one narrows the search to WAFCT. If that endpoint fails — or the API is older than
-it — the dropdown falls back to a box for typing the code.
-
-`stats.by_source` is shown above the table. The endpoint counts both sources for
-the same search regardless of the source filter, so the page can say how many
-matches it is *not* showing — without it, a search matching far more WAFCT rows
-than USDA ones looks like the USDA data is missing.
-
-Records are grouped the way the collection is shaped: **one card per food**, with its
-preparations underneath. Fonio alone holds eight rows that differ only in their
-tail, and a flat list of those is unreadable. The grouping key is `food_id` from
-the nutrition data model; USDA rows have none, so each stands alone. The same
-grouping backs the picker in the meal editor and the name suggestions on the
-ingredient form, from `src/lib/nutritionGroups.js`.
-
-Each preparation shows its English and French names and the five per-100g
-nutrients under the API's own keys. **A nutrient the source never published is an
-em dash, not 0.** An asterisk marks a figure the source bracketed
-(`estimated_nutrients`) — a lower-confidence number, still not a measurement.
-*details* expands a preparation to its identifiers (`food_variant_id`, `food_id`,
-`food_group_id`, `energy_basis`, `product_group`).
-
-**Two fields the design needs that the API does not send yet.** `App_Import.csv`
-carries `food_name_en` and `local_names` ("Acha; acca; findi; hungry rice"), but
-`backfill-data-model.js` writes only `food_variant_id`, `food_id`,
-`food_group_id` and `food_group_code`. So the food heading is derived from the
-variant names rather than taken from the model, the "also called" line stays
-hidden until the API sends aliases — the UI renders them the moment it does — and
-**searching "acha" finds nothing**, because the search matches English name,
-French name and published category only.
+The tab is a table, one row per record, **A → Z by name**: Ingredient,
+Product group, Kcal, Protein, Fat, Fibre and Source (WAFCT or USDA). The endpoint
+pages by name; each page is sorted again so it stays alphabetical whatever the
+server's collation. Where a record has no platform product group, a WAFCT row
+shows its food group from the data model; USDA rows show their FDC food
+category. **A nutrient the source never published is an em dash, not 0.** An
+asterisk marks a figure the source bracketed (`estimated_nutrients`) — a
+lower-confidence number, still not a measurement. *details* expands a row to its
+identifiers. **Create Ingredient** lives on the Platform tab only: this data is
+read-only.
 
 ### Cold starts
 
@@ -708,11 +725,13 @@ than against OpenAI's current published docs.
 npm test
 ```
 
-306 tests, all against `src/lib/` — no DOM, no component rendering, so they are
+342 tests, all against `src/lib/` — no DOM, no component rendering, so they are
 fast and stable:
 
 - `api.test.js` — envelope, auth errors, query building, response mapping
 - `mealStudio.test.js` — the meal form ↔ draft mapping, both directions
+- `nutritionData.test.js` — both sources complete, A → Z, search and paging, nulls never 0, the calculation
+- `platformCatalogue.test.js` — seeding, A → Z, create/update/delete, duplicate names
 - `mealNutrition.test.js` — which rows count, exclusion reasons, unavailable
   nutrients never rendering as numbers
 
@@ -724,7 +743,8 @@ table cell, not in a meal total, not in what a meal saves.
 
 ## A note on nutrition data
 
-Everything under Ingredients → Nutrition data, and every figure in a meal's
-total, comes from `GET /v1/nutrition/ingredients`. There is no bundled copy of a
-food table in this repo any more: a local snapshot drifts from the collection
-the platform actually calculates against, and the drift is invisible.
+While the API is switched off, every figure under Ingredients → Nutrition data
+and in a meal's total comes from `src/data/nutritionData.js`. When the API comes
+back, prefer it: a local snapshot drifts from the collection the platform
+calculates against, and the drift is invisible. Regenerate the file whenever the
+workbook or the USDA export changes.
