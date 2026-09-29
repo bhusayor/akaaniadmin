@@ -1,10 +1,10 @@
 /* ═══════════════════════════════════════════════════════
    PLATFORM API CLIENT
 
-   The one place that talks to platform-api. Everything else in the admin
-   still runs on local fixtures; the screens that use this are the login,
-   the Platform tab on Ingredients, the nutrition-database search in the
-   ingredient form, and the meal nutrition calculator.
+   The one place that talks to platform-api. The screens that use it are
+   the login, both Ingredients tabs (the platform catalogue and the WAFCT +
+   USDA nutrition data), the ingredient search and nutrition total on the
+   meal form, and Meal Studio. Everything else still runs on local fixtures.
 
    Base URL comes from vite.config.js: the dev-server proxy in
    development (no CORS), the backend itself in a build.
@@ -205,33 +205,71 @@ export async function login({ email, password }, opts) {
 export const NUTRITION_SOURCES = ['usda', 'wafct'];
 
 /**
+ * A nutrition record from the API in the shape the screens read — the shape
+ * the hardcoded WAFCT + USDA data had.
+ *
+ * The one rename: the API's `product_group` is a ProductGroup id (retail
+ * lines, mostly unmapped), while these screens show and filter by the
+ * group the source itself published — the WAFCT food group or the USDA
+ * food category, which the API calls `source_category`. That is what
+ * `product_group` means here; the id is kept as `product_group_id`.
+ */
+export function nutritionFromApi(doc) {
+  if (!doc) return doc;
+  return {
+    ...doc,
+    _id: String(doc._id ?? ''),
+    product_group: doc.source_category || '',
+    product_group_id: doc.product_group ?? null,
+    local_names: Array.isArray(doc.local_names) ? doc.local_names : [],
+    estimated_nutrients: Array.isArray(doc.estimated_nutrients) ? doc.estimated_nutrients : [],
+  };
+}
+
+/**
  * GET /v1/nutrition/ingredients → { docs, stats }. Any logged-in user.
  *
- * The backend sorts by name, not by relevance or source, so a short page is
- * easily all USDA or all WAFCT purely by alphabet. 25 is wide enough for both
- * to show up on one page for a normal search (the endpoint's ceiling is 100).
+ * Every word of `search` must appear, ignoring case and accents, in the
+ * English, French, food or local names or the group: "riz blanc", "foie
+ * boeuf" and "acha" all match.
  *
- * `source` is omitted entirely when falsy: "All sources" must send no source
- * parameter at all, since `source=` fails the endpoint's valid("usda","wafct").
+ * `product_group` is a group *name* from listNutritionCategories(), sent as
+ * the API's `category`. `order` is 'name' (A → Z, the table) or 'relevance'
+ * (best match first, the pickers).
+ *
+ * Every filter is omitted when unset. The endpoint tolerates "", but an
+ * empty filter is not a filter and has no business in the URL.
  */
-export function searchNutrition({
-  search = '', source, product_group: productGroup, food_group_code: foodGroupCode,
-  page = 1, limit = 25,
+export async function searchNutrition({
+  search = '', source, product_group: category, food_group_code: foodGroupCode,
+  page = 1, limit = 25, order = 'name',
 } = {}, opts) {
-  return request('/v1/nutrition/ingredients', {
+  const data = await request('/v1/nutrition/ingredients', {
     ...opts,
     query: {
-      search: search.trim(),
-      // Every filter is omitted when unset. The endpoint tolerates "" now, but
-      // an empty filter is not a filter and has no business in the URL.
+      search: String(search).trim(),
       source: source || undefined,
-      product_group: productGroup || undefined,
+      category: category || undefined,
       food_group_code: foodGroupCode || undefined,
+      sort: order === 'relevance' ? 'relevance' : 'name',
       page,
       limit,
     },
   });
+  return {
+    docs: (data?.docs ?? []).map(nutritionFromApi),
+    stats: data?.stats ?? { docs: 0, by_source: {} },
+  };
 }
+
+/**
+ * GET /v1/nutrition/categories → [{ name, source, count }], A → Z.
+ *
+ * The groups the sources published — WAFCT food groups, USDA food
+ * categories — each a valid `product_group` for searchNutrition.
+ */
+export const listNutritionCategories = async (opts) =>
+  (await request('/v1/nutrition/categories', opts))?.categories ?? [];
 
 /**
  * GET /v1/nutrition/food_groups → [{ code, count }], sorted by code.
@@ -242,7 +280,14 @@ export function searchNutrition({
 export const listNutritionFoodGroups = async (opts) =>
   (await request('/v1/nutrition/food_groups', opts))?.groups ?? [];
 
-/** POST /v1/nutrition/calculate → { totals, breakdown, completeness, basis }. */
+/**
+ * POST /v1/nutrition/calculate → { totals, breakdown, completeness, basis }.
+ *
+ * `ingredients` is [{ ingredientId, quantity, unit }] with units g, kg, oz or
+ * lb — buildCalculateLines() in mealNutrition.js keeps anything else out. A
+ * nutrient's total is null unless every line's record published it, and the
+ * lines responsible are named under completeness.missing_by_nutrient.
+ */
 export function calculateNutrition(ingredients, opts) {
   return request('/v1/nutrition/calculate', { ...opts, method: 'POST', body: { ingredients } });
 }
@@ -289,6 +334,32 @@ export function listMeals({ search = '', page = 1, limit = 8 } = {}, opts) {
   return request('/v1/meals', {
     ...opts, query: { search: escapeRegex(search.trim()), page, limit },
   });
+}
+
+/** GET /v1/meals/:id → the meal document. Any logged-in user. */
+export const getMeal = (id, opts) => request(`/v1/meals/${encodeURIComponent(id)}`, opts);
+
+/* Meal writes are isAdminOrStaff on the backend. The body is mealToApi()'s
+   output (src/lib/meals.js). */
+export const createMeal = (body, opts) => request('/v1/meals', { ...opts, method: 'POST', body });
+
+export const updateMeal = (id, body, opts) =>
+  request(`/v1/meals/${encodeURIComponent(id)}`, { ...opts, method: 'PUT', body });
+
+export const deleteMeal = (id, opts) =>
+  request(`/v1/meals/${encodeURIComponent(id)}`, { ...opts, method: 'DELETE' });
+
+/**
+ * GET /v1/tags → [{ _id, name, category }], flattened.
+ *
+ * The endpoint groups tags by category ([{ category, tags: [...] }]); a
+ * meal refers to them by id, so the meal form needs the plain list.
+ */
+export async function listTags(opts) {
+  const groups = await request('/v1/tags', opts);
+  return (Array.isArray(groups) ? groups : [])
+    .flatMap((g) => (g?.tags || []).map((t) => ({ ...t, category: t.category ?? g.category ?? '' })))
+    .filter((t) => t?._id && t?.name);
 }
 
 /* Create, update and delete are isAdminOrStaff on the backend. */

@@ -5,18 +5,16 @@ import { IconInfo } from '../../components/icons.jsx';
 import ImagePicker from '../../components/ImagePicker.jsx';
 import NameSuggest from './NameSuggest.jsx';
 import usePlatformLookups from './usePlatformLookups.js';
-/* API switched off — the local catalogue stands in for it.
 import {
   createIngredient, updateIngredient, ingredientFromApi, ingredientToApi, isForbidden,
 } from '../../lib/api.js';
-*/
-import { ingredientFromApi, ingredientToApi } from '../../lib/api.js';
-import { createIngredient, updateIngredient } from '../../lib/platformCatalogue.js';
 
 const BLANK = {
   name: '', description: '', unit: '', product_group: '', product_category: '', image: '', product_url: '',
 };
 
+export const NOT_ALLOWED =
+  'Your account is not allowed to change platform ingredients — the backend only lets staff and admin accounts do that.';
 
 /** A select over a lookup list that still shows the current value if the list lacks it. */
 function LookupSelect({ value, current, options, placeholder, onChange, disabled }) {
@@ -59,7 +57,7 @@ export default function PlatformIngredientModal({ open, editing, onClose, onSave
   const loading = lookups.status === 'loading';
 
   const submit = async () => {
-    // The backend required all four on create; kept so records stay valid for it.
+    // The backend requires all four on create.
     if (!form.name.trim()) return setError('Name is required');
     if (!form.unit) return setError('Unit is required');
     if (!form.product_group) return setError('Product group is required');
@@ -73,7 +71,7 @@ export default function PlatformIngredientModal({ open, editing, onClose, onSave
         : await createIngredient(body);
       onSaved(ingredientFromApi(saved), editing ? 'updated' : 'created');
     } catch (err) {
-      setError(err.message);
+      setError(isForbidden(err) ? NOT_ALLOWED : err.message);
       setSaving(false);
     }
   };
@@ -84,7 +82,7 @@ export default function PlatformIngredientModal({ open, editing, onClose, onSave
       onClose={onClose}
       width="md"
       title={editing ? 'Edit platform ingredient' : 'Create platform ingredient'}
-      subtitle="Saved in this browser while the platform API is switched off."
+      subtitle="Saved to the Akaani platform, where meals and partners use it."
     >
       {lookups.status === 'error' && (
         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg bg-chili-light px-3 py-2 text-[12.5px] text-chili-deep">
@@ -142,7 +140,7 @@ export default function PlatformIngredientModal({ open, editing, onClose, onSave
         <span className="mt-0.5 shrink-0"><IconInfo /></span>
         <span>
           Platform ingredients carry no nutrition values — per-100g figures live in the Nutrition data tab.
-          A picked image is stored inline on the record.
+          A picked image is stored inline on the record, since the API has no upload route yet.
           {editing && ' Clearing an optional field here leaves its saved value unchanged.'}
         </span>
       </div>

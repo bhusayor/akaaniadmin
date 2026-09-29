@@ -4,15 +4,26 @@ import {
   Button, Card, CountBadge, EmptyState, FilterSelect, PageToolbar, Spinner, Td, Th,
 } from '../../components/ui.jsx';
 import { IconRefresh } from '../../components/icons.jsx';
-/* API switched off — the local WAFCT + USDA data stands in for it.
-import { NUTRITION_SOURCES, listNutritionFoodGroups, searchNutrition } from '../../lib/api.js';
-*/
-import { NUTRITION_SOURCES, listProductGroups, searchNutrition } from '../../lib/nutritionData.js';
+import { NUTRITION_SOURCES, listNutritionCategories, searchNutrition } from '../../lib/api.js';
 import { macroValue } from '../../lib/mealNutrition.js';
 import { SourceTag } from '../nutrition/parts.jsx';
 
 const PAGE_SIZE = 25;
-const SEARCH_DEBOUNCE_MS = 200;
+const SEARCH_DEBOUNCE_MS = 300;
+
+/* Fetched once per page load; a failed load is not cached, so the next
+   visit to the tab tries again. */
+let categoriesCache = null;
+
+function loadCategories() {
+  if (!categoriesCache) {
+    categoriesCache = listNutritionCategories().catch((err) => {
+      categoriesCache = null;
+      throw err;
+    });
+  }
+  return categoriesCache;
+}
 
 /* Identifiers a record carries beyond its figures. Shown on demand: useful
    when reconciling with the source tables, noise the rest of the time. */
@@ -55,13 +66,16 @@ function MacroCell({ record, nutrient, unit = '' }) {
 }
 
 /**
- * The food composition data meals are calculated against: 1,028 WAFCT
- * variants from the Akaani data model workbook and 363 USDA Foundation
- * Foods, all per 100 g.
+ * The food composition data meals are calculated against, served by
+ * GET /v1/nutrition/ingredients: 1,028 WAFCT variants from the Akaani data
+ * model and 363 USDA Foundation Foods, all per 100 g.
  *
  * One row per record, A → Z by name, with the columns people scan for:
  * product group, kcal, protein, fat, fibre, and where it came from.
  * Read-only: these are published tables, not something the admin edits.
+ *
+ * Search runs on the server and matches every word in the English, French,
+ * food or local names or the group, ignoring accents: "riz blanc" works.
  */
 export default function NutritionLibrary({ tabs }) {
   const [search] = useSearch();
@@ -73,6 +87,7 @@ export default function NutritionLibrary({ tabs }) {
   const [page, setPage] = useState(1);
   const [reloadKey, setReloadKey] = useState(0);
   const [details, setDetails] = useState(null);
+  const [waking, setWaking] = useState(false);
   const [state, setState] = useState({ status: 'loading', rows: [], stats: null, error: null });
 
   useEffect(() => {
@@ -87,24 +102,37 @@ export default function NutritionLibrary({ tabs }) {
 
   useEffect(() => {
     let live = true;
-    listProductGroups().then((list) => live && setGroups(list), () => {});
+    // A failed list leaves the filter at "All product groups"; the table still works.
+    loadCategories().then((list) => live && setGroups(list), () => {});
     return () => { live = false; };
   }, []);
 
   useEffect(() => {
-    let live = true;
+    const controller = new AbortController();
     setState((s) => ({ ...s, status: 'loading', error: null }));
-    searchNutrition({
-      search: query,
-      source: source || undefined,
-      product_group: productGroup || undefined,
-      page,
-      limit: PAGE_SIZE,
-    }).then(
-      (data) => live && setState({ status: 'ready', rows: data.docs, stats: data.stats, error: null }),
-      (error) => live && setState((s) => ({ ...s, status: 'error', error })),
+    setWaking(false);
+    searchNutrition(
+      {
+        search: query,
+        source: source || undefined,
+        product_group: productGroup || undefined,
+        page,
+        limit: PAGE_SIZE,
+        order: 'name',
+      },
+      { signal: controller.signal, onRetry: () => setWaking(true) },
+    ).then(
+      (data) => {
+        setWaking(false);
+        setState({ status: 'ready', rows: data.docs, stats: data.stats, error: null });
+      },
+      (error) => {
+        if (error.name === 'AbortError') return;
+        setWaking(false);
+        setState((s) => ({ ...s, status: 'error', error }));
+      },
     );
-    return () => { live = false; };
+    return () => controller.abort();
   }, [query, source, productGroup, page, reloadKey]);
 
   const reload = useCallback(() => setReloadKey((n) => n + 1), []);
@@ -171,9 +199,17 @@ export default function NutritionLibrary({ tabs }) {
           </div>
         )}
 
+        {waking && (
+          <div className="mb-3 flex items-center gap-2 rounded-xl border border-amber/40 bg-amber-light px-4 py-2.5 text-[12.5px] text-amber-deep">
+            <Spinner /> The staging server was asleep — retrying.
+          </div>
+        )}
+
         {status === 'error' && (
           <div role="alert" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-chili/30 bg-chili-light px-4 py-3 text-[13px] text-chili-deep">
-            <span className="min-w-0 flex-1">Could not load nutrition data: {error.message}</span>
+            <span className="min-w-0 flex-1">
+              Could not load nutrition data{error.status ? ` — HTTP ${error.status}` : ''}: {error.message}
+            </span>
             <Button variant="ghost" onClick={reload}>Try again</Button>
           </div>
         )}

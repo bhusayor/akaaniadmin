@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-/* API switched off — local lists stand in for it.
 import { listProductCategories, listProductGroups, listUnits } from '../../lib/api.js';
-*/
-import { listProductCategories, listProductGroups, listUnits } from '../../lib/platformCatalogue.js';
 
 /* Units, product groups and categories change rarely, so they are fetched
    once per page load and shared by every form that needs them. A failed
