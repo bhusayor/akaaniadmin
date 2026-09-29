@@ -8,6 +8,7 @@ import {
   getSession, setSession, clearSession, onSessionChange,
   nutritionToMacros, ingredientFromApi, ingredientToApi,
   escapeRegex, listIngredients, COLD_START_RETRIES,
+  searchNutrition, listNutritionCategories, calculateNutrition, nutritionFromApi,
 } from './api.js';
 
 /** A fetch stand-in that records the call and answers with `status` + `json`. */
@@ -218,6 +219,71 @@ it('ingredient search is sent regex-escaped', async () => {
   const f = fakeFetch(200, ok({ ingredients: [] }));
   await listIngredients({ search: ' (rice) ' }, { fetchImpl: f });
   assert.include(f.calls[0].url, 'search=%5C%28rice%5C%29');
+});
+
+it('nutrition search sends the group as category and the order as sort', async () => {
+  const f = fakeFetch(200, ok({ docs: [], stats: { docs: 0, by_source: { usda: 0, wafct: 0 } } }));
+  await searchNutrition(
+    { search: ' riz blanc ', source: 'wafct', product_group: 'Cereals and their products', page: 2, limit: 25 },
+    { fetchImpl: f },
+  );
+  const url = new URL(f.calls[0].url, 'http://x');
+  assert.strictEqual(url.pathname, '/v1/nutrition/ingredients');
+  assert.strictEqual(url.searchParams.get('search'), 'riz blanc');
+  assert.strictEqual(url.searchParams.get('source'), 'wafct');
+  assert.strictEqual(url.searchParams.get('category'), 'Cereals and their products');
+  assert.strictEqual(url.searchParams.get('sort'), 'name');
+  assert.strictEqual(url.searchParams.get('page'), '2');
+  // The server does the search, so the term goes as typed — no regex escaping.
+  assert.isFalse(url.searchParams.has('product_group'));
+});
+
+it('an unset nutrition filter never reaches the URL', async () => {
+  const f = fakeFetch(200, ok({ docs: [], stats: {} }));
+  await searchNutrition({ search: 'fonio', source: '', product_group: '', order: 'relevance' }, { fetchImpl: f });
+  const url = new URL(f.calls[0].url, 'http://x');
+  assert.isFalse(url.searchParams.has('source'));
+  assert.isFalse(url.searchParams.has('category'));
+  assert.strictEqual(url.searchParams.get('sort'), 'relevance');
+});
+
+it('nutrition records come back in the shape the screens read', async () => {
+  const doc = {
+    _id: 'n1', name: 'Fonio, white, whole grains, raw', source: 'wafct',
+    source_category: 'Cereals and their products', product_group: null, food_id: '1000012',
+    local_names: ['Acha'], nutrients_per_100g: { calories: 334, fiber: null }, estimated_nutrients: ['fat'],
+  };
+  const f = fakeFetch(200, ok({ docs: [doc], stats: { docs: 1, by_source: { usda: 0, wafct: 1 } } }));
+  const { docs, stats } = await searchNutrition({ search: 'fonio' }, { fetchImpl: f });
+  assert.strictEqual(docs[0].product_group, 'Cereals and their products');
+  assert.strictEqual(docs[0].product_group_id, null);
+  assert.deepStrictEqual(docs[0].local_names, ['Acha']);
+  // A nutrient the source never published stays null.
+  assert.strictEqual(docs[0].nutrients_per_100g.fiber, null);
+  assert.strictEqual(stats.by_source.wafct, 1);
+});
+
+it('a nutrition record with no group or names maps to empty values, not undefined', () => {
+  const r = nutritionFromApi({ _id: 'u1', name: 'Hummus', source: 'usda' });
+  assert.strictEqual(r.product_group, '');
+  assert.deepStrictEqual(r.local_names, []);
+  assert.deepStrictEqual(r.estimated_nutrients, []);
+});
+
+it('nutrition categories unwrap from the envelope', async () => {
+  const categories = [{ name: 'Beef Products', source: 'usda', count: 21 }];
+  const f = fakeFetch(200, ok({ categories }));
+  assert.deepStrictEqual(await listNutritionCategories({ fetchImpl: f }), categories);
+  assert.include(f.calls[0].url, '/v1/nutrition/categories');
+});
+
+it('calculate posts the lines as the body', async () => {
+  const lines = [{ ingredientId: 'n1', quantity: 150, unit: 'g' }];
+  const f = fakeFetch(200, ok({ totals: { calories: 501 }, completeness: { complete: true } }));
+  const data = await calculateNutrition(lines, { fetchImpl: f });
+  assert.strictEqual(f.calls[0].init.method, 'POST');
+  assert.deepStrictEqual(JSON.parse(f.calls[0].init.body), { ingredients: lines });
+  assert.strictEqual(data.totals.calories, 501);
 });
 
 // ─── mapping ───

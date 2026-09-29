@@ -1,21 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Spinner, cx } from '../../components/ui.jsx';
 import { IconInfo, IconWarning } from '../../components/icons.jsx';
-/* API switched off — calculated locally from the WAFCT + USDA data.
 import { calculateNutrition, isExpiredSession, isForbidden } from '../../lib/api.js';
-*/
-import { calculateNutrition } from '../../lib/nutritionData.js';
 import {
   buildCalculateLines, inclusionSummary, NUTRIENTS, readNutrient, servingCount, unavailableLabel,
 } from '../../lib/mealNutrition.js';
 
-/* Rows are edited a keystroke at a time; wait for a pause before adding
-   them up again. */
-const DEBOUNCE_MS = 250;
+/* Rows are edited a keystroke at a time; wait for a pause before asking
+   the server to add them up again. */
+const DEBOUNCE_MS = 400;
 
 /**
- * The meal's running nutrition total, recalculated from the WAFCT + USDA
- * data as ingredient rows change.
+ * The meal's running nutrition total, recalculated by POST
+ * /v1/nutrition/calculate from the WAFCT + USDA data as ingredient rows
+ * change.
  *
  * It reports what it could not count as loudly as what it could: a row
  * without a nutrition link, or measured in cups, is listed by name and the
@@ -41,24 +39,23 @@ export default function MealNutritionTotal({ rows, onTotals, savedFallback, serv
       onTotalsRef.current(null);
       return undefined;
     }
-    let live = true;
+    const controller = new AbortController();
     setState((s) => ({ ...s, status: 'loading', error: null }));
     const timer = setTimeout(() => {
-      calculateNutrition(current).then(
+      calculateNutrition(current, { signal: controller.signal }).then(
         (data) => {
-          if (!live) return;
           setState({ status: 'done', data, error: null });
           onTotalsRef.current(data);
         },
         (error) => {
-          if (!live) return;
+          if (error.name === 'AbortError') return;
           setState({ status: 'error', data: null, error });
           // A failed calculation must not leave a stale total attached to the meal.
           onTotalsRef.current(null);
         },
       );
     }, DEBOUNCE_MS);
-    return () => { live = false; clearTimeout(timer); };
+    return () => { clearTimeout(timer); controller.abort(); };
   }, [linesKey]);
 
   const { status, data, error } = state;
@@ -134,8 +131,10 @@ export default function MealNutritionTotal({ rows, onTotals, savedFallback, serv
 
       {status === 'error' && (
         <div role="alert" className="mt-2.5 rounded-lg bg-chili-light px-3 py-2 text-[11.5px] text-chili-deep">
-          <b className="font-semibold">Could not calculate:</b>{' '}
+          <b className="font-semibold">Could not calculate{error.status ? ` — HTTP ${error.status}` : ''}:</b>{' '}
           <span className="font-mono">{error.message}</span>
+          {isExpiredSession(error) && <> Sign in again.</>}
+          {isForbidden(error) && <> This account is not allowed to use the nutrition endpoint.</>}
           <div className="mt-1 text-ink-2">No total is attached to this meal until it calculates.</div>
         </div>
       )}

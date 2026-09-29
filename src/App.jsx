@@ -10,7 +10,7 @@ import { CustomersProvider } from "./state/CustomersProvider.jsx";
 import { MealTagsProvider } from "./state/MealTagsProvider.jsx";
 import { LuFactsProvider } from "./state/LuFactsProvider.jsx";
 import { SettingsProvider } from "./state/SettingsProvider.jsx";
-import { AuthProvider /* , RequireAuth */ } from "./state/AuthProvider.jsx";
+import { AuthProvider, RequireAuth } from "./state/AuthProvider.jsx";
 import { Spinner } from "./components/ui.jsx";
 import Splash from "./pages/Splash.jsx";
 import Login from "./pages/Login.jsx";
@@ -62,16 +62,14 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Splash />} />
             <Route path="/login" element={<Login />} />
-            {/* API switched off: no platform-api session is required.
-                Restore the RequireAuth wrapper to put the login back.
+            {/* Every admin screen needs a platform-api session. */}
             <Route
               element={
                 <RequireAuth>
                   <Layout />
                 </RequireAuth>
               }
-            > */}
-            <Route element={<Layout />}>
+            >
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/customers" element={<Customers />} />
               {/* `edit` first — otherwise it matches :id */}

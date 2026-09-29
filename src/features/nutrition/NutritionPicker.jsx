@@ -1,22 +1,22 @@
 import { useEffect, useState } from 'react';
 import { Input, Select, Spinner, cx } from '../../components/ui.jsx';
 import { IconPlus, IconSearch } from '../../components/icons.jsx';
-/* API switched off — the local WAFCT + USDA data stands in for it.
 import { isExpiredSession, NUTRITION_SOURCES, searchNutrition } from '../../lib/api.js';
-*/
-import { NUTRITION_SOURCES, searchNutrition } from '../../lib/nutritionData.js';
 import { groupByFood, preparationName, preparationsLabel } from '../../lib/nutritionGroups.js';
 import { MacroChips, SourceTag } from './parts.jsx';
 
-const DEBOUNCE_MS = 200;
+const DEBOUNCE_MS = 300;
 /* Wide enough that a food's preparations land on one page: fonio alone
    has eight, and a group split across pages would understate itself. */
 const LIMIT = 50;
 
 /**
- * Searches the platform's food composition data and presents it the way
+ * Searches the platform's food composition data (GET
+ * /v1/nutrition/ingredients, best match first — English, French, food and
+ * local names all count) and presents it the way
  * the data is actually shaped: one entry per *food*, with its
- * preparations underneath.
+ * preparations underneath — WAFCT and USDA together, each preparation
+ * tagged with where its figures come from.
  *
  * Nothing is chosen until someone clicks +. `onPick(record, group)` receives
  * the preparation — the row the calculation will use — and the food it
@@ -37,13 +37,15 @@ export default function NutritionPicker({
       setState({ status: 'idle', groups: [], shown: 0, total: 0, error: null });
       return undefined;
     }
-    let live = true;
+    const controller = new AbortController();
     setState((s) => ({ ...s, status: 'searching', error: null }));
     const timer = setTimeout(() => {
-      searchNutrition({ search: q, source: source || undefined, page: 1, limit: LIMIT, order: 'relevance' })
+      searchNutrition(
+        { search: q, source: source || undefined, page: 1, limit: LIMIT, order: 'relevance' },
+        { signal: controller.signal },
+      )
         .then(
           (data) => {
-            if (!live) return;
             const docs = data?.docs ?? [];
             const groups = groupByFood(docs);
             setState({
@@ -57,11 +59,12 @@ export default function NutritionPicker({
             setOpen(groups.length === 1 ? groups[0].key : null);
           },
           (error) => {
-            if (live) setState({ status: 'error', groups: [], shown: 0, total: 0, error });
+            if (error.name === 'AbortError') return;
+            setState({ status: 'error', groups: [], shown: 0, total: 0, error });
           },
         );
     }, DEBOUNCE_MS);
-    return () => { live = false; clearTimeout(timer); };
+    return () => { clearTimeout(timer); controller.abort(); };
   }, [query, source]);
 
   const { status, groups, shown, total, error } = state;
@@ -110,7 +113,7 @@ export default function NutritionPicker({
         )}
         {status === 'error' && (
           <div role="alert" className="py-2 text-[11.5px] text-chili">
-            {error.message}
+            {isExpiredSession(error) ? 'Your session has expired — sign in again.' : error.message}
           </div>
         )}
         {status === 'done' && !groups.length && (
@@ -130,7 +133,7 @@ export default function NutritionPicker({
                 <span className="min-w-0">
                   <span className="flex flex-wrap items-center gap-1.5">
                     <span className="text-[13px] font-semibold text-ink">{group.label}</span>
-                    <SourceTag source={group.source} />
+                    {group.sources.map((s) => <SourceTag key={s} source={s} />)}
                   </span>
                   <span className="mt-0.5 block text-[11px] uppercase tracking-[0.06em] text-ink-3">
                     {preparationsLabel(group, { shown, total })}
@@ -145,8 +148,10 @@ export default function NutritionPicker({
                     <li key={doc._id}
                       className="flex items-start justify-between gap-3 rounded-lg bg-surface px-2.5 py-2">
                       <div className="min-w-0">
-                        <div className="text-[12.5px] font-medium leading-snug text-ink">
+                        <div className="flex flex-wrap items-center gap-1.5 text-[12.5px] font-medium leading-snug text-ink">
                           {preparationName(doc, group)}
+                          {/* Only where the group mixes sources; otherwise the heading already says. */}
+                          {group.sources.length > 1 && <SourceTag source={doc.source} />}
                         </div>
                         {doc.name_fr && <div className="text-[11px] italic text-ink-3">{doc.name_fr}</div>}
                         <MacroChips record={doc} className="mt-1" />

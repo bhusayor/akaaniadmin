@@ -43,16 +43,18 @@ export function formatStep(step, i) {
 }
 
 /**
- * Calories per serving, or null when servings is missing or zero —
- * dividing by it anyway yields Infinity, which a spreadsheet shows as a
- * number and nobody questions.
+ * Total calories for the whole recipe, or null when there is no figure.
+ *
+ * A meal's `cal` is per serving — its ingredients are one serving and the
+ * calculation is per serving — so the total is that times the servings.
+ * Blank or invalid servings count as one, the same rule the meal form
+ * uses; a missing figure stays blank rather than becoming 0.
  */
-export function perServing(meal) {
-  const servings = Number(meal.servings);
+export function totalCalories(meal) {
   const cal = Number(meal.cal);
-  if (!Number.isFinite(servings) || servings <= 0) return null;
-  if (!Number.isFinite(cal)) return null;
-  return Math.round(cal / servings);
+  if (meal.cal === null || meal.cal === undefined || meal.cal === '' || !Number.isFinite(cal)) return null;
+  const servings = Number(meal.servings);
+  return Math.round(cal * (Number.isFinite(servings) && servings > 0 ? servings : 1));
 }
 
 export function mealExportRow(meal) {
@@ -66,8 +68,8 @@ export function mealExportRow(meal) {
     meal.servings,
     meal.portion,
     meal.prep,
+    totalCalories(meal),
     meal.cal,
-    perServing(meal),
     meal.prot,
     meal.carb,
     meal.fat,
