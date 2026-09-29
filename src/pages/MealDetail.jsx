@@ -1,12 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import useTopbar from '../hooks/useTopbar.js';
 import Modal, { ModalActions } from '../components/Modal.jsx';
-import { Button, Card, EmptyState, ModalButton, cx } from '../components/ui.jsx';
+import { Button, Card, EmptyState, ModalButton, Spinner, cx } from '../components/ui.jsx';
 import { IconEdit, IconTrash, IconInfo, IconClock } from '../components/icons.jsx';
 import { useToast } from '../components/Toast.jsx';
 import { useMeals } from '../state/MealsProvider.jsx';
 import { ALL_TAGS } from '../data/meals.js';
+import { isForbidden } from '../lib/api.js';
+import { servingCount } from '../lib/mealNutrition.js';
+import { SourceTag } from '../features/nutrition/parts.jsx';
 
 const TABS = [
   ['ingredients', 'Ingredients'],
@@ -51,13 +54,29 @@ export default function MealDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
-  const { getMeal, deleteMeal } = useMeals();
+  const {
+    getMeal, fetchMeal, deleteMeal, status,
+  } = useMeals();
   const meal = getMeal(id);
 
   const [tab, setTab] = useState('ingredients');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  /* A meal opened by link before the list has it is fetched on its own. */
+  const [lookup, setLookup] = useState('idle');
 
   useTopbar(meal ? meal.name : 'Meal Details');
+
+  useEffect(() => {
+    if (meal || status === 'loading' || lookup !== 'idle') return;
+    setLookup('loading');
+    fetchMeal(id).then(() => setLookup('done'), () => setLookup('failed'));
+  }, [meal, id, status, lookup, fetchMeal]);
+
+  if (!meal && lookup !== 'failed' && (status === 'loading' || lookup !== 'done')) {
+    return <div className="grid flex-1 place-items-center py-20"><Spinner className="size-6" /></div>;
+  }
 
   if (!meal) {
     return (
@@ -73,14 +92,26 @@ export default function MealDetail() {
   }
 
   const types = meal.types ?? [meal.type];
-  const perServing = meal.servings ? Math.round(meal.cal / meal.servings) : null;
+  /* Calories and macros are stored per serving — the ingredients are one
+     serving — so the total is the per-serving figure times the servings. */
+  const perServing = typeof meal.cal === 'number' ? Math.round(meal.cal) : null;
+  const totalCalories = perServing === null ? null : Math.round(perServing * servingCount(meal.servings));
 
-  const remove = () => {
+  const remove = async () => {
     const name = meal.name;
-    deleteMeal(meal.id);
-    setConfirmDelete(false);
-    navigate('/meals');
-    toast(`"${name}" deleted`);
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await deleteMeal(meal.id);
+      setConfirmDelete(false);
+      navigate('/meals');
+      toast(`"${name}" deleted`);
+    } catch (err) {
+      setDeleting(false);
+      setDeleteError(isForbidden(err)
+        ? 'Your account is not allowed to delete meals — the platform only lets staff and admin accounts do that.'
+        : err.message);
+    }
   };
 
   const tabContent = {
@@ -137,15 +168,15 @@ export default function MealDetail() {
             <Card className="p-4">
               <div className="grid grid-cols-2 gap-2">
                 <Stat label="Calories / serving" value={perServing} unit="kcal" strong />
-                <Stat label="Total calories" value={meal.cal} unit="kcal" />
-                <Stat label="Protein" value={meal.prot} unit="g" />
-                <Stat label="Carbs" value={meal.carb} unit="g" />
-                <Stat label="Fat" value={meal.fat} unit="g" />
-                <Stat label="Fibre" value={meal.fiber} unit="g" />
+                <Stat label="Total calories" value={totalCalories} unit="kcal" />
+                <Stat label="Protein / serving" value={meal.prot} unit="g" />
+                <Stat label="Carbs / serving" value={meal.carb} unit="g" />
+                <Stat label="Fat / serving" value={meal.fat} unit="g" />
+                <Stat label="Fibre / serving" value={meal.fiber} unit="g" />
                 <Stat label="Servings" value={meal.servings} />
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-line-light pt-3 text-[12.5px] text-ink-2">
-                <span className="inline-flex items-center gap-1.5"><IconClock size={12} /> {meal.prep} min prep</span>
+                <span className="inline-flex items-center gap-1.5"><IconClock size={12} /> {meal.prep ?? "—"} min prep</span>
                 {meal.portion && <span>Portion: <strong className="font-semibold text-ink">{meal.portion}</strong></span>}
               </div>
             </Card>
@@ -285,6 +316,12 @@ export default function MealDetail() {
                             {isIngredient && item.description && (
                               <span className="text-ink-3">, {item.description}</span>
                             )}
+                            {isIngredient && item.ingredient_nutrition && (
+                              <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11.5px] text-ink-3">
+                                nutrition: {item.nutrition_name || 'linked'}
+                                {item.nutrition_source && <SourceTag source={item.nutrition_source} />}
+                              </span>
+                            )}
                           </span>
                         </li>
                       );
@@ -301,11 +338,14 @@ export default function MealDetail() {
         open={confirmDelete}
         onClose={() => setConfirmDelete(false)}
         title="Delete meal?"
-        subtitle={`"${meal.name}" will be permanently removed.`}
+        subtitle={`"${meal.name}" will be permanently removed from the platform.`}
       >
+        {deleteError && (
+          <div role="alert" className="mb-3 rounded-lg bg-chili-light px-3 py-2 text-[12.5px] text-chili-deep">{deleteError}</div>
+        )}
         <ModalActions>
           <ModalButton variant="ghost" onClick={() => setConfirmDelete(false)}>Cancel</ModalButton>
-          <ModalButton variant="danger" onClick={remove}>Delete</ModalButton>
+          <ModalButton variant="danger" onClick={remove} disabled={deleting}>{deleting ? 'Deleting…' : 'Delete'}</ModalButton>
         </ModalActions>
       </Modal>
     </>

@@ -1,43 +1,152 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { MEALS as SEED, BLANK_MEAL } from '../data/meals.js';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import * as api from '../lib/api.js';
+import { mealFromApi, mealToApi } from '../lib/meals.js';
+import { useAuth } from './AuthProvider.jsx';
 
-/* Meals live above the router so an edit on the detail page is still
-   there when you navigate back to the list. */
+/* Meals come from platform-api (GET /v1/meals) and are written back to it,
+   so a meal created here is on the platform and still there after a
+   reload. They live above the router so the list, the detail page and the
+   editor all read the same copy.
+
+   The list is fetched whole (paged 100 at a time) because the Meals page
+   filters by type, country and tag on the client. */
 const MealsContext = createContext(null);
 
+const PAGE_SIZE = 100;
+/* A runaway guard: a backend that kept answering full pages would
+   otherwise loop forever. 50 pages is 5,000 meals. */
+const MAX_PAGES = 50;
+
+const byName = (a, b) => a.name.localeCompare(b.name);
+
+async function fetchAllMeals(opts) {
+  const all = [];
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    // eslint-disable-next-line no-await-in-loop
+    const data = await api.listMeals({ page, limit: PAGE_SIZE }, opts);
+    const batch = data?.meals ?? [];
+    all.push(...batch);
+    const total = Number(data?.stats?.docs);
+    if (batch.length < PAGE_SIZE || (Number.isFinite(total) && all.length >= total)) break;
+  }
+  return all.map(mealFromApi).sort(byName);
+}
+
+/* Tag and product group ids, by lowercased name. Fetched once per session
+   when the first meal is written; a failed load is not cached. */
+async function fetchLookups() {
+  const [tags, groups] = await Promise.all([api.listTags(), api.listProductGroups()]);
+  const index = (rows) => new Map(rows.map((r) => [String(r.name).trim().toLowerCase(), String(r._id)]));
+  return { tags, tagIds: index(tags), productGroupIds: index(groups) };
+}
+
 export function MealsProvider({ children }) {
-  const [meals, setMeals] = useState(SEED);
+  const { session } = useAuth();
+  const [state, setState] = useState({ status: 'idle', meals: [], error: null });
+  const [reloadKey, setReloadKey] = useState(0);
+  const lookupsRef = useRef(null);
+
+  useEffect(() => {
+    if (!session) {
+      setState({ status: 'idle', meals: [], error: null });
+      lookupsRef.current = null;
+      return undefined;
+    }
+    const controller = new AbortController();
+    setState((s) => ({ ...s, status: 'loading', error: null }));
+    fetchAllMeals({ signal: controller.signal }).then(
+      (meals) => setState({ status: 'ready', meals, error: null }),
+      (error) => {
+        if (error.name !== 'AbortError') setState((s) => ({ ...s, status: 'error', error }));
+      },
+    );
+    return () => controller.abort();
+  }, [session, reloadKey]);
+
+  const reload = useCallback(() => setReloadKey((n) => n + 1), []);
+
+  const lookups = useCallback(() => {
+    if (!lookupsRef.current) {
+      lookupsRef.current = fetchLookups().catch((err) => {
+        lookupsRef.current = null;
+        throw err;
+      });
+    }
+    return lookupsRef.current;
+  }, []);
+
+  /** Puts one meal into the cache, replacing any copy with the same id. */
+  const upsert = useCallback((meal) => {
+    setState((s) => ({
+      ...s,
+      meals: [...s.meals.filter((m) => m.id !== meal.id), meal].sort(byName),
+    }));
+    return meal;
+  }, []);
+
+  /* A write answers with tags and product groups as bare ids; the single
+     GET populates them, so the saved meal is read back from there. */
+  const readBack = useCallback(async (id, fallback) => {
+    try {
+      return upsert(mealFromApi(await api.getMeal(id)));
+    } catch {
+      return upsert(fallback);
+    }
+  }, [upsert]);
+
+  /** POST /v1/meals. Resolves to the saved meal; rejects with the API's error. */
+  const createMeal = useCallback(async (payload) => {
+    const body = mealToApi(payload, await lookups());
+    const created = await api.createMeal(body);
+    const id = String(created?._id ?? created?.id);
+    return readBack(id, { ...mealFromApi({ ...created, _id: id }), tags: payload.tags ?? [] });
+  }, [lookups, readBack]);
+
+  /** PUT /v1/meals/:id. Resolves to the saved meal. */
+  const updateMeal = useCallback(async (id, payload) => {
+    const body = mealToApi(payload, await lookups());
+    const updated = await api.updateMeal(id, body);
+    return readBack(String(id), { ...mealFromApi({ ...updated, _id: id }), tags: payload.tags ?? [] });
+  }, [lookups, readBack]);
+
+  /** DELETE /v1/meals/:id. */
+  const deleteMeal = useCallback(async (id) => {
+    await api.deleteMeal(id);
+    setState((s) => ({ ...s, meals: s.meals.filter((m) => m.id !== String(id)) }));
+  }, []);
+
+  const getMeal = useCallback(
+    (id) => state.meals.find((m) => m.id === String(id)),
+    [state.meals],
+  );
+
+  /** GET /v1/meals/:id into the cache — for a deep link to a meal the list has not loaded. */
+  const fetchMeal = useCallback(async (id) => upsert(mealFromApi(await api.getMeal(id))), [upsert]);
 
   /**
-   * A new meal starts from the same shape an existing one has, so the edit
-   * form and the detail page never have to guard against half a record.
-   * The id is one past the highest in use rather than `length + 1`, which
-   * collides the moment anything has been deleted.
+   * Changes the copy held here without writing to the platform.
+   *
+   * For the Meal Tags page, whose vocabulary is still local: renaming a
+   * local tag must not rewrite platform meals with tag names the API does
+   * not know.
    */
-  const createMeal = useCallback((data = {}) => {
-    let created;
-    setMeals((prev) => {
-      const id = prev.reduce((max, m) => Math.max(max, m.id), 0) + 1;
-      created = { ...BLANK_MEAL, ...data, id };
-      return [created, ...prev];
-    });
-    return created;
+  const patchLocal = useCallback((id, patch) => {
+    setState((s) => ({ ...s, meals: s.meals.map((m) => (m.id === String(id) ? { ...m, ...patch } : m)) }));
   }, []);
 
-  const updateMeal = useCallback((id, patch) => {
-    setMeals((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
-  }, []);
-
-  const deleteMeal = useCallback((id) => {
-    setMeals((prev) => prev.filter((m) => m.id !== id));
-  }, []);
-
-  const getMeal = useCallback((id) => meals.find((m) => String(m.id) === String(id)), [meals]);
-
-  const value = useMemo(
-    () => ({ meals, createMeal, updateMeal, deleteMeal, getMeal }),
-    [meals, createMeal, updateMeal, deleteMeal, getMeal],
-  );
+  const value = useMemo(() => ({
+    meals: state.meals,
+    status: state.status,
+    error: state.error,
+    reload,
+    lookups,
+    createMeal,
+    updateMeal,
+    deleteMeal,
+    getMeal,
+    fetchMeal,
+    patchLocal,
+  }), [state, reload, lookups, createMeal, updateMeal, deleteMeal, getMeal, fetchMeal, patchLocal]);
 
   return <MealsContext.Provider value={value}>{children}</MealsContext.Provider>;
 }

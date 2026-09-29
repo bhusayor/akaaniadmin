@@ -1,20 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import useTopbar from '../hooks/useTopbar.js';
-import { Button, Card, EmptyState, Field, Input, Select, cx } from '../components/ui.jsx';
+import { Button, Card, EmptyState, Field, Input, Select, Spinner, cx } from '../components/ui.jsx';
 import { IconTrash } from '../components/icons.jsx';
 import ImagePicker from '../components/ImagePicker.jsx';
 import { useToast } from '../components/Toast.jsx';
 import { useMeals } from '../state/MealsProvider.jsx';
-import { ALL_TAGS, BLANK_MEAL } from '../data/meals.js';
+import { BLANK_MEAL } from '../data/meals.js';
+import { isForbidden } from '../lib/api.js';
+import { unresolvedNames } from '../lib/meals.js';
 import { PRODUCT_GROUPS } from '../lib/taxonomy.js';
 import { Section, ChipSelect, StringRows, CATEGORIES } from '../features/meals/formParts.jsx';
 import IngredientRows from '../features/meals/IngredientRows.jsx';
 import CookingSteps from '../features/meals/CookingSteps.jsx';
 import MealNutritionTotal from '../features/meals/MealNutritionTotal.jsx';
 import MealMacroFields from '../features/meals/MealMacroFields.jsx';
-// import MealStudioPanel from '../features/meals/MealStudioPanel.jsx'; // API switched off
-// import { FIELD_LABELS } from '../lib/mealStudio.js'; // Meal Studio only
+import MealStudioPanel from '../features/meals/MealStudioPanel.jsx';
+import { FIELD_LABELS } from '../lib/mealStudio.js';
 import { servingCount, totalsToMealFields } from '../lib/mealNutrition.js';
 
 const TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
@@ -99,7 +101,9 @@ export default function MealEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
-  const { getMeal, createMeal, updateMeal } = useMeals();
+  const {
+    getMeal, fetchMeal, createMeal, updateMeal, lookups, status: mealsStatus,
+  } = useMeals();
 
   /* `/meals/new` renders the same form against a blank record, so there is
      one meal form rather than two that drift apart. */
@@ -108,6 +112,12 @@ export default function MealEdit() {
   const source = isNew ? BLANK_MEAL : meal;
 
   const [form, setForm] = useState(() => (source ? toForm(source) : null));
+  /* A meal opened by link before the list has it is fetched on its own. */
+  const [lookup, setLookup] = useState({ status: 'idle', error: null });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  /* The platform's tags: a meal stores tag ids, so only these can be saved. */
+  const [tagState, setTagState] = useState({ status: 'loading', names: [], error: null });
   /* The calculated nutrition for this meal, straight from
      POST /v1/nutrition/calculate. Null while nothing is linked, in which
      case the meal keeps whatever was saved on it rather than being
@@ -121,10 +131,47 @@ export default function MealEdit() {
 
   useTopbar(isNew ? 'New Meal' : 'Edit Meal');
 
+  useEffect(() => {
+    if (isNew || meal || mealsStatus === 'loading' || lookup.status !== 'idle') return;
+    setLookup({ status: 'loading', error: null });
+    fetchMeal(id).then(
+      () => setLookup({ status: 'done', error: null }),
+      (error) => setLookup({ status: 'error', error }),
+    );
+  }, [isNew, meal, id, mealsStatus, lookup.status, fetchMeal]);
+
+  /* The form is built once the meal is in hand, and only once: a later
+     refresh of the list must not overwrite what is being edited. */
+  useEffect(() => {
+    if (form || !source) return;
+    const next = toForm(source);
+    initial.current = JSON.stringify(next);
+    setForm(next);
+  }, [form, source]);
+
+  useEffect(() => {
+    let live = true;
+    lookups().then(
+      ({ tags }) => live && setTagState({
+        status: 'ready',
+        names: [...new Set(tags.map((t) => t.name))].sort((a, b) => a.localeCompare(b)),
+        error: null,
+      }),
+      (error) => live && setTagState({ status: 'error', names: [], error }),
+    );
+    return () => { live = false; };
+  }, [lookups]);
+
   const dirty = useMemo(
     () => (form ? JSON.stringify(form) !== initial.current : false),
     [form],
   );
+
+  if (!isNew && !meal && lookup.status !== 'error' && (mealsStatus === 'loading' || lookup.status !== 'done')) {
+    return (
+      <div className="grid flex-1 place-items-center py-20"><Spinner className="size-6" /></div>
+    );
+  }
 
   /* A new meal has no record to find — only a missing *existing* one is
      an error. */
@@ -143,7 +190,7 @@ export default function MealEdit() {
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  const save = () => {
+  const save = async () => {
     const problems = [];
     if (!form.name.trim()) problems.push('Name is required');
     if (!form.description.trim()) problems.push('Description is required');
@@ -191,9 +238,25 @@ export default function MealEdit() {
       portion: form.portion.trim(),
     };
 
-    const savedId = isNew ? createMeal(payload).id : (updateMeal(meal.id, payload), meal.id);
-    toast(isNew ? 'Meal created' : 'Meal saved');
-    navigate(`/meals/${savedId}`);
+    setSaving(true);
+    setSaveError(null);
+    try {
+      /* Saved to the platform; the page it lands on reads the copy the
+         platform sent back, not what the form held. */
+      const saved = isNew ? await createMeal(payload) : await updateMeal(meal.id, payload);
+      const { tags: lostTags } = unresolvedNames(payload, await lookups());
+      toast(lostTags.length
+        ? `${isNew ? 'Meal created' : 'Meal saved'} — not on the platform, so not saved: ${lostTags.join(', ')}`
+        : (isNew ? 'Meal created' : 'Meal saved'));
+      initial.current = JSON.stringify(form);
+      navigate(`/meals/${saved.id}`);
+    } catch (err) {
+      setSaving(false);
+      setSaveError(isForbidden(err)
+        ? 'Your account is not allowed to save meals — the platform only lets staff and admin accounts do that.'
+        : `${err.status ? `HTTP ${err.status}: ` : ''}${err.message}`);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const cancel = () => {
@@ -217,13 +280,18 @@ export default function MealEdit() {
         </div>
         <div className="ml-auto flex gap-2">
           <Button variant="ghost" onClick={cancel}>Cancel</Button>
-          <Button onClick={save} disabled={!isNew && !dirty}>
-            {isNew ? 'Create meal' : 'Save changes'}
+          <Button onClick={save} disabled={saving || (!isNew && !dirty)}>
+            {saving ? 'Saving…' : isNew ? 'Create meal' : 'Save changes'}
           </Button>
         </div>
       </div>
 
       <div className="mx-auto w-full max-w-[1500px] px-7 py-5 max-md:px-4">
+        {saveError && (
+          <div role="alert" className="mb-4 rounded-xl border border-chili/30 bg-chili-light px-4 py-3 text-[13px] text-chili-deep">
+            <b className="font-semibold">Not saved.</b> {saveError}
+          </div>
+        )}
         {errors.length > 0 && (
           <div className="mb-4 rounded-xl border border-chili/30 bg-chili-light px-4 py-3">
             <div className="text-[13px] font-semibold text-chili-deep">
@@ -235,8 +303,9 @@ export default function MealEdit() {
           </div>
         )}
 
-        {/* Form on the left, Meal Studio on the right (hidden while the API
-            is switched off). */}
+        {/* Form on the left, Meal Studio on the right: a new meal usually
+            starts from a search, and the draft it produces has to be read
+            against the fields it fills. */}
         <div className="flex items-start gap-5 max-lg:flex-col">
         <Card className="min-w-0 flex-1 px-6 py-2 max-lg:w-full max-md:px-4">
           {/* ── DETAILS ──
@@ -271,8 +340,10 @@ export default function MealEdit() {
                       {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
                     </Select>
                   </Field>
-                  <Field label="Tags" required>
-                    <ChipSelect options={ALL_TAGS.map((t) => t.name)} value={form.tags}
+                  <Field label="Tags" required
+                    hint={tagState.status === 'loading' ? 'loading platform tags…'
+                      : tagState.status === 'error' ? `could not load platform tags: ${tagState.error.message}` : undefined}>
+                    <ChipSelect options={[...new Set([...tagState.names, ...form.tags])]} value={form.tags}
                       onChange={(v) => set('tags', v)} />
                   </Field>
                   <Field label="Countries" required>
@@ -391,8 +462,6 @@ export default function MealEdit() {
           </Section>
         </Card>
 
-        {/* API switched off: Meal Studio drafts through POST /v1/meal-studio/chat
-            and searches GET /v1/meals, so its rail is hidden until the API is back.
         <aside className="w-[380px] shrink-0 max-lg:order-first max-lg:w-full">
           <div className="sticky top-[132px] max-lg:static">
             <div className="mb-2 flex items-center gap-2">
@@ -411,13 +480,12 @@ export default function MealEdit() {
             />
           </div>
         </aside>
-        */}
         </div>
 
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="ghost" onClick={cancel}>Cancel</Button>
-          <Button onClick={save} disabled={!isNew && !dirty}>
-            {isNew ? 'Create meal' : 'Save changes'}
+          <Button onClick={save} disabled={saving || (!isNew && !dirty)}>
+            {saving ? 'Saving…' : isNew ? 'Create meal' : 'Save changes'}
           </Button>
         </div>
       </div>

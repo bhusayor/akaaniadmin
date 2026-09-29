@@ -7,7 +7,10 @@ const MealTagsContext = createContext(null);
 
 export function MealTagsProvider({ children }) {
   const [tags, setTags] = useState(() => MEAL_TAG_SEED.map((t) => normalizeTag(t, t.id)));
-  const { meals, updateMeal } = useMeals();
+  /* patchLocal, not updateMeal: this tag vocabulary is still local, and
+     writing its names onto platform meals would send tags the API cannot
+     resolve (it stores tag ids). */
+  const { meals, patchLocal: updateMeal } = useMeals();
 
   /* Counts come from the meals, never from a stored number on the tag —
      a cached count is a count that eventually lies. */

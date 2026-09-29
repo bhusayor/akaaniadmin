@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useTopbar, { useSearch } from '../hooks/useTopbar.js';
 import {
-  Button, Card, FilterSelect, CountBadge, PageToolbar, EmptyState, cx,
+  Button, Card, FilterSelect, CountBadge, PageToolbar, EmptyState, Spinner, cx,
 } from '../components/ui.jsx';
-import { IconDownload, IconPlus } from '../components/icons.jsx';
+import { IconDownload, IconPlus, IconRefresh } from '../components/icons.jsx';
 import { useToast } from '../components/Toast.jsx';
 import MealCard from '../features/meals/MealCard.jsx';
 import { useMeals } from '../state/MealsProvider.jsx';
@@ -31,13 +31,18 @@ export default function Meals() {
   const [country, setCountry] = useState('');
   const [tag, setTag] = useState('');
   const [page, setPage] = useState(1);
-  const { meals } = useMeals();
+  const { meals, status, error, reload } = useMeals();
 
   /* Derived from the meals themselves, not a static list — otherwise
      renaming a tag in Meal Tags leaves this filter offering a name that
      no longer matches anything. */
   const tagOptions = useMemo(
     () => [...new Set(meals.flatMap((m) => m.tags))].sort((a, b) => a.localeCompare(b)),
+    [meals],
+  );
+
+  const countryOptions = useMemo(
+    () => [...new Set(meals.flatMap((m) => m.countries))].sort((a, b) => a.localeCompare(b)),
     [meals],
   );
 
@@ -81,17 +86,19 @@ export default function Meals() {
             </FilterSelect>
             <FilterSelect value={country} onChange={(e) => setCountry(e.target.value)}>
               <option value="">All countries</option>
-              {['Nigeria', 'Ghana', 'Kenya'].map((c) => <option key={c}>{c}</option>)}
+              {countryOptions.map((c) => <option key={c}>{c}</option>)}
             </FilterSelect>
             <FilterSelect value={tag} onChange={(e) => setTag(e.target.value)}>
               <option value="">All tags</option>
               {tagOptions.map((t) => <option key={t}>{t}</option>)}
             </FilterSelect>
-            <CountBadge>{filtered.length} meals</CountBadge>
+            <CountBadge>{status === 'loading' && !meals.length ? '…' : `${filtered.length} meals`}</CountBadge>
+            {status === 'loading' && meals.length > 0 && <Spinner />}
           </>
         }
         right={
           <>
+            <Button variant="ghost" onClick={reload} disabled={status === 'loading'}><IconRefresh /> Refresh</Button>
             <Button variant="ghost" onClick={exportCSV}><IconDownload /> Export</Button>
             <Button onClick={() => navigate('/meals/new')}><IconPlus /> Add Meal</Button>
           </>
@@ -99,9 +106,23 @@ export default function Meals() {
       />
 
       <div className="px-7 py-5 max-md:px-4">
-        {!rows.length ? (
+        {status === 'error' && (
+          <div role="alert" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-chili/30 bg-chili-light px-4 py-3 text-[13px] text-chili-deep">
+            <span className="min-w-0 flex-1">
+              Could not load meals{error?.status ? ` — HTTP ${error.status}` : ''}: {error?.message}
+            </span>
+            <Button variant="ghost" onClick={reload}>Try again</Button>
+          </div>
+        )}
+        {status === 'loading' && !meals.length ? (
+          <Card><div className="grid place-items-center py-16"><Spinner className="size-6" /></div></Card>
+        ) : !rows.length ? (
           <Card>
-            <EmptyState icon="🍲" title="No meals match those filters" sub="Try clearing the search or filters." />
+            <EmptyState
+              icon="🍲"
+              title={meals.length ? 'No meals match those filters' : 'No meals on the platform yet'}
+              sub={meals.length ? 'Try clearing the search or filters.' : 'Add one with “Add Meal”.'}
+            />
           </Card>
         ) : (
           <>

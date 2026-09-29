@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   MEAL_EXPORT_COLUMNS, mealExportRow, mealExportRows,
-  formatIngredient, formatStep, perServing,
+  formatIngredient, formatStep, totalCalories,
 } from './mealExport.js';
 import { MEALS, BLANK_MEAL } from '../data/meals.js';
 
@@ -51,19 +51,19 @@ describe('formatStep', () => {
   });
 });
 
-describe('perServing', () => {
-  it('divides total calories by servings', () => {
-    expect(perServing({ cal: 520, servings: 4 })).toBe(130);
+describe('totalCalories', () => {
+  it('multiplies the per-serving figure by the servings', () => {
+    expect(totalCalories({ cal: 130, servings: 4 })).toBe(520);
   });
 
-  it('is null when servings is zero — not Infinity', () => {
-    // A spreadsheet renders Infinity as a number and nobody questions it.
-    expect(perServing({ cal: 520, servings: 0 })).toBe(null);
+  it('counts blank or invalid servings as one — the ingredients are one serving', () => {
+    expect(totalCalories({ cal: 130 })).toBe(130);
+    expect(totalCalories({ cal: 130, servings: 0 })).toBe(130);
   });
 
-  it('is null when either figure is missing', () => {
-    expect(perServing({ cal: 520 })).toBe(null);
-    expect(perServing({ servings: 4 })).toBe(null);
+  it('is null when there is no calorie figure — never 0', () => {
+    expect(totalCalories({ servings: 4 })).toBe(null);
+    expect(totalCalories({ cal: null, servings: 4 })).toBe(null);
   });
 });
 
