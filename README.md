@@ -558,7 +558,7 @@ Four things the production form does not do:
 - **The save bar is sticky**, so a form this long never has to be scrolled to
   be committed. It also reports "Unsaved changes" and stays disabled until
   something actually changes.
-- **Calories per serving is derived** from total ÷ servings and shown
+- **Calories per serving is derived** from the whole meal ÷ servings and shown
   read-only, so the two cannot drift apart.
 - **Validation is collected and listed** at the top of the form rather than
   failing silently.
@@ -595,20 +595,34 @@ fills the form directly.
 
 #### Nutrition is calculated, never typed
 
-The meal form has a **Macronutrients** section under the ingredient list —
-Calories, Protein, Carbs, Fat and Fibre — and the figures are read-only.
+The meal form has a **Macronutrients & servings** section under the ingredient list,
+and its figures are read-only.
 
-**The ingredients are one serving.** Each row picked from the ingredient
+**The ingredients are the whole meal.** Each row picked from the ingredient
 database is linked to its record (`ingredient_nutrition`), and its recipe **Qty**
 and **Unit** are what gets counted — there is no second amount to type. Quantities
 may be written as a cook writes them (`200`, `1/2`, `1 ½`); units g, kg, oz and lb
 are weighed, and anything else (cups, pieces) is kept for the cook but marked
-*Not counted*.
+*Not counted*. `POST /v1/nutrition/calculate` returns the whole meal's calories,
+protein, carbs, fat and fibre.
 
-The **Servings** stepper at the top of the section (the same field as *No. of
-servings* in Details) multiplies the figures: 2 servings shows twice the calories
-and macros, with the per-serving figure under each. The meal saves the
-**per-serving** figures.
+**Servings divide the meal.** Once the calories are known the form suggests how
+many servings the meal makes — about **500 kcal** each
+(`TARGET_KCAL_PER_SERVING` in `src/lib/mealNutrition.js`) — and keeps following
+the ingredients until someone picks a number. Two controls move it:
+
+- **Servings in this meal** − / +.
+- **Calories per serving** − / +: smaller servings are more servings, so −
+  adds one and + removes one.
+
+A saved meal keeps its servings; if they differ from the suggestion, the
+suggestion is offered with a *Use* button.
+
+A table shows every nutrient **for the whole meal** and **per serving**. The meal
+saves both: per serving in `calorie_per_serving`, `protein`, `carbohydrate`, `fat`
+and `fiber` — the fields the mobile app shows — and the whole meal in
+`total_calories`, `total_protein`, `total_carbohydrate`, `total_fat` and
+`total_fiber` (platform-api #516).
 
 Two rules hold the display honest:
 

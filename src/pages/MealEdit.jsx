@@ -14,10 +14,10 @@ import { Section, ChipSelect, StringRows, CATEGORIES } from '../features/meals/f
 import IngredientRows from '../features/meals/IngredientRows.jsx';
 import CookingSteps from '../features/meals/CookingSteps.jsx';
 import MealNutritionTotal from '../features/meals/MealNutritionTotal.jsx';
-import MealMacroFields from '../features/meals/MealMacroFields.jsx';
+import MealServings from '../features/meals/MealServings.jsx';
 import MealStudioPanel from '../features/meals/MealStudioPanel.jsx';
 import { FIELD_LABELS } from '../lib/mealStudio.js';
-import { servingCount, totalsToMealFields } from '../lib/mealNutrition.js';
+import { mealNutritionFields, readNutrient, suggestServings } from '../lib/mealNutrition.js';
 
 const TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
 const COUNTRIES = ['Nigeria', 'Ghana', 'Kenya', 'South Africa'];
@@ -52,39 +52,14 @@ function toForm(m) {
     /* Not edited any more — carried so a meal saved before any ingredient
        was linked keeps its figures instead of being blanked. */
     cal: m.cal ?? '', fat: m.fat ?? '', carb: m.carb ?? '', prot: m.prot ?? '', fiber: m.fiber ?? '',
+    totalCal: m.totalCal ?? '', totalFat: m.totalFat ?? '', totalCarb: m.totalCarb ?? '',
+    totalProt: m.totalProt ?? '', totalFiber: m.totalFiber ?? '',
     productGroup: m.productGroup ?? '',
     ingredients: (m.ingredients ?? []).map((i) => ({ ...i })),
     foodItems: [...(m.foodItems ?? [])],
     instructions: (m.instructions ?? []).map((s) => ({ ...s })),
     portion: m.portion ?? '',
   };
-}
-
-/**
- * − / + for the number of servings, bound to the same field as Details.
- * Blank counts as 1: the ingredients are one serving.
- */
-function ServingsStepper({ value, onChange }) {
-  const count = servingCount(value);
-  const btn = 'grid size-8 cursor-pointer place-items-center rounded-md border border-line bg-surface text-[15px] '
-    + 'font-semibold text-ink-2 transition hover:border-forest hover:text-forest disabled:cursor-not-allowed disabled:opacity-40';
-  return (
-    <div className="mb-3 flex flex-wrap items-center gap-3">
-      <span className="text-[13px] font-medium text-ink">Servings</span>
-      <div className="flex items-center gap-1.5">
-        <button type="button" className={btn} aria-label="One serving fewer"
-          disabled={count <= 1} onClick={() => onChange(String(Math.max(1, count - 1)))}>−</button>
-        <input
-          type="number" min="1" value={value ?? ''} placeholder="1" aria-label="Number of servings"
-          onChange={(e) => onChange(e.target.value)}
-          className="h-8 w-14 rounded-md border border-line bg-surface text-center text-[13px] tabular-nums text-ink outline-none focus:border-mint"
-        />
-        <button type="button" className={btn} aria-label="One serving more"
-          onClick={() => onChange(String(count + 1))}>+</button>
-      </div>
-      <span className="text-[11.5px] text-ink-3">The ingredients are one serving; figures below are multiplied by this.</span>
-    </div>
-  );
 }
 
 /** A labelled run of fields inside the Details section. */
@@ -123,6 +98,10 @@ export default function MealEdit() {
      case the meal keeps whatever was saved on it rather than being
      blanked by an empty calculation. */
   const [totals, setTotals] = useState(null);
+  /* Whether the admin has chosen the servings. Until then the number
+     follows the suggestion as ingredients are added; after, it is theirs.
+     A saved meal's servings count as chosen. */
+  const [servingsTouched, setServingsTouched] = useState(() => String(source?.servings ?? '').trim() !== '');
   /* Bumped whenever a draft fills the form, so the sections it wrote into
      open themselves rather than leaving someone to find the change. */
   const [filledAt, setFilledAt] = useState(0);
@@ -147,7 +126,19 @@ export default function MealEdit() {
     const next = toForm(source);
     initial.current = JSON.stringify(next);
     setForm(next);
+    setServingsTouched(String(next.servings ?? '').trim() !== '');
   }, [form, source]);
+
+  /* The suggested number of servings, applied while the admin has not
+     picked one. */
+  useEffect(() => {
+    if (servingsTouched || !form) return;
+    const kcal = readNutrient(totals, 'calories');
+    const suggested = kcal.available ? suggestServings(kcal.value) : null;
+    if (suggested && String(suggested) !== String(form.servings)) {
+      setForm((f) => ({ ...f, servings: String(suggested) }));
+    }
+  }, [totals, servingsTouched, form]);
 
   useEffect(() => {
     let live = true;
@@ -224,13 +215,18 @@ export default function MealEdit() {
       servings: num(form.servings),
       healthConditions: form.healthConditions.filter(Boolean),
       nutrients: form.nutrients.filter((n) => n.name?.trim()),
-      /* Calculated, never typed. A nutrient the sources did not publish is
-         saved as null — unavailable — rather than as a measured 0. With
-         nothing linked there is nothing to calculate, so the meal keeps the
-         figures it already had. */
+      /* Calculated, never typed: the whole meal from its ingredients, and
+         per serving by dividing by the servings. A nutrient the sources did
+         not publish is saved as null — unavailable — rather than as a
+         measured 0. With nothing linked there is nothing to calculate, so
+         the meal keeps the figures it already had. */
       ...(totals
-        ? totalsToMealFields(totals)
-        : { cal: num(form.cal), fat: num(form.fat), carb: num(form.carb), prot: num(form.prot), fiber: num(form.fiber) }),
+        ? mealNutritionFields(totals, form.servings)
+        : {
+          cal: num(form.cal), fat: num(form.fat), carb: num(form.carb), prot: num(form.prot), fiber: num(form.fiber),
+          totalCal: num(form.totalCal), totalFat: num(form.totalFat), totalCarb: num(form.totalCarb),
+          totalProt: num(form.totalProt), totalFiber: num(form.totalFiber),
+        }),
       productGroup: form.productGroup,
       ingredients: form.ingredients.filter((i) => i.name?.trim()),
       foodItems: form.foodItems.filter(Boolean),
@@ -354,13 +350,10 @@ export default function MealEdit() {
               </DetailGroup>
 
               <DetailGroup title="Cooking & serving">
-                <div className="grid grid-cols-3 gap-4 max-md:grid-cols-1">
+                {/* Servings live with the macronutrients, which they divide. */}
+                <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
                   <Field label="Cook time" required hint="minutes">
                     <Input type="number" min="0" value={form.prep} onChange={(e) => set('prep', e.target.value)} />
-                  </Field>
-                  <Field label="No. of servings" hint="multiplies the macros">
-                    <Input type="number" min="1" value={form.servings}
-                      onChange={(e) => set('servings', e.target.value)} />
                   </Field>
                   <Field label="Portion per serving">
                     <Input value={form.portion} placeholder="e.g. 1 bowl"
@@ -392,17 +385,21 @@ export default function MealEdit() {
           </Section>
 
           {/* ── MACRONUTRIENTS ──
-              Calculated, never typed. The ingredients are one serving; the
-              stepper multiplies the figures by the number of servings. */}
-          <Section title="Macronutrients" defaultOpen>
-            <ServingsStepper value={form.servings} onChange={(v) => set('servings', v)} />
+              Calculated, never typed. The ingredients are the whole meal;
+              the servings divide it, and per serving is what the app shows. */}
+          <Section title="Macronutrients & servings" defaultOpen>
             <MealNutritionTotal
               rows={form.ingredients}
               onTotals={setTotals}
-              servings={form.servings}
               savedFallback={!isNew && num(form.cal) !== null}
             />
-            <MealMacroFields totals={totals} form={form} servings={form.servings} />
+            <MealServings
+              totals={totals}
+              form={form}
+              servings={form.servings}
+              touched={servingsTouched}
+              onServings={(v) => { setServingsTouched(true); set('servings', v); }}
+            />
           </Section>
 
           {/* ── COOKING STEPS ── */}
@@ -471,6 +468,8 @@ export default function MealEdit() {
               form={form}
               autoApply={isNew}
               onApply={(patch, changed) => {
+                // A drafted number of servings is a choice, not something to re-suggest over.
+                if (String(patch.servings ?? '').trim()) setServingsTouched(true);
                 setForm((f) => ({ ...f, ...patch }));
                 setFilledAt((n) => n + 1);
                 toast(changed.length === 1

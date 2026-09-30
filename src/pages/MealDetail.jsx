@@ -27,7 +27,7 @@ function TagIcon() {
 }
 
 /** Nutrition tile — a null reads as an em dash, never as 0. */
-function Stat({ label, value, unit, strong }) {
+function Stat({ label, value, unit, strong, sub }) {
   return (
     <div className={cx('rounded-xl border px-3.5 py-3', strong ? 'border-transparent bg-forest' : 'border-line-light bg-surface-2')}>
       <div className={cx('text-[11px] font-medium', strong ? 'text-white/55' : 'text-ink-3')}>{label}</div>
@@ -37,6 +37,7 @@ function Stat({ label, value, unit, strong }) {
           <span className={cx('ml-0.5 text-[11px] font-medium', strong ? 'text-white/55' : 'text-ink-3')}>{unit}</span>
         )}
       </div>
+      {sub && <div className={cx('text-[11px] tabular-nums', strong ? 'text-white/55' : 'text-ink-3')}>{sub}</div>}
     </div>
   );
 }
@@ -92,10 +93,14 @@ export default function MealDetail() {
   }
 
   const types = meal.types ?? [meal.type];
-  /* Calories and macros are stored per serving — the ingredients are one
-     serving — so the total is the per-serving figure times the servings. */
+  /* Per serving is what the app shows; the whole meal is what the
+     ingredients add up to. A meal saved before whole-meal figures were
+     kept derives its total calories from per serving × servings. */
   const perServing = typeof meal.cal === 'number' ? Math.round(meal.cal) : null;
-  const totalCalories = perServing === null ? null : Math.round(perServing * servingCount(meal.servings));
+  const totalCalories = typeof meal.totalCal === 'number'
+    ? meal.totalCal
+    : perServing === null ? null : Math.round(perServing * servingCount(meal.servings));
+  const whole = (v, unit) => (typeof v === 'number' ? `${v}${unit} whole meal` : null);
 
   const remove = async () => {
     const name = meal.name;
@@ -168,11 +173,11 @@ export default function MealDetail() {
             <Card className="p-4">
               <div className="grid grid-cols-2 gap-2">
                 <Stat label="Calories / serving" value={perServing} unit="kcal" strong />
-                <Stat label="Total calories" value={totalCalories} unit="kcal" />
-                <Stat label="Protein / serving" value={meal.prot} unit="g" />
-                <Stat label="Carbs / serving" value={meal.carb} unit="g" />
-                <Stat label="Fat / serving" value={meal.fat} unit="g" />
-                <Stat label="Fibre / serving" value={meal.fiber} unit="g" />
+                <Stat label="Total calories · whole meal" value={totalCalories} unit="kcal" />
+                <Stat label="Protein / serving" value={meal.prot} unit="g" sub={whole(meal.totalProt, 'g')} />
+                <Stat label="Carbs / serving" value={meal.carb} unit="g" sub={whole(meal.totalCarb, 'g')} />
+                <Stat label="Fat / serving" value={meal.fat} unit="g" sub={whole(meal.totalFat, 'g')} />
+                <Stat label="Fibre / serving" value={meal.fiber} unit="g" sub={whole(meal.totalFiber, 'g')} />
                 <Stat label="Servings" value={meal.servings} />
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-line-light pt-3 text-[12.5px] text-ink-2">

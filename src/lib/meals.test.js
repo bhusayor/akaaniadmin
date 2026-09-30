@@ -205,3 +205,37 @@ describe('ingredientLine', () => {
     expect(ingredientLine({ name: 'Salt' })).toBe('Salt');
   });
 });
+
+describe('whole-meal totals', () => {
+  it('sends per-serving figures for the app and the whole meal beside them', () => {
+    const body = mealToApi({
+      ...payload, servings: 4, cal: 460, prot: 12.5, carb: 77.6, fat: 10, fiber: null,
+      totalCal: 1840, totalProt: 50, totalCarb: 310.2, totalFat: 40, totalFiber: null,
+    }, lookups);
+
+    expect(body).toMatchObject({
+      calorie_per_serving: 460, protein: 12.5, carbohydrate: 77.6, fat: 10,
+      total_calories: 1840, total_protein: 50, total_carbohydrate: 310.2, total_fat: 40,
+    });
+    // Unavailable stays off the request in both columns.
+    expect(body).not.toHaveProperty('fiber');
+    expect(body).not.toHaveProperty('total_fiber');
+  });
+
+  it('reads the stored totals back', () => {
+    const meal = mealFromApi({
+      _id: 'm3', name: 'Jollof', types: ['Lunch'], servings: 4,
+      calorie_per_serving: 460, protein: 12.5, total_calories: 1840, total_protein: 50, total_fat: 40,
+    });
+    expect(meal).toMatchObject({ cal: 460, prot: 12.5, totalCal: 1840, totalProt: 50, totalFat: 40 });
+  });
+
+  it('derives a missing total from per serving × servings, and not without servings', () => {
+    const older = mealFromApi({ _id: 'm4', name: 'Rice', types: ['Lunch'], servings: 2, calorie_per_serving: 300, protein: 8.25 });
+    expect(older.totalCal).toBe(600);
+    expect(older.totalProt).toBe(16.5);
+
+    const noServings = mealFromApi({ _id: 'm5', name: 'Rice', types: ['Lunch'], protein: 8 });
+    expect(noServings.totalProt).toBe(null);
+  });
+});

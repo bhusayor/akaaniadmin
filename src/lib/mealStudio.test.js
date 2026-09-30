@@ -12,7 +12,7 @@ const form = {
   description: 'Smoky party jollof',
   types: ['lunch', 'dinner'],
   countries: ['Nigeria'],
-  prep: '35', servings: '4', cal: '520', calPerServing: '130',
+  prep: '35', servings: '4', cal: '130', totalCal: '520', totalProt: '152',
   fat: '12', carb: '55', prot: '38', fiber: '',
   portion: '1 plate',
   notificationMessage: 'Time to cook',
@@ -36,6 +36,8 @@ it('maps form fields onto the backend meal shape', () => {
   assert.deepStrictEqual(meal.types, ['Lunch', 'Dinner']);
   assert.strictEqual(meal.prep_time, 35);
   assert.strictEqual(meal.total_calories, 520);
+  assert.strictEqual(meal.calorie_per_serving, 130);
+  assert.strictEqual(meal.total_protein, 152);
   assert.strictEqual(meal.carbohydrate, 55);
   assert.strictEqual(meal.protein, 38);
   assert.deepStrictEqual(meal.portion_per_serving, ['1 plate']);
