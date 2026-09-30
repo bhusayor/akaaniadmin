@@ -10,7 +10,8 @@ import { it, assert } from 'vitest';
 import {
   buildCalculateLines, readNutrient, unavailableLabel, totalsToMealFields,
   inclusionSummary, MASS_UNITS, macroField, NUTRIENTS,
-  normaliseUnit, parseQuantity, scaleToServings, servingCount,
+  normaliseUnit, parseQuantity, servingCount,
+  perServingOf, suggestServings, mealNutritionFields, totalField, TARGET_KCAL_PER_SERVING,
 } from './mealNutrition.js';
 
 const rows = [
@@ -73,13 +74,54 @@ it('only the four mass units the calculation converts are accepted', () => {
 
 // ─── servings ───
 
-it('ingredients are one serving; more servings multiply the figures', () => {
-  const perServing = { totals: { calories: 400, protein: 20, fiber: null } };
-  assert.deepStrictEqual(scaleToServings(perServing, 3).totals, { calories: 1200, protein: 60, fiber: null });
-  assert.deepStrictEqual(scaleToServings(perServing, '').totals, perServing.totals);
+/* A whole meal: the ingredients add up to this, and servings divide it. */
+const wholeMeal = {
+  totals: { calories: 1840, protein: 50, carbohydrate: 310.2, fat: 40, fiber: null },
+  completeness: {
+    complete: false,
+    incomplete_nutrients: ['fiber'],
+    missing_by_nutrient: { fiber: [{ ingredient_id: 'x', name: 'Palm oil' }] },
+  },
+};
+
+it('the ingredients are the whole meal; servings divide it', () => {
+  assert.deepStrictEqual(perServingOf(wholeMeal, 4).totals, {
+    calories: 460, protein: 12.5, carbohydrate: 77.55, fat: 10, fiber: null,
+  });
+  // Blank servings count as one: the whole meal is one serving.
+  assert.deepStrictEqual(perServingOf(wholeMeal, '').totals, wholeMeal.totals);
   assert.strictEqual(servingCount('0'), 1);
   assert.strictEqual(servingCount('4'), 4);
-  assert.strictEqual(scaleToServings(null, 2), null);
+  assert.strictEqual(perServingOf(null, 2), null);
+});
+
+it('suggests servings of about the target size, never fewer than one', () => {
+  assert.strictEqual(TARGET_KCAL_PER_SERVING, 500);
+  assert.strictEqual(suggestServings(1840), 4); // 460 kcal each
+  assert.strictEqual(suggestServings(2300), 5); // 460 kcal each, not 4 of 575
+  assert.strictEqual(suggestServings(180), 1);
+  assert.strictEqual(suggestServings(1840, 300), 6);
+});
+
+it('makes no suggestion when there is no calorie total to divide', () => {
+  assert.strictEqual(suggestServings(null), null);
+  assert.strictEqual(suggestServings(0), null);
+  assert.strictEqual(suggestServings(Number.NaN), null);
+});
+
+it('a meal saves per-serving figures for the app and whole-meal totals beside them', () => {
+  assert.deepStrictEqual(mealNutritionFields(wholeMeal, 4), {
+    cal: 460, prot: 12.5, carb: 77.6, fat: 10, fiber: null,
+    totalCal: 1840, totalProt: 50, totalCarb: 310.2, totalFat: 40, totalFiber: null,
+  });
+  assert.strictEqual(totalField('cal'), 'totalCal');
+  assert.strictEqual(totalField('fiber'), 'totalFiber');
+});
+
+it('an unavailable nutrient stays null in both columns, never 0', () => {
+  const fields = mealNutritionFields(wholeMeal, 2);
+  assert.strictEqual(fields.fiber, null);
+  assert.strictEqual(fields.totalFiber, null);
 });
 
 // ─── reading the response ───

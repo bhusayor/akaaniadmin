@@ -35,7 +35,7 @@ function exclusionReason(row) {
  *
  * Each row picked from the ingredient database (WAFCT + USDA) is linked to
  * its record, and its Qty and Unit are what the calculation counts. The
- * rows describe ONE serving; the meal's servings multiply the total.
+ * rows are the WHOLE MEAL; the meal's servings divide the total.
  * Only g, kg, oz and lb can be weighed — a row in cups is kept for the
  * cook but marked as not counted.
  *
@@ -129,7 +129,7 @@ export default function IngredientRows({ items, onChange }) {
                 <Input value={row.description} placeholder="soaked and skins removed"
                   onChange={(e) => setAt(i, { description: e.target.value })} />
               </Field>
-              <Field label={i === 0 ? 'Qty' : undefined} hint={i === 0 ? 'per serving' : undefined}>
+              <Field label={i === 0 ? 'Qty' : undefined} hint={i === 0 ? 'whole meal' : undefined}>
                 <Input value={row.quantity} placeholder={linked ? '100' : '2'} inputMode="decimal"
                   onChange={(e) => setAt(i, { quantity: e.target.value })} />
               </Field>

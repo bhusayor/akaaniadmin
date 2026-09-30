@@ -5,10 +5,11 @@
    had, which every meal screen reads) and platform-api's Meal document
    (GET/POST /v1/meals, GET/PUT/DELETE /v1/meals/:id).
 
-   Calories and macros are PER SERVING on the admin record: the form's
-   ingredients are one serving and the calculation is per serving. The
-   API keeps both `calorie_per_serving` and `total_calories`, and its
-   fat / carbohydrate / protein / fiber are per serving too.
+   The admin record carries both: `cal`, `prot`, `carb`, `fat`, `fiber` are
+   PER SERVING — what the app shows, in the API's calorie_per_serving,
+   protein, carbohydrate, fat and fiber — and `totalCal`, `totalProt`, …
+   are the WHOLE MEAL, in total_calories, total_protein, and so on. The
+   form's ingredients are the whole meal; the servings divide it.
 
    Tags and product groups are ObjectId references on the API and names
    here, so writing needs the id lookups (`tagIds`, `productGroupIds`,
@@ -20,6 +21,8 @@
    ═══════════════════════════════════════════════════════ */
 
 import { normaliseUnit, parseQuantity, servingCount } from './mealNutrition.js';
+
+const round1 = (v) => Math.round(v * 10) / 10;
 
 /* The form holds lowercase types; the API enum is capitalised. */
 const TYPES_TO_API = {
@@ -81,6 +84,19 @@ export function mealFromApi(doc) {
   const perServing = numOrNull(doc.calorie_per_serving);
   const total = numOrNull(doc.total_calories);
   const cal = perServing ?? (total !== null && servings ? total / servings : total);
+  /* A whole-meal figure the meal did not store is per serving × servings,
+     for a meal written before the totals were kept; with no servings on
+     record there is nothing honest to multiply by. */
+  const whole = (stored, each, digits) => {
+    const value = numOrNull(stored);
+    if (value !== null) return digits === 0 ? Math.round(value) : round1(value);
+    if (each === null || !servings) return null;
+    return digits === 0 ? Math.round(each * servings) : round1(each * servings);
+  };
+  const prot = numOrNull(doc.protein);
+  const carb = numOrNull(doc.carbohydrate ?? doc.carbohydrates);
+  const fat = numOrNull(doc.fat);
+  const fiber = numOrNull(doc.fiber);
 
   const types = (doc.types || [])
     .map((t) => String(t).toLowerCase())
@@ -117,10 +133,15 @@ export function mealFromApi(doc) {
     type: types[0] || 'lunch',
     countries: (doc.countries || []).filter(Boolean),
     cal: cal === null ? null : Math.round(cal),
-    prot: numOrNull(doc.protein),
-    carb: numOrNull(doc.carbohydrate ?? doc.carbohydrates),
-    fat: numOrNull(doc.fat),
-    fiber: numOrNull(doc.fiber),
+    prot,
+    carb,
+    fat,
+    fiber,
+    totalCal: whole(total, cal, 0),
+    totalProt: whole(doc.total_protein, prot, 1),
+    totalCarb: whole(doc.total_carbohydrate, carb, 1),
+    totalFat: whole(doc.total_fat, fat, 1),
+    totalFiber: whole(doc.total_fiber, fiber, 1),
     prep: numOrNull(doc.prep_time),
     servings,
     portion: String((doc.portion_per_serving || []).find((p) => String(p || '').trim()) ?? ''),
@@ -216,14 +237,20 @@ export function mealToApi(meal, { tagIds = new Map(), productGroupIds = new Map(
       video_url: httpUrl(s.videoUrl),
     })),
 
-    /* Per serving, as calculated. The total is derived here rather than
-       stored separately on the admin record, so the two cannot disagree. */
+    /* Per serving — what the app shows. */
     calorie_per_serving: cal,
-    total_calories: cal === undefined ? undefined : Math.round(cal * servingCount(servings)),
     protein: num(meal.prot),
     carbohydrate: num(meal.carb),
     fat: num(meal.fat),
     fiber: num(meal.fiber),
+    /* The whole meal, as calculated. A meal without a stored total falls
+       back to per serving × servings for calories only, as before; the
+       macro totals are sent only when there are real figures for them. */
+    total_calories: num(meal.totalCal) ?? (cal === undefined ? undefined : Math.round(cal * servingCount(servings))),
+    total_protein: num(meal.totalProt),
+    total_carbohydrate: num(meal.totalCarb),
+    total_fat: num(meal.totalFat),
+    total_fiber: num(meal.totalFiber),
 
     nutrients: (meal.nutrients || []).filter((n) => str(n.name)),
     incompatible_medical_conditions: (meal.healthConditions || []).filter(Boolean),

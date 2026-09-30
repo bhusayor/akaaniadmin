@@ -10,8 +10,10 @@
      unit                   g | kg | oz | lb are counted; cups, pieces
                             etc. are kept for the cook but not counted
 
-   The ingredients describe ONE serving. The calculation is per serving,
-   and scaleToServings() multiplies it by the meal's number of servings.
+   The ingredients are the WHOLE MEAL. The calculation is the meal's
+   total; perServingOf() divides it by the number of servings, which is
+   what the app shows. suggestServings() proposes a starting number of
+   servings from the total calories, and the admin adjusts it.
 
    Two rules run through everything here:
 
@@ -197,21 +199,40 @@ export function servingCount(servings) {
 }
 
 /**
- * A per-serving calculation multiplied up to `servings`. Unavailable
- * nutrients stay null — twice an unknown is still unknown.
+ * The portion size the suggested number of servings aims for. One
+ * number, here, so the team can change it without hunting for it.
  */
-export function scaleToServings(data, servings) {
+export const TARGET_KCAL_PER_SERVING = 500;
+
+/**
+ * How many servings a meal of `totalKcal` makes at about `kcalPerServing`
+ * each: a whole number, at least 1. Null when there is no calorie total to
+ * divide — a meal whose calories are unavailable gets no suggestion rather
+ * than a made-up one.
+ */
+export function suggestServings(totalKcal, kcalPerServing = TARGET_KCAL_PER_SERVING) {
+  const total = Number(totalKcal);
+  const each = Number(kcalPerServing);
+  if (!Number.isFinite(total) || total <= 0 || !Number.isFinite(each) || each <= 0) return null;
+  return Math.max(1, Math.round(total / each));
+}
+
+/**
+ * A whole-meal calculation divided into `servings` portions. Unavailable
+ * nutrients stay null — a share of an unknown is still unknown.
+ */
+export function perServingOf(data, servings) {
   if (!data) return data;
   const n = servingCount(servings);
   const totals = {};
   Object.entries(data.totals || {}).forEach(([k, v]) => {
-    totals[k] = typeof v === 'number' && Number.isFinite(v) ? v * n : v;
+    totals[k] = typeof v === 'number' && Number.isFinite(v) ? v / n : v;
   });
   return { ...data, totals };
 }
 
 /**
- * The meal fields a calculated total writes: a number where the nutrient is
+ * The meal fields a calculation writes: a number where the nutrient is
  * available, null where it is not. Null means unavailable and is stored as
  * such — never coerced to 0, which would read as a measured zero.
  */
@@ -221,6 +242,23 @@ export function totalsToMealFields(data) {
     const { available, value } = readNutrient(data, key);
     fields[field] = available ? (key === 'calories' ? Math.round(value) : round1(value)) : null;
   });
+  return fields;
+}
+
+/** Form field for a nutrient's whole-meal figure: cal → totalCal, prot → totalProt. */
+export const totalField = (field) => `total${field.charAt(0).toUpperCase()}${field.slice(1)}`;
+
+/**
+ * Everything a whole-meal calculation writes on the meal: the per-serving
+ * figures the app shows (cal, prot, carb, fat, fiber) and the whole meal's
+ * (totalCal, totalProt, …). Both are rounded from the same unrounded
+ * total, so per serving × servings matches the total to within rounding.
+ */
+export function mealNutritionFields(data, servings) {
+  const perServing = totalsToMealFields(perServingOf(data, servings));
+  const whole = totalsToMealFields(data);
+  const fields = { ...perServing };
+  Object.entries(whole).forEach(([field, value]) => { fields[totalField(field)] = value; });
   return fields;
 }
 

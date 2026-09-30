@@ -13,6 +13,7 @@ export const MEAL_EXPORT_COLUMNS = [
   'id', 'name', 'type', 'countries', 'category', 'product_group',
   'servings', 'portion', 'prep_mins',
   'calories', 'calories_per_serving', 'protein_g', 'carbs_g', 'fat_g', 'fibre_g',
+  'total_protein_g', 'total_carbs_g', 'total_fat_g', 'total_fibre_g',
   'tags', 'health_conditions',
   'description', 'lu_tips', 'notification_message',
   'ingredients', 'instructions',
@@ -45,12 +46,13 @@ export function formatStep(step, i) {
 /**
  * Total calories for the whole recipe, or null when there is no figure.
  *
- * A meal's `cal` is per serving — its ingredients are one serving and the
- * calculation is per serving — so the total is that times the servings.
+ * The meal's stored whole-meal total where it has one; otherwise its
+ * per-serving `cal` times the servings.
  * Blank or invalid servings count as one, the same rule the meal form
  * uses; a missing figure stays blank rather than becoming 0.
  */
 export function totalCalories(meal) {
+  if (typeof meal.totalCal === 'number' && Number.isFinite(meal.totalCal)) return Math.round(meal.totalCal);
   const cal = Number(meal.cal);
   if (meal.cal === null || meal.cal === undefined || meal.cal === '' || !Number.isFinite(cal)) return null;
   const servings = Number(meal.servings);
@@ -74,6 +76,10 @@ export function mealExportRow(meal) {
     meal.carb,
     meal.fat,
     meal.fiber,
+    meal.totalProt,
+    meal.totalCarb,
+    meal.totalFat,
+    meal.totalFiber,
     list(meal.tags),
     list(meal.healthConditions),
     meal.description,

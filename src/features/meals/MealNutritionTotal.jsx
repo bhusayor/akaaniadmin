@@ -3,7 +3,7 @@ import { Spinner, cx } from '../../components/ui.jsx';
 import { IconInfo, IconWarning } from '../../components/icons.jsx';
 import { calculateNutrition, isExpiredSession, isForbidden } from '../../lib/api.js';
 import {
-  buildCalculateLines, inclusionSummary, NUTRIENTS, readNutrient, servingCount, unavailableLabel,
+  buildCalculateLines, inclusionSummary, NUTRIENTS, readNutrient, unavailableLabel,
 } from '../../lib/mealNutrition.js';
 
 /* Rows are edited a keystroke at a time; wait for a pause before asking
@@ -24,8 +24,7 @@ const DEBOUNCE_MS = 400;
  * is nothing to calculate), which is what the meal saves — there are no
  * hand-typed macros any more.
  */
-export default function MealNutritionTotal({ rows, onTotals, savedFallback, servings }) {
-  const count = servingCount(servings);
+export default function MealNutritionTotal({ rows, onTotals, savedFallback }) {
   const { lines, skipped } = useMemo(() => buildCalculateLines(rows), [rows]);
   const linesKey = JSON.stringify(lines);
   const [state, setState] = useState({ status: 'idle', data: null, error: null });
@@ -74,10 +73,10 @@ export default function MealNutritionTotal({ rows, onTotals, savedFallback, serv
     : status === 'error'
       ? 'not calculated'
       : !lines.length
-        ? '0 cal'
+        ? '0 kcal'
         : calories?.available
-          ? `${Math.round(calories.value)} cal per serving${count > 1 ? ` · ${Math.round(calories.value * count)} cal for ${count} servings` : ''}`
-          : 'cal unavailable';
+          ? `${Math.round(calories.value).toLocaleString()} kcal for the whole meal`
+          : 'kcal unavailable';
 
   return (
     <div className={cx('rounded-xl border p-3.5',
@@ -143,8 +142,8 @@ export default function MealNutritionTotal({ rows, onTotals, savedFallback, serv
         <p className="mt-2 flex items-start gap-1.5 text-[11.5px] leading-relaxed text-ink-3">
           <span className="mt-0.5 shrink-0"><IconInfo size={11} /></span>
           <span>
-            Pick ingredients from the database and give each a quantity for one serving in g, kg,
-            oz or lb — the calories and macros appear here.
+            Pick ingredients from the database and give each the quantity the whole meal uses, in g,
+            kg, oz or lb — the meal's calories and macros appear here, and below them per serving.
             {savedFallback && ' Until then this meal keeps the figures already saved on it.'}
           </span>
         </p>
